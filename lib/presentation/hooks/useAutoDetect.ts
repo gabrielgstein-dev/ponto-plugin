@@ -4,7 +4,8 @@ import type { IPunchProvider } from '../../domain/interfaces';
 import { PunchDetector } from '../../application/detect-punches';
 import { applyTimes, type ApplyTimesContext } from '../../application/apply-punches';
 import { scheduleNotifications } from '../../application/schedule-notifications';
-import { state } from '../../application/state';
+import { applyPartialState, state } from '../../application/state';
+import { calcHorarios } from '../../application/calc-schedule';
 import { timeToMinutes } from '../../domain/time-utils';
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, APP_NAME } from '../../domain/build-flags';
 import { GpPunchProvider } from '../../infrastructure/senior/gp-provider';
@@ -72,9 +73,24 @@ export function useAutoDetect(
     pollingRef.current = setInterval(() => detect(true, false), 15000);
 
     const onStorageChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-      if (area === 'local' && changes.punchSuccessTs) {
-        console.log(`[${APP_NAME}] Ponto detectado! Atualizando em 2s...`);
-        setTimeout(() => { lastPunchHash = ''; detect(true, true); }, 2000);
+      if (area !== 'local') return;
+      if (changes.punchSuccessTs) {
+        console.log(`[${APP_NAME}] Ponto registrado! Re-detectando em 2s, 6s e 15s...`);
+        lastPunchHash = '';
+        [2000, 6000, 15000].forEach(delay => {
+          setTimeout(() => { lastPunchHash = ''; detect(true, true); }, delay);
+        });
+      }
+      if (changes.pontoState?.newValue) {
+        const remote = changes.pontoState.newValue;
+        const local = JSON.stringify({ e: state.entrada, a: state.almoco, v: state.volta, s: state.saida });
+        const incoming = JSON.stringify({ e: remote.entrada, a: remote.almoco, v: remote.volta, s: remote.saida });
+        if (local !== incoming) {
+          console.log(`[${APP_NAME}] State sync do background`);
+          applyPartialState(remote);
+          calcHorarios();
+          ctxRef.current.onRender();
+        }
       }
     };
     chrome.storage.onChanged.addListener(onStorageChange);

@@ -39,8 +39,10 @@ export function usePunchAction(onToast: (msg: string) => void, onRefresh: () => 
         if (newPunchTime) {
           console.log('[Senior Ponto] Novo ponto da API:', newPunchTime);
           await injectPunchIntoLocalStorage(newPunchTime);
-          chrome.storage.local.set({ punchSuccessTs: Date.now() });
         }
+
+        chrome.storage.local.set({ punchSuccessTs: Date.now() });
+        onRefresh();
       } else {
         onToast(`Falha: ${result.logs.join(', ')}`);
       }

@@ -1,5 +1,6 @@
 import { ENABLE_SENIOR_INTEGRATION } from '../lib/domain/build-flags';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm } from '../lib/application/handle-alarm';
+import { backgroundDetect, resetBackgroundHash } from '../lib/application/background-detect';
 
 export default defineBackground(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
@@ -59,6 +60,7 @@ export default defineBackground(() => {
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'dailyReset') { handleDailyReset(); return; }
+    if (alarm.name === 'bgDetect') { backgroundDetect().catch(() => {}); return; }
     if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name); return; }
     if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name); }
   });
@@ -72,4 +74,21 @@ export default defineBackground(() => {
       chrome.alarms.create('dailyReset', { when: midnight.getTime(), periodInMinutes: 1440 });
     }
   });
+
+  chrome.alarms.create('bgDetect', { periodInMinutes: 2 });
+
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.punchSuccessTs) {
+      console.log('[Senior Ponto] Background: punch registrado, re-detectando...');
+      resetBackgroundHash();
+      [3000, 8000, 18000].forEach(delay => {
+        setTimeout(() => {
+          resetBackgroundHash();
+          backgroundDetect().catch(() => {});
+        }, delay);
+      });
+    }
+  });
+
+  backgroundDetect().catch(() => {});
 });
