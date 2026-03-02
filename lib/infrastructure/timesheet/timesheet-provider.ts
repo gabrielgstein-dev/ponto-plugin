@@ -82,6 +82,7 @@ function mapReportedHourToEntry(raw: RawReportedHour): TimesheetEntry {
     status: (raw.status?.title as TimesheetEntryStatus) || 'PENDING',
     costCenter: raw.costCenter ? { code: raw.costCenter.code, name: raw.costCenter.name } : null,
     task: raw.task ? { id: raw.task.id, name: raw.task.name } : null,
+    hourType: raw.hourType ? { id: raw.hourType.id, description: raw.hourType.description } : null,
     observation: raw.observation || null,
     isAutomatic: raw.isAutomaticAppointment ?? false,
   };
@@ -102,6 +103,7 @@ interface RawReportedHour {
   status: { title: string; date: string; justify: string | null };
   costCenter: { code: string; name: string } | null;
   task: { id: string; name: string } | null;
+  hourType: { id: string; description: string } | null;
   observation: string | null;
   isAutomaticAppointment: boolean;
 }

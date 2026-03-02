@@ -77,6 +77,7 @@ export interface TimesheetEntry {
   status: TimesheetEntryStatus;
   costCenter: { code: string; name: string } | null;
   task: { id: string; name: string } | null;
+  hourType: { id: string; description: string } | null;
   observation: string | null;
   isAutomatic: boolean;
 }

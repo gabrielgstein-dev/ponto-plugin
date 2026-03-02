@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import type { TimesheetEntry } from '../../domain/types';
 import { useTimesheetData } from '../hooks/useTimesheetData';
 
 export function TimesheetPanel() {
   const { summary, loading, available, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent } = useTimesheetData();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (!available && !loading) {
     return (
@@ -67,9 +69,15 @@ export function TimesheetPanel() {
             <span>Ce. Custo</span>
             <span>Qtd. Horas</span>
             <span>Status</span>
+            <span></span>
           </div>
           {entries.map(entry => (
-            <TimesheetRow key={entry.id} entry={entry} />
+            <TimesheetRow
+              key={entry.id}
+              entry={entry}
+              expanded={expandedId === entry.id}
+              onToggle={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+            />
           ))}
         </div>
       )}
@@ -77,13 +85,36 @@ export function TimesheetPanel() {
   );
 }
 
-function TimesheetRow({ entry }: { entry: TimesheetEntry }) {
+function TimesheetRow({ entry, expanded, onToggle }: { entry: TimesheetEntry; expanded: boolean; onToggle: () => void }) {
   return (
-    <div className="ts-table-row">
-      <span className="ts-col-date">{formatDate(entry.date)}</span>
-      <span className="ts-col-cc" title={entry.costCenter ? `${entry.costCenter.code} - ${entry.costCenter.name}` : ''}>{entry.costCenter?.code || '—'}</span>
-      <span className="ts-col-hours">{formatHours(entry.hourQuantity)}</span>
-      <span className={`ts-col-status ${entry.status.toLowerCase()}`}>{statusLabel(entry.status)}</span>
+    <div className={`ts-row-wrapper ${expanded ? 'expanded' : ''}`}>
+      <div className="ts-table-row" onClick={onToggle} style={{ cursor: 'pointer' }}>
+        <span className="ts-col-date">{formatDate(entry.date)}</span>
+        <span className="ts-col-cc" title={entry.costCenter ? `${entry.costCenter.code} - ${entry.costCenter.name}` : ''}>{entry.costCenter?.code || '—'}</span>
+        <span className="ts-col-hours">{formatHours(entry.hourQuantity)}</span>
+        <span className={`ts-col-status ${entry.status.toLowerCase()}`}>{statusLabel(entry.status)}</span>
+        <span className={`ts-col-chevron ${expanded ? 'open' : ''}`}>›</span>
+      </div>
+      {expanded && (
+        <div className="ts-row-detail">
+          <div className="ts-detail-field">
+            <span className="ts-detail-label">Centro de Custo</span>
+            <span className="ts-detail-value">{entry.costCenter ? `${entry.costCenter.code} - ${entry.costCenter.name}` : '—'}</span>
+          </div>
+          <div className="ts-detail-field">
+            <span className="ts-detail-label">Tarefa</span>
+            <span className="ts-detail-value">{entry.task ? `${entry.task.name}` : '—'}</span>
+          </div>
+          <div className="ts-detail-field">
+            <span className="ts-detail-label">Tipo Hora</span>
+            <span className="ts-detail-value">{entry.hourType?.description || '—'}</span>
+          </div>
+          <div className="ts-detail-field">
+            <span className="ts-detail-label">Observação</span>
+            <span className="ts-detail-value ts-detail-obs">{entry.observation || 'Sem observação'}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

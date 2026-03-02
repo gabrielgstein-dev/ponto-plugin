@@ -367,7 +367,7 @@ body {
 }
 .ts-table-header {
   display: grid;
-  grid-template-columns: 60px 1fr 70px 70px;
+  grid-template-columns: 50px 1fr 80px 75px 16px;
   gap: 8px;
   padding: 8px 12px;
   background: var(--surface2);
@@ -379,7 +379,7 @@ body {
 }
 .ts-table-row {
   display: grid;
-  grid-template-columns: 60px 1fr 70px 70px;
+  grid-template-columns: 50px 1fr 80px 75px 16px;
   gap: 8px;
   padding: 6px 12px;
   font-size: 13px;
@@ -415,6 +415,56 @@ body {
 .ts-col-status.pending { color: var(--warn); }
 .ts-col-status.approved { color: var(--accent); }
 .ts-col-status.reproved { color: var(--danger); }
+
+.ts-col-chevron {
+  font-size: 14px;
+  color: var(--text-dimmer);
+  transition: transform 0.15s;
+  display: inline-block;
+  line-height: 1;
+  text-align: right;
+}
+.ts-col-chevron.open {
+  transform: rotate(90deg);
+  color: var(--accent2);
+}
+
+.ts-row-wrapper {
+  border-top: 1px solid var(--border);
+}
+.ts-row-wrapper .ts-table-row {
+  border-top: none;
+}
+.ts-row-wrapper.expanded {
+  background: var(--surface);
+}
+.ts-row-detail {
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px dashed var(--border);
+}
+.ts-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ts-detail-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dimmer);
+}
+.ts-detail-value {
+  font-size: 13px;
+  color: var(--text);
+}
+.ts-detail-obs {
+  color: var(--text-dim);
+  font-style: italic;
+}
 
 .ts-empty {
   padding: 24px;
