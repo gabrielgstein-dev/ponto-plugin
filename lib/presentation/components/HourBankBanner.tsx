@@ -10,15 +10,16 @@ interface HourBankBannerProps {
 async function openSidePanel() {
   const win = await chrome.windows.getCurrent();
   if (win.id != null) chrome.sidePanel.open({ windowId: win.id });
+  window.close();
 }
 
 export function HourBankBanner({ balance, estimatedExit }: HourBankBannerProps) {
   if (!balance) {
     return (
-      <div className="hour-bank-banner">
+      <div className="hour-bank-banner" style={{ cursor: 'pointer' }} onClick={openSidePanel}>
         <div className="hour-bank-header">
-          <span className="hour-bank-label">Banco de Horas</span>
-          <button className="hour-bank-detail-btn" onClick={openSidePanel}>Ver completo →</button>
+          <span className="hour-bank-label">Histórico & Timesheet</span>
+          <span className="hour-bank-detail-btn">Abrir →</span>
         </div>
       </div>
     );
@@ -29,9 +30,9 @@ export function HourBankBanner({ balance, estimatedExit }: HourBankBannerProps) 
   const zeroBankExit = calcZeroBankExitTime(estimatedExit, balance.totalMinutes);
 
   return (
-    <div className={className}>
+    <div className={className} style={{ cursor: 'pointer' }} onClick={openSidePanel}>
       <div className="hour-bank-header">
-        <span className="hour-bank-label">Banco de Horas</span>
+        <span className="hour-bank-label">Histórico & Timesheet</span>
         <span className="hour-bank-value">{formatDiff(balance.totalMinutes)}</span>
       </div>
       {zeroBankExit && (
@@ -43,7 +44,7 @@ export function HourBankBanner({ balance, estimatedExit }: HourBankBannerProps) 
         <span className="hour-bank-period">
           Período: {formatDateShort(balance.periodStart)} — {formatDateShort(balance.periodEnd)}
         </span>
-        <button className="hour-bank-detail-btn" onClick={openSidePanel}>Ver completo →</button>
+        <span className="hour-bank-detail-btn">Abrir →</span>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import type { Settings } from '../../domain/types';
+import { ENABLE_SENIOR_INTEGRATION } from '../../domain/build-flags';
 
 interface SettingsPanelProps {
   open: boolean;
@@ -21,7 +22,7 @@ export function SettingsPanel({ open, settings, onToggle, onChange, onClear }: S
           <SettingRow label="Duração Almoço (min)" value={settings.almocoDur} onChange={v => onChange({ almocoDur: v })} />
           <SettingRow label="Antecipação Notif. (min)" value={settings.notifAntecip} onChange={v => onChange({ notifAntecip: v })} />
           <SettingRow label="Lembrete Atraso (min)" value={settings.lembreteAtraso} onChange={v => onChange({ lembreteAtraso: Math.max(0, Math.round(v)) })} />
-          <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />
+          {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
           <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
         </div>
       )}
