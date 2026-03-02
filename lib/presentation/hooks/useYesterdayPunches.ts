@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getGpAssertion } from '../../infrastructure/senior/gp-auth';
-import { parseGpResponse } from '../../infrastructure/senior/gp-provider';
-import { GP_API_BASE } from '../../infrastructure/senior/constants';
+import { getGpAssertion, parseGpResponse, GP_API_BASE } from '#company/providers';
 import { padZero } from '../../domain/time-utils';
 import { ENABLE_YESTERDAY, ENABLE_SENIOR_INTEGRATION } from '../../domain/build-flags';
 

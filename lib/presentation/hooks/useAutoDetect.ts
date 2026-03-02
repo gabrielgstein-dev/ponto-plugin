@@ -8,7 +8,7 @@ import { applyPartialState, state } from '../../application/state';
 import { calcHorarios } from '../../application/calc-schedule';
 import { timeToMinutes } from '../../domain/time-utils';
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, APP_NAME } from '../../domain/build-flags';
-import { GpPunchProvider } from '../../infrastructure/senior/gp-provider';
+import { getCompanyPunchProviders } from '#company/providers';
 import { SeniorStoragePunchProvider } from '../../infrastructure/senior/senior-storage-provider';
 import { SeniorApiPunchProvider } from '../../infrastructure/senior/senior-api-provider';
 import { SeniorScraperProvider } from '../../infrastructure/senior/senior-scraper';
@@ -18,7 +18,7 @@ function buildProviders(): IPunchProvider[] {
   const providers: IPunchProvider[] = [];
   if (ENABLE_MANUAL_PUNCH) providers.push(new ManualPunchProvider());
   if (ENABLE_SENIOR_INTEGRATION) {
-    providers.push(new GpPunchProvider());
+    providers.push(...getCompanyPunchProviders());
     providers.push(new SeniorApiPunchProvider());
     providers.push(new SeniorStoragePunchProvider());
     providers.push(new SeniorScraperProvider());

@@ -8,7 +8,7 @@ import {
   updateManualPunchForDate,
 } from '../../infrastructure/manual/manual-punch-provider';
 import { ENABLE_SENIOR_INTEGRATION } from '../../domain/build-flags';
-import { fetchGpHistoryForPeriod } from '../../infrastructure/senior/gp-history-provider';
+import { fetchGpHistoryForPeriod } from '#company/providers';
 
 export type SidePanelSource = 'gp' | 'manual';
 
