@@ -1,9 +1,11 @@
 {
+  "ACTIVE_COMPANY": "meta",
   "APP_NAME": "Senior Ponto",
   "ENABLE_SENIOR_INTEGRATION": true,
   "ENABLE_SENIOR_PUNCH_BUTTON": false,
   "ENABLE_MANUAL_PUNCH": false,
   "ENABLE_WIDGET": true,
   "ENABLE_YESTERDAY": false,
-  "ENABLE_NOTIFICATIONS": true
+  "ENABLE_NOTIFICATIONS": true,
+  "ENABLE_META_TIMESHEET": true
 }
