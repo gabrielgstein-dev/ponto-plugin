@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { IStateRepository } from '../../domain/interfaces';
 import type { IPunchProvider } from '../../domain/interfaces';
-import { PunchDetector } from '../../application/detect-punches';
+import { PunchDetector, addPendingPunch } from '../../application/detect-punches';
 import { applyTimes, type ApplyTimesContext } from '../../application/apply-punches';
 import { scheduleNotifications } from '../../application/schedule-notifications';
 import { applyPartialState, state } from '../../application/state';
@@ -13,6 +13,7 @@ import { SeniorStoragePunchProvider } from '../../infrastructure/senior/senior-s
 import { SeniorApiPunchProvider } from '../../infrastructure/senior/senior-api-provider';
 import { SeniorScraperProvider } from '../../infrastructure/senior/senior-scraper';
 import { ManualPunchProvider } from '../../infrastructure/manual/manual-punch-provider';
+import { resetGpPunchCache } from '#company/providers';
 
 function buildProviders(): IPunchProvider[] {
   const providers: IPunchProvider[] = [];
@@ -75,7 +76,13 @@ export function useAutoDetect(
     const onStorageChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== 'local') return;
       if (changes.punchSuccessTs) {
-        console.log(`[${APP_NAME}] Ponto registrado! Re-detectando em 2s, 6s e 15s...`);
+        const punchTime = changes.punchSuccessTime?.newValue as string | undefined;
+        const now = new Date();
+        const fallback = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const time = punchTime || fallback;
+        console.log(`[${APP_NAME}] Ponto registrado! Pending: ${time}. Re-detectando em 2s, 6s e 15s...`);
+        addPendingPunch(time);
+        resetGpPunchCache();
         lastPunchHash = '';
         [2000, 6000, 15000].forEach(delay => {
           setTimeout(() => { lastPunchHash = ''; detect(true, true); }, delay);

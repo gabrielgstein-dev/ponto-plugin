@@ -1,6 +1,8 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm } from '../lib/application/handle-alarm';
 import { backgroundDetect, resetBackgroundHash } from '../lib/application/background-detect';
+import { addPendingPunch } from '../lib/application/detect-punches';
+import { resetGpPunchCache } from '#company/providers';
 
 export default defineBackground(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
@@ -97,7 +99,13 @@ export default defineBackground(() => {
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.punchSuccessTs) {
-      console.log('[Senior Ponto] Background: punch registrado, re-detectando...');
+      const punchTime = changes.punchSuccessTime?.newValue as string | undefined;
+      const now = new Date();
+      const fallbackTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const time = punchTime || fallbackTime;
+      console.log(`[Senior Ponto] Background: punch registrado (${time}), pending + re-detectando...`);
+      addPendingPunch(time);
+      resetGpPunchCache();
       resetBackgroundHash();
       [3000, 8000, 18000].forEach(delay => {
         setTimeout(() => {

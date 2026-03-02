@@ -1,5 +1,6 @@
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
 import { state, settings, resetNotifScheduled } from './state';
+import { calcHorarios } from './calc-schedule';
 import type { IStateRepository } from '../domain/interfaces';
 
 export interface ApplyTimesContext {
@@ -40,6 +41,8 @@ export function applyTimes(
 
   const newHash = JSON.stringify({ e: state.entrada, a: state.almoco, v: state.volta, s: state.saida });
   const changed = oldHash !== newHash;
+
+  calcHorarios();
 
   if (changed) {
     ctx.stateRepo.saveState(state).then(() => {

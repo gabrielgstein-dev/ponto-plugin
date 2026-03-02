@@ -138,6 +138,7 @@ export async function executeGpFetch(tabId: number): Promise<GpFetchResult | nul
           log('Response: ' + JSON.stringify(json).substring(0, 500));
           const times: string[] = [];
           for (const dia of (json.apuracao || [])) {
+            if (dia.dataApuracao && dia.dataApuracao !== ds) continue;
             for (const m of (dia.marcacoes || [])) {
               const mt = m.horaAcesso?.match(/(\d{2}):(\d{2})/);
               if (mt) times.push(`${mt[1]}:${mt[2]}`);

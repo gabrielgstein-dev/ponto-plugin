@@ -7,6 +7,12 @@ let _lastFailTs = 0;
 let _cachedResult: string[] | null = null;
 let _cachedTs = 0;
 
+export function resetGpPunchCache(): void {
+  _cachedResult = null;
+  _cachedTs = 0;
+  _lastFailTs = 0;
+}
+
 export class GpPunchProvider implements IPunchProvider {
   readonly name = 'gestaoPonto';
   readonly priority = 1;
@@ -72,7 +78,7 @@ export class GpPunchProvider implements IPunchProvider {
         return { times: [], ok: false };
       }
       const json = await r.json();
-      const times = parseGpResponse(json);
+      const times = parseGpResponse(json, dataStr);
       console.log('[Senior Ponto] GP fetchDirect marcações:', times);
       return { times, ok: true };
     } catch (e) {
@@ -83,14 +89,20 @@ export class GpPunchProvider implements IPunchProvider {
   }
 }
 
-export function parseGpResponse(json: Record<string, unknown>): string[] {
+export function parseGpResponse(json: Record<string, unknown>, filterDate?: string): string[] {
   const times: string[] = [];
   const apuracao = json.apuracao as Array<Record<string, unknown>> | undefined;
   if (!Array.isArray(apuracao)) return times;
 
   for (const dia of apuracao) {
+    if (filterDate && dia.dataApuracao && dia.dataApuracao !== filterDate) continue;
     const marcacoes = dia.marcacoes as Array<Record<string, string>> | undefined;
     if (!Array.isArray(marcacoes)) continue;
+    if (marcacoes.length > 0) {
+      console.log('[Senior Ponto] GP marcacao[0] keys:', Object.keys(marcacoes[0]).join(', '));
+      console.log('[Senior Ponto] GP marcacoes:', JSON.stringify(marcacoes).substring(0, 600));
+      if (dia.marcacoesPrevistas) console.log('[Senior Ponto] GP previstas:', JSON.stringify(dia.marcacoesPrevistas));
+    }
     for (const m of marcacoes) {
       const match = m.horaAcesso?.match(/(\d{2}):(\d{2})/);
       if (match) times.push(`${match[1]}:${match[2]}`);

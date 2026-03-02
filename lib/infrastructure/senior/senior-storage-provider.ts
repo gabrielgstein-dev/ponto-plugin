@@ -60,21 +60,21 @@ export class SeniorStoragePunchProvider implements IPunchProvider {
 
     for (const empData of Object.values(data)) {
       if (!empData || typeof empData !== 'object') continue;
-      const eventArrays = Object.values(empData as Record<string, unknown>).filter(v => Array.isArray(v)) as Array<Array<Record<string, string>>>;
+      const emp = empData as Record<string, unknown>;
+      const imported = emp.clockingEventImported;
+      if (!Array.isArray(imported)) continue;
 
-      for (const events of eventArrays) {
-        for (const ev of events) {
-          const evDate = ev.dateEvent || ev.date || ev.dateTime || '';
-          if (!evDate.startsWith(today)) continue;
+      for (const ev of imported as Array<Record<string, string>>) {
+        const evDate = ev.dateEvent || ev.date || ev.dateTime || '';
+        if (!evDate.startsWith(today)) continue;
 
-          const timeVal = ev.timeEvent || ev.time || '';
-          const timeMatch = timeVal.match(/(\d{2}):(\d{2})/);
-          if (timeMatch) {
-            times.push(`${timeMatch[1]}:${timeMatch[2]}`);
-          } else {
-            const dtMatch = evDate.match(/T(\d{2}):(\d{2})/);
-            if (dtMatch) times.push(`${dtMatch[1]}:${dtMatch[2]}`);
-          }
+        const timeVal = ev.timeEvent || ev.time || '';
+        const timeMatch = timeVal.match(/(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          times.push(`${timeMatch[1]}:${timeMatch[2]}`);
+        } else {
+          const dtMatch = evDate.match(/T(\d{2}):(\d{2})/);
+          if (dtMatch) times.push(`${dtMatch[1]}:${dtMatch[2]}`);
         }
       }
     }

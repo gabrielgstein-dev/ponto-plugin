@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { registerPunch } from '../../application/register-punch';
+import { addPendingPunch } from '../../application/detect-punches';
 import { SeniorCookieAuth } from '../../infrastructure/senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../../infrastructure/senior/senior-page-auth';
 import { SeniorInterceptorAuth } from '../../infrastructure/senior/senior-interceptor-auth';
@@ -38,6 +39,7 @@ export function usePunchAction(onToast: (msg: string) => void, onRefresh: () => 
 
         if (newPunchTime) {
           console.log('[Senior Ponto] Novo ponto da API:', newPunchTime);
+          addPendingPunch(newPunchTime);
           await injectPunchIntoLocalStorage(newPunchTime);
         }
 

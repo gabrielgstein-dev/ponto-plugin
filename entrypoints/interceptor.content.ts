@@ -80,10 +80,26 @@ function interceptFetch() {
 
     const result = originalFetch.apply(this, [input, init]);
     if (fetchUrl.includes(PUNCH_URL_MATCH)) {
+      let punchTime: string | null = null;
+      try {
+        const bodyStr = typeof init?.body === 'string' ? init.body : '';
+        if (bodyStr) {
+          const bodyJson = JSON.parse(bodyStr);
+          const dt = bodyJson?.clockingInfo?.clientDateTimeEvent;
+          if (typeof dt === 'string') {
+            const m = dt.match(/(\d{2}):(\d{2})/);
+            if (m) punchTime = `${m[1]}:${m[2]}`;
+          }
+        }
+      } catch (_) {}
+      if (!punchTime) {
+        const now = new Date();
+        punchTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      }
       (result as Promise<Response>).then(response => {
         if (response.ok) {
           window.dispatchEvent(new CustomEvent('__sponto_punch_success', {
-            detail: JSON.stringify({ url: fetchUrl, timestamp: Date.now() }),
+            detail: JSON.stringify({ url: fetchUrl, timestamp: Date.now(), punchTime }),
           }));
         }
       }).catch(() => {});
