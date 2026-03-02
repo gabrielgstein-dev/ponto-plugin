@@ -80,6 +80,22 @@ function parseRecords(json: Record<string, unknown>): DayRecord[] {
   return records.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export async function getWorkedHoursForDate(dateStr: string): Promise<number | null> {
+  const auth = await getGpAssertion();
+  if (!auth?.assertion || !auth.colaboradorId) return null;
+  const [y, m] = dateStr.split('-');
+  const comp = `${y}-${m}-01`;
+  const period = await fetchPeriodForCompetencia(auth.colaboradorId, auth.assertion, comp);
+  if (!period) return null;
+  const json = await fetchHistory(auth.colaboradorId, auth.assertion, period.codigoCalculo, dateStr, dateStr);
+  if (!json) return null;
+  const records = parseRecords(json);
+  const record = records.find(r => r.date === dateStr);
+  if (!record || record.workedMinutes === 0) return null;
+  console.log(`[Senior Ponto] GP horas para ${dateStr}: ${record.workedMinutes}min (${(record.workedMinutes / 60).toFixed(2)}h)`);
+  return record.workedMinutes / 60;
+}
+
 export async function fetchGpHistoryForPeriod(monthOffset: number): Promise<GpHistoryResult | null> {
   const auth = await getGpAssertion();
   if (!auth?.assertion || !auth.colaboradorId) return null;

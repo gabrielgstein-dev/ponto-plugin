@@ -1,4 +1,5 @@
 import { ENABLE_SENIOR_INTEGRATION } from '../domain/build-flags';
+import { resetTsScheduled } from './schedule-ts-notifications';
 
 const REMINDER_SLOT_MAP: Record<string, string> = {
   reminder_almoco: 'almoco',
@@ -9,7 +10,7 @@ const REMINDER_SLOT_MAP: Record<string, string> = {
 export async function handleDailyReset(): Promise<void> {
   const alarms = await chrome.alarms.getAll();
   for (const a of alarms) {
-    if (a.name.startsWith('notif_') || a.name.startsWith('reminder_')) {
+    if (a.name.startsWith('notif_') || a.name.startsWith('reminder_') || a.name.startsWith('ts_')) {
       await chrome.alarms.clear(a.name);
     }
   }
@@ -24,6 +25,7 @@ export async function handleDailyReset(): Promise<void> {
     resetData.seniorBearerTs = null;
   }
   await chrome.storage.local.set(resetData);
+  resetTsScheduled();
 }
 
 export async function handleReminderAlarm(alarmName: string): Promise<void> {

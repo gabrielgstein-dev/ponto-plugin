@@ -1,6 +1,7 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm } from '../lib/application/handle-alarm';
-import { backgroundDetect, resetBackgroundHash } from '../lib/application/background-detect';
+import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet } from '../lib/application/background-detect';
+import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
 import { addPendingPunch } from '../lib/application/detect-punches';
 import { resetGpPunchCache } from '#company/providers';
 
@@ -57,10 +58,33 @@ export default defineBackground(() => {
       if (windowId) {
         chrome.sidePanel.open({ windowId }).then(() => sendResponse({ ok: true }));
       } else {
-        chrome.windows.getCurrent((win) => {
-          if (win.id) chrome.sidePanel.open({ windowId: win.id }).then(() => sendResponse({ ok: true }));
+        chrome.windows.getAll({ windowTypes: ['normal'] }, (wins) => {
+          const target = wins.find(w => w.focused) || wins[0];
+          if (target?.id) chrome.sidePanel.open({ windowId: target.id }).then(() => sendResponse({ ok: true }));
         });
       }
+      return true;
+    }
+    if (message.type === 'CLOSE_TS_NOTIFICATION') {
+      chrome.storage.local.get('tsNotifWindowId', (data) => {
+        if (data.tsNotifWindowId) {
+          chrome.windows.remove(data.tsNotifWindowId, () => {
+            chrome.storage.local.remove('tsNotifWindowId');
+            sendResponse({ ok: true });
+          });
+        } else if (sender.tab?.windowId) {
+          chrome.windows.remove(sender.tab.windowId, () => {
+            sendResponse({ ok: true });
+          });
+        } else {
+          sendResponse({ ok: false });
+        }
+      });
+      return true;
+    }
+    if (message.type === 'TEST_TS_NOTIFICATION') {
+      notifyPendingTimesheet().catch(() => {});
+      sendResponse({ ok: true });
       return true;
     }
     if (message.type === 'SHOW_NOTIFICATION') {
@@ -78,11 +102,22 @@ export default defineBackground(() => {
     return true;
   });
 
+  chrome.notifications.onClicked.addListener((notifId) => {
+    if (notifId === 'timesheet-pending') {
+      chrome.notifications.clear(notifId);
+      chrome.storage.local.set({ sidePanelTab: 'timesheet' });
+      chrome.windows.getCurrent((win) => {
+        if (win?.id) chrome.sidePanel.open({ windowId: win.id });
+      });
+    }
+  });
+
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'dailyReset') { handleDailyReset(); return; }
     if (alarm.name === 'bgDetect') { backgroundDetect().catch(() => {}); return; }
     if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name); return; }
-    if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name); }
+    if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name); return; }
+    if (alarm.name.startsWith('ts_')) { handleTsAlarm(alarm.name); }
   });
 
   chrome.alarms.get('dailyReset', (existing) => {
