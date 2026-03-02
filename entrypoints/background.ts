@@ -1,4 +1,4 @@
-import { ENABLE_SENIOR_INTEGRATION } from '../lib/domain/build-flags';
+import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm } from '../lib/application/handle-alarm';
 import { backgroundDetect, resetBackgroundHash } from '../lib/application/background-detect';
 
@@ -27,6 +27,24 @@ export default defineBackground(() => {
         }
       },
       { urls: ['https://platform.senior.com.br/*', 'https://*.senior.com.br/*'] },
+      ['requestHeaders', 'extraHeaders']
+    );
+  }
+
+  if (ENABLE_META_TIMESHEET) {
+    chrome.webRequest.onSendHeaders.addListener(
+      (details) => {
+        const authHeader = details.requestHeaders?.find(
+          h => h.name.toLowerCase() === 'authorization'
+        );
+        if (authHeader?.value && /^[Bb]earer\s/.test(authHeader.value)) {
+          const token = authHeader.value.split(/\s+/)[1];
+          if (token && token.length > 20) {
+            chrome.storage.local.set({ metaTsToken: token, metaTsTokenTs: Date.now() });
+          }
+        }
+      },
+      { urls: ['https://api.meta.com.br/*'] },
       ['requestHeaders', 'extraHeaders']
     );
   }

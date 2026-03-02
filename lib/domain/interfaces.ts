@@ -1,4 +1,4 @@
-import type { PunchDetectionResult, PunchResult, PunchState, Settings, DayRecord, HourBankBalance } from './types';
+import type { PunchDetectionResult, PunchResult, PunchState, Settings, DayRecord, HourBankBalance, TimesheetSummary } from './types';
 
 export interface IAuthProvider {
   readonly name: string;
@@ -31,4 +31,10 @@ export interface IHourBankProvider {
   recalculate(settings: Settings): Promise<HourBankBalance>;
   closePeriod(settings: Settings): Promise<HourBankBalance>;
   ensureInitialized(closingDay: number): Promise<HourBankBalance>;
+}
+
+export interface ITimesheetProvider {
+  readonly name: string;
+  isAvailable(): Promise<boolean>;
+  getSummary(period: string): Promise<TimesheetSummary | null>;
 }

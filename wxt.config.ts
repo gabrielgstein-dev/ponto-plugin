@@ -1,17 +1,20 @@
+import { resolve } from 'path';
 import { defineConfig } from 'wxt';
-import { APP_NAME, ENABLE_SENIOR_INTEGRATION, ENABLE_NOTIFICATIONS, ENABLE_WIDGET } from './lib/domain/build-flags';
+import { ACTIVE_COMPANY, APP_NAME, ENABLE_SENIOR_INTEGRATION, ENABLE_NOTIFICATIONS, ENABLE_WIDGET, ENABLE_META_TIMESHEET } from './lib/domain/build-flags';
 
 const basePermissions: string[] = ['storage', 'alarms', 'sidePanel'];
 const seniorPermissions: string[] = ['activeTab', 'tabs', 'scripting', 'webRequest', 'cookies'];
+const metaTimesheetPermissions: string[] = ['webRequest'];
 const notifPermissions: string[] = ['notifications'];
 
 const permissions = [
   ...basePermissions,
   ...(ENABLE_SENIOR_INTEGRATION ? seniorPermissions : []),
+  ...(ENABLE_META_TIMESHEET ? metaTimesheetPermissions : []),
   ...(ENABLE_NOTIFICATIONS ? notifPermissions : []),
 ];
 
-const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET ? ['<all_urls>'] : [];
+const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET || ENABLE_META_TIMESHEET ? ['<all_urls>'] : [];
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
@@ -27,4 +30,11 @@ export default defineConfig({
       128: '/icons/icon128.png',
     },
   },
+  vite: () => ({
+    resolve: {
+      alias: {
+        '#company': resolve(__dirname, `lib/infrastructure/${ACTIVE_COMPANY}`),
+      },
+    },
+  }),
 });

@@ -67,3 +67,25 @@ export interface HourBankBalance {
   periodEnd: string;
   carryOverMinutes: number;
 }
+
+export type TimesheetEntryStatus = 'PENDING' | 'APPROVED' | 'REPROVED';
+
+export interface TimesheetEntry {
+  id: string;
+  date: string;
+  hourQuantity: number;
+  status: TimesheetEntryStatus;
+  costCenter: { code: string; name: string } | null;
+  task: { id: string; name: string } | null;
+  observation: string | null;
+  isAutomatic: boolean;
+}
+
+export interface TimesheetSummary {
+  period: string;
+  pendingHours: number;
+  approvedHours: number;
+  reprovedHours: number;
+  totalReportedHours: number;
+  entries: TimesheetEntry[];
+}
