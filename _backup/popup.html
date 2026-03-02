@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Senior Ponto</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #181b25;
+      --surface2: #1e2230;
+      --border: #2a2f40;
+      --accent: #4ade80;
+      --accent2: #22d3ee;
+      --warn: #fbbf24;
+      --danger: #f87171;
+      --text: #e8eaf0;
+      --text-dim: #8892a4;
+      --text-dimmer: #4a5268;
+      --mono: 'Space Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    body {
+      width: 340px;
+      min-height: 480px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .logo-text {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .settings-btn {
+      background: none;
+      border: none;
+      color: var(--text-dimmer);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s;
+    }
+    .settings-btn:hover { color: var(--text); }
+
+    /* ── LIVE CLOCK ── */
+    .live-clock {
+      text-align: center;
+      padding: 16px 16px 8px;
+    }
+
+    .current-time {
+      font-family: var(--mono);
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    .current-date {
+      font-size: 11px;
+      color: var(--text-dimmer);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── STATUS BANNER ── */
+    .status-banner {
+      margin: 8px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--text-dimmer);
+      flex-shrink: 0;
+    }
+    .status-banner.active .status-dot { background: var(--accent); }
+    .status-banner.warning .status-dot { background: var(--warn); }
+    .status-banner.done .status-dot { background: var(--accent2); }
+
+    /* ── CARDS GRID ── */
+    .cards {
+      padding: 8px 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s;
+    }
+
+    .card.active::before { transform: scaleX(1); }
+    .card.warn::before { background: var(--warn); transform: scaleX(1); }
+    .card.done::before { background: var(--accent2); transform: scaleX(1); }
+
+    .card.active { border-color: rgba(74, 222, 128, 0.2); }
+    .card.warn { border-color: rgba(251, 191, 36, 0.2); }
+    .card.done { border-color: rgba(34, 211, 238, 0.15); }
+
+    .card-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-dimmer);
+      margin-bottom: 6px;
+    }
+
+    .card-time {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .card-time.empty { color: var(--text-dimmer); font-size: 18px; }
+    .card-time.active { color: var(--accent); }
+    .card-time.warn { color: var(--warn); }
+    .card-time.done { color: var(--accent2); }
+
+    .card-sub {
+      font-size: 10px;
+      color: var(--text-dimmer);
+      margin-top: 4px;
+    }
+
+    .card-sub.counting {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    /* ── PROGRESS BAR ── */
+    .progress-section {
+      padding: 0 16px 12px;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .progress-label {
+      font-size: 10px;
+      color: var(--text-dimmer);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .progress-pct {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 4px;
+      transition: width 1s linear;
+      min-width: 0%;
+    }
+
+    .section-title {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-dimmer);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    input[type="time"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      padding: 7px 8px;
+      outline: none;
+      transition: border-color 0.15s;
+      color-scheme: dark;
+    }
+
+    input[type="time"]:focus {
+      border-color: rgba(74, 222, 128, 0.4);
+    }
+
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.5);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 9px;
+      border-radius: 7px;
+      border: none;
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0a1a0e;
+    }
+    .btn-primary:hover { background: #86efac; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-punch {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0a1a0e;
+      font-size: 13px;
+      padding: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-punch:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn-punch:active { transform: translateY(0); }
+    .btn-punch:disabled { opacity: 0.5; cursor: not-allowed; transform: none; filter: none; }
+
+    .punch-status {
+      font-size: 10px;
+      color: var(--text-dimmer);
+      text-align: center;
+      margin-top: 4px;
+      min-height: 14px;
+    }
+    .punch-status.success { color: var(--accent); }
+    .punch-status.error { color: #f87171; }
+
+    /* ── SETTINGS PANEL ── */
+    .settings-panel {
+      display: none;
+      padding: 0 16px 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .settings-panel.open { display: block; padding-top: 12px; }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .setting-name {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .setting-value {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    input[type="number"] {
+      width: 52px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 4px 6px;
+      outline: none;
+      text-align: center;
+    }
+
+    input[type="number"]:focus { border-color: rgba(74, 222, 128, 0.4); }
+
+    .setting-unit {
+      font-size: 10px;
+      color: var(--text-dimmer);
+    }
+
+    /* ── NEXT ACTION ── */
+    .next-action {
+      margin: 0 16px 12px;
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.08), rgba(34, 211, 238, 0.05));
+      border: 1px solid rgba(74, 222, 128, 0.2);
+      border-radius: 10px;
+      padding: 12px;
+      display: none;
+    }
+
+    .next-action.visible { display: block; }
+
+    .next-action-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .next-action-text {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .next-action-countdown {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-hint {
+      font-size: 9px;
+      color: var(--text-dimmer);
+    }
+
+    .clear-btn {
+      background: none;
+      border: none;
+      font-size: 9px;
+      color: var(--text-dimmer);
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 3px;
+      transition: color 0.15s;
+    }
+    .clear-btn:hover { color: var(--danger); }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 11px;
+      color: var(--accent);
+      opacity: 0;
+      transition: all 0.2s;
+      white-space: nowrap;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .scrape-badge {
+      display: inline-block;
+      font-size: 8px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(74, 222, 128, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      margin-left: 4px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .token-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 16px;
+      font-size: 9px;
+      color: var(--text-dimmer);
+      border-bottom: 1px solid var(--border);
+    }
+    .token-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--text-dimmer);
+      flex-shrink: 0;
+    }
+    .token-dot.ok { background: var(--accent); }
+    .token-dot.warn { background: var(--warn); }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-dot" id="statusDot"></div>
+      <span class="logo-text">Senior · Ponto</span>
+    </div>
+    <button class="settings-btn" id="settingsToggle" title="Configurações">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- LIVE CLOCK -->
+  <div class="live-clock">
+    <div class="current-time" id="currentTime">--:--:--</div>
+    <div class="current-date" id="currentDate"></div>
+  </div>
+
+  <!-- TOKEN STATUS -->
+  <div class="token-status" id="tokenStatusBar">
+    <div class="token-dot" id="tokenDot"></div>
+    <span id="tokenStatusText">Aguardando token do Senior...</span>
+  </div>
+
+  <!-- STATUS BANNER -->
+  <div class="status-banner" id="statusBanner">
+    <div class="status-dot"></div>
+    <span id="statusText">Aguardando primeiro batimento...</span>
+  </div>
+
+  <!-- NEXT ACTION -->
+  <div class="next-action" id="nextAction">
+    <div class="next-action-label">⏱ Próximo batimento</div>
+    <div class="next-action-text" id="nextActionText"></div>
+    <div class="next-action-countdown" id="nextCountdown"></div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="cards">
+    <div class="card" id="cardEntrada">
+      <div class="card-label">Entrada</div>
+      <div class="card-time empty" id="timeEntrada">--:--</div>
+      <div class="card-sub" id="subEntrada">não registrado</div>
+    </div>
+
+    <div class="card" id="cardAlmoco">
+      <div class="card-label">Almoço</div>
+      <div class="card-time empty" id="timeAlmoco">--:--</div>
+      <div class="card-sub" id="subAlmoco">aguardando entrada</div>
+    </div>
+
+    <div class="card" id="cardVolta">
+      <div class="card-label">Volta</div>
+      <div class="card-time empty" id="timeVolta">--:--</div>
+      <div class="card-sub" id="subVolta">aguardando almoço</div>
+    </div>
+
+    <div class="card" id="cardSaida">
+      <div class="card-label">Saída</div>
+      <div class="card-time empty" id="timeSaida">--:--</div>
+      <div class="card-sub" id="subSaida">aguardando volta</div>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-section" id="progressSection" style="display:none">
+    <div class="progress-header">
+      <span class="progress-label">Horas trabalhadas</span>
+      <span class="progress-pct" id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- BATER PONTO -->
+  <div style="padding: 0 16px 12px">
+    <button class="btn btn-punch" id="btnPunch">
+      <span class="punch-icon">⏱</span> Bater Ponto
+    </button>
+    <div class="punch-status" id="punchStatus"></div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="settings-panel" id="settingsPanel">
+    <div class="section-title">Configurações</div>
+
+    <div class="setting-row">
+      <span class="setting-name">Jornada diária</span>
+      <div class="setting-value">
+        <input type="number" id="setJornada" min="4" max="12" value="8">
+        <span class="setting-unit">horas</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-name">Horário do almoço</span>
+      <div class="setting-value">
+        <input type="time" id="setAlmocoHorario" value="12:00">
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-name">Duração mínima do almoço</span>
+      <div class="setting-value">
+        <input type="number" id="setAlmocoDur" min="30" max="120" step="15" value="60">
+        <span class="setting-unit">min</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span class="setting-name">Notificações</span>
+      <div class="setting-value">
+        <input type="number" id="setNotifAntecip" min="5" max="30" value="10">
+        <span class="setting-unit">min antes</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btnSaveSettings" style="margin-top:4px">Salvar</button>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span class="footer-hint" id="lastUpdate">—</span>
+    <button class="clear-btn" id="btnClear">Limpar</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
