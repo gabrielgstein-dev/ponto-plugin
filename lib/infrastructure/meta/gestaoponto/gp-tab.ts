@@ -1,4 +1,4 @@
-import { getOrCreateGpTab, safeCloseTab } from './tab-utils';
+import { getOrCreateGpTab, safeCloseTab } from './gp-tab-utils';
 import { waitForGpSession } from './gp-tab-session';
 import { executeGpFetch } from './gp-tab-fetch';
 

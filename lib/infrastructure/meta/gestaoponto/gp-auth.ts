@@ -1,4 +1,4 @@
-import type { GpAuthData } from '../../domain/types';
+import type { GpAuthData } from '../../../domain/types';
 import { GP_API_BASE, GP_CACHE_DURATION_MS } from './constants';
 
 export async function getGpAssertion(): Promise<GpAuthData | null> {

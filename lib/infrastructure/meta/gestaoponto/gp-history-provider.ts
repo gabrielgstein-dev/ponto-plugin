@@ -1,5 +1,5 @@
-import type { DayRecord, HourBankBalance } from '../../domain/types';
-import { calcWorkedMinutes } from '../../application/calc-hour-bank';
+import type { DayRecord, HourBankBalance } from '../../../domain/types';
+import { calcWorkedMinutes } from '../../../application/calc-hour-bank';
 import { getGpAssertion } from './gp-auth';
 import { GP_API_BASE } from './constants';
 

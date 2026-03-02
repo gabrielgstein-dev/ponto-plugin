@@ -1,4 +1,4 @@
-import { SeniorCookieAuth } from './senior-cookie-auth';
+import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
 
 export async function waitForGpSession(tabId: number, maxWait: number): Promise<boolean> {
   let elapsed = 0;

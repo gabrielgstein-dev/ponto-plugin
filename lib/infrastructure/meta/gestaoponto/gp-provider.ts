@@ -1,5 +1,5 @@
-import type { IPunchProvider } from '../../domain/interfaces';
-import { todayDateStr } from '../../domain/time-utils';
+import type { IPunchProvider } from '../../../domain/interfaces';
+import { todayDateStr } from '../../../domain/time-utils';
 import { getGpAssertion, invalidateGpCache } from './gp-auth';
 import { fetchGpViaTabs } from './gp-tab';
 import { GP_API_BASE } from './constants';
