@@ -100,11 +100,11 @@ export function useAutoDetect(
         }
       }
     };
-    chrome.storage.onChanged.addListener(onStorageChange);
+    chrome.storage.local.onChanged.addListener(onStorageChange);
 
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
-      chrome.storage.onChanged.removeListener(onStorageChange);
+      chrome.storage.local.onChanged.removeListener(onStorageChange);
     };
   }, [detect]);
 

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { TimesheetEntry } from '../../domain/types';
 import { useTimesheetData } from '../hooks/useTimesheetData';
 
 export function TimesheetPanel() {
-  const { summary, loading, available, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent } = useTimesheetData();
+  const { summary, loading, available, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, updateEntry, fetchGpHours } = useTimesheetData();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (!available && !loading) {
@@ -11,7 +11,11 @@ export function TimesheetPanel() {
       <div className="ts-container">
         <h2 className="ts-title">Timesheet</h2>
         <div className="ts-empty">
-          Sem token disponível. Acesse <strong>plataforma.meta.com.br</strong> para autenticar.
+          <p>Sem token disponível.</p>
+          <button
+            className="ts-login-btn"
+            onClick={() => chrome.tabs.create({ url: 'https://plataforma.meta.com.br' })}
+          >Fazer Login</button>
         </div>
       </div>
     );
@@ -22,6 +26,13 @@ export function TimesheetPanel() {
   return (
     <div className="ts-container">
       <h2 className="ts-title">Timesheet — Pendentes</h2>
+      <button
+        className="ts-test-notif-btn"
+        onClick={() => {
+          chrome.storage.local.remove('tsNotifShownDate');
+          chrome.runtime.sendMessage({ type: 'TEST_TS_NOTIFICATION' });
+        }}
+      >Testar Notificação</button>
 
       {summary && (
         <div className="ts-summary">
@@ -77,6 +88,8 @@ export function TimesheetPanel() {
               entry={entry}
               expanded={expandedId === entry.id}
               onToggle={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+              onSave={updateEntry}
+              onFetchGpHours={fetchGpHours}
             />
           ))}
         </div>
@@ -85,11 +98,49 @@ export function TimesheetPanel() {
   );
 }
 
-function TimesheetRow({ entry, expanded, onToggle }: { entry: TimesheetEntry; expanded: boolean; onToggle: () => void }) {
+interface TimesheetRowProps {
+  entry: TimesheetEntry;
+  expanded: boolean;
+  onToggle: () => void;
+  onSave: (entry: TimesheetEntry, observation: string) => Promise<{ ok: boolean; gpHours: number | null }>;
+  onFetchGpHours: (dateStr: string) => Promise<number | null>;
+}
+
+function TimesheetRow({ entry, expanded, onToggle, onSave, onFetchGpHours }: TimesheetRowProps) {
+  const [obsValue, setObsValue] = useState(entry.observation || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [gpHours, setGpHours] = useState<number | null>(null);
+  const [gpLoading, setGpLoading] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) return;
+    setGpLoading(true);
+    const dateOnly = entry.date.includes('T') ? entry.date.split('T')[0] : entry.date;
+    onFetchGpHours(dateOnly).then(h => { setGpHours(h); setGpLoading(false); });
+  }, [expanded, entry.date, onFetchGpHours]);
+
+  const dirty = obsValue.trim() !== (entry.observation || '');
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    const { ok } = await onSave(entry, obsValue.trim());
+    setSaving(false);
+    if (ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  }, [obsValue, entry, onSave]);
+
+  const missingObs = !entry.observation && entry.status === 'PENDING';
+
   return (
-    <div className={`ts-row-wrapper ${expanded ? 'expanded' : ''}`}>
+    <div className={`ts-row-wrapper ${expanded ? 'expanded' : ''} ${missingObs ? 'no-obs' : ''}`}>
       <div className="ts-table-row" onClick={onToggle} style={{ cursor: 'pointer' }}>
-        <span className="ts-col-date">{formatDate(entry.date)}</span>
+        <span className="ts-col-date">
+          {missingObs && <span className="ts-obs-dot" title="Sem observação" />}
+          {formatDate(entry.date)}
+        </span>
         <span className="ts-col-cc" title={entry.costCenter ? `${entry.costCenter.code} - ${entry.costCenter.name}` : ''}>{entry.costCenter?.code || '—'}</span>
         <span className="ts-col-hours">{formatHours(entry.hourQuantity)}</span>
         <span className={`ts-col-status ${entry.status.toLowerCase()}`}>{statusLabel(entry.status)}</span>
@@ -110,8 +161,39 @@ function TimesheetRow({ entry, expanded, onToggle }: { entry: TimesheetEntry; ex
             <span className="ts-detail-value">{entry.hourType?.description || '—'}</span>
           </div>
           <div className="ts-detail-field">
-            <span className="ts-detail-label">Observação</span>
-            <span className="ts-detail-value ts-detail-obs">{entry.observation || 'Sem observação'}</span>
+            <span className="ts-detail-label">Horas (GP)</span>
+            {gpLoading && <span className="ts-detail-value ts-gp-loading">Consultando GP...</span>}
+            {!gpLoading && gpHours !== null && (
+              <span className="ts-detail-value">
+                <span className="ts-gp-hours">{formatHours(gpHours)}</span>
+                {Math.abs(gpHours - entry.hourQuantity) > 0.01 && (
+                  <span className="ts-gp-diff"> (TS: {formatHours(entry.hourQuantity)} → GP: {formatHours(gpHours)})</span>
+                )}
+              </span>
+            )}
+            {!gpLoading && gpHours === null && <span className="ts-detail-value ts-gp-unavail">Indisponível</span>}
+          </div>
+          <div className="ts-detail-field">
+            <span className="ts-detail-label">Observação {saved && <span className="ts-saved-badge">✓ Salvo</span>}</span>
+            <textarea
+              className="ts-obs-input"
+              rows={3}
+              maxLength={1000}
+              placeholder="Adicionar observação..."
+              value={obsValue}
+              onChange={e => setObsValue(e.target.value)}
+              onClick={e => e.stopPropagation()}
+            />
+            <div className="ts-obs-footer">
+              <span className="ts-obs-counter">{obsValue.length}/1000</span>
+              <button
+                className="ts-obs-save-btn"
+                disabled={!dirty || saving}
+                onClick={e => { e.stopPropagation(); handleSave(); }}
+              >
+                {saving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
           </div>
         </div>
       )}
