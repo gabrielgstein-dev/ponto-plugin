@@ -1,8 +1,65 @@
+import { generateWidgetStyles } from '../lib/presentation/widget-styles';
+
+declare global {
+  namespace chrome {
+    namespace storage {
+      interface StorageChange {
+        oldValue?: any;
+        newValue?: any;
+      }
+      
+      interface LocalStorageArea {
+        get(keys?: string | string[] | Record<string, any> | null, callback?: (items: Record<string, any>) => void): Promise<Record<string, any>>;
+        set(items: Record<string, any>, callback?: () => void): Promise<void>;
+        remove(keys: string | string[]): Promise<void>;
+        onChanged: chrome.events.Event<(changes: Record<string, StorageChange>, areaName: string) => void>;
+      }
+      
+      const local: LocalStorageArea;
+    }
+    
+    namespace events {
+      interface Event<T> {
+        addListener(callback: T): void;
+        removeListener(callback: T): void;
+      }
+    }
+    
+    namespace runtime {
+      const id: string;
+    }
+  }
+}
+
 let _intervalIds: ReturnType<typeof setInterval>[] = [];
 let _observer: MutationObserver | null = null;
 
 function isContextValid(): boolean {
   try { return !!chrome.runtime && !!chrome.runtime.id; } catch (_) { return false; }
+}
+
+function syncTheme() {
+  chrome.storage.local.get('senior-ponto-theme-mode').then((data: Record<string, any>) => {
+    const themeMode = data['senior-ponto-theme-mode'] || 'system';
+    let shouldBeDark = false;
+    
+    if (themeMode === 'dark') {
+      shouldBeDark = true;
+    } else if (themeMode === 'light') {
+      shouldBeDark = false;
+    } else {
+      shouldBeDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    
+    const widget = document.getElementById('senior-ponto-widget');
+    if (widget) {
+      if (shouldBeDark) {
+        widget.classList.add('dark');
+      } else {
+        widget.classList.remove('dark');
+      }
+    }
+  });
 }
 
 function cleanup() {
@@ -20,6 +77,7 @@ export default defineContentScript({
   main() {
     if (window.top !== window) return;
     injectWidget();
+    syncTheme();
     listenStorageChanges();
     observeWidgetPresence();
     _intervalIds.push(setInterval(updateWidgetFromStorage, 30000));
@@ -32,26 +90,7 @@ function injectWidget() {
   const widget = document.createElement('div');
   widget.id = 'senior-ponto-widget';
   widget.innerHTML = `
-    <style>
-      #senior-ponto-widget { position:fixed; bottom:20px; right:20px; z-index:99999; font-family:'Segoe UI',system-ui,sans-serif; user-select:none; will-change:transform; }
-      #senior-ponto-widget.spw-dragging { transition:none !important; }
-      #spw-toggle { touch-action:none; }
-      #spw-toggle { width:48px; height:48px; background:#0f1117; border:2px solid #4ade80; border-radius:50%; cursor:grab; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 20px rgba(74,222,128,0.3); margin-left:auto; }
-      #spw-toggle:active { cursor:grabbing; }
-      #spw-toggle:hover { transform:scale(1.05); box-shadow:0 4px 24px rgba(74,222,128,0.5); }
-      #spw-toggle svg { color:#4ade80; }
-      #spw-panel { display:none; position:absolute; background:#0f1117; border:1px solid #2a2f40; border-radius:12px; padding:14px; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); }
-      #spw-panel.open { display:block; }
-      .spw-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:#4a5268; margin-bottom:10px; }
-      .spw-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding:4px 0; border-bottom:1px solid #1e2230; }
-      .spw-row:last-child { border-bottom:none; margin-bottom:0; }
-      .spw-label { font-size:10px; color:#8892a4; }
-      .spw-time { font-size:14px; font-weight:700; font-family:'Courier New',monospace; color:#e8eaf0; }
-      .spw-time.calc { color:#fbbf24; font-size:12px; }
-      .spw-time.past { color:#4ade80; }
-      .spw-time.next { color:#22d3ee; }
-      .spw-clock { text-align:center; font-size:20px; font-weight:700; font-family:'Courier New',monospace; color:#e8eaf0; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #2a2f40; }
-    </style>
+    ${generateWidgetStyles()}
     <div id="spw-panel">
       <div class="spw-clock" id="spw-live-clock">--:--:--</div>
       <div class="spw-title">Senior · Ponto</div>
@@ -199,14 +238,16 @@ function togglePanel(widget: HTMLElement) {
   panel.classList.add('open');
 }
 
-function saveWidgetPosition(widget: HTMLElement) {
+async function saveWidgetPosition(widget: HTMLElement) {
   if (!isContextValid()) return;
   const r = widget.getBoundingClientRect();
   const pos = {
     xPct: r.left / window.innerWidth,
     yPct: r.top / window.innerHeight,
   };
-  chrome.storage.local.set({ widgetPosition: pos });
+  try {
+    await chrome.storage.local.set({ widgetPosition: pos });
+  } catch (_) {}
 }
 
 async function restoreWidgetPosition(widget: HTMLElement) {
@@ -265,11 +306,14 @@ async function updateWidgetFromStorage() {
 
 function listenStorageChanges() {
   try {
-    chrome.storage.onChanged.addListener((changes: Record<string, unknown>, area: string) => {
+    chrome.storage.onChanged.addListener((changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (!isContextValid()) return;
       if (area !== 'local') return;
-      if ((changes as Record<string, unknown>).pontoState || (changes as Record<string, unknown>).punchSuccessTs) {
+      if (changes.pontoState || changes.punchSuccessTs) {
         updateWidgetFromStorage();
+      }
+      if (changes['senior-ponto-theme-mode']) {
+        syncTheme();
       }
     });
   } catch (_) {}

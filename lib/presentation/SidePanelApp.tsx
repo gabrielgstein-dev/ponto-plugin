@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatDiff, formatDateShort, todayDateStr } from '../domain/time-utils';
 import { useSidePanelData } from './hooks/useSidePanelData';
 import { DayRow } from './components/DayRow';
 import { TimesheetPanel } from './components/TimesheetPanel';
+import { ThemeToggle } from './components/ThemeToggle';
 import { ENABLE_META_TIMESHEET } from '../domain/build-flags';
 
 type SidePanelTab = 'ponto' | 'timesheet';
@@ -10,6 +11,15 @@ type SidePanelTab = 'ponto' | 'timesheet';
 export function SidePanelApp() {
   const [activeTab, setActiveTab] = useState<SidePanelTab>('ponto');
   const { balance, records, source, loadingRecords, isCurrentPeriod, goToPrev, goToNext, goToCurrent, editPunch, removePunch, addPunch } = useSidePanelData();
+
+  useEffect(() => {
+    chrome.storage.local.get('sidePanelTab').then((data) => {
+      if (data.sidePanelTab === 'timesheet') {
+        setActiveTab('timesheet');
+        chrome.storage.local.remove('sidePanelTab');
+      }
+    });
+  }, []);
   const isPositive = balance ? balance.totalMinutes >= 0 : true;
   const today = todayDateStr();
 
@@ -24,7 +34,10 @@ export function SidePanelApp() {
 
       {activeTab === 'ponto' && (
         <>
-          <h1 className="sp-title">Histórico de Ponto</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h1 className="sp-title">Histórico de Ponto</h1>
+            <ThemeToggle />
+          </div>
 
           {balance && (
             <div className={`sp-bank ${isPositive ? 'positive' : 'negative'}`}>
