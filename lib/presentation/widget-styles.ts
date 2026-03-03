@@ -32,7 +32,7 @@ export function generateWidgetStyles(): string {
       #spw-panel { display:none; position:absolute; background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:14px; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); transition:all 0.2s ease; }
       #spw-panel.open { display:block; }
       .spw-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--text-dimmer); margin-bottom:10px; transition:color 0.2s ease; }
-      .spw-ts-pending { font-size:9px; font-weight:600; color:var(--warn); background:var(--surface2); padding:6px 8px; border-radius:6px; margin-bottom:10px; text-align:center; transition:all 0.2s ease; }
+      .spw-ts-pending { font-size:11px; font-weight:600; color:var(--warn); background:var(--surface2); padding:6px 8px; border-radius:6px; margin-bottom:10px; text-align:center; transition:all 0.2s ease; }
       .spw-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding:4px 0; border-bottom:1px solid var(--surface2); transition:border-color 0.2s ease; }
       .spw-row:last-child { border-bottom:none; margin-bottom:0; }
       .spw-label { font-size:10px; color:var(--text-dim); transition:color 0.2s ease; }

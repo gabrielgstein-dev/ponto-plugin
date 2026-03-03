@@ -308,7 +308,7 @@ async function updateWidgetFromStorage() {
       const el = document.getElementById('spw-ts-pending');
       if (el) {
         if (count > 0) {
-          el.textContent = `${count} lançamento${count > 1 ? 's' : ''} pendente${count > 1 ? 's' : ''} sem observação`;
+          el.textContent = count === 1 ? '1 APONTAMENTO PENDENTE' : `${count} APONTAMENTOS PENDENTES`;
           el.style.display = 'block';
         } else {
           el.style.display = 'none';

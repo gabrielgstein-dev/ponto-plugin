@@ -72,7 +72,7 @@ function dispatchPunchSuccess(urlStr: string, punchTime: string) {
   }));
 }
 
-const PUNCH_WRITE_PATTERNS = ['import', 'register', 'registrar'];
+const PUNCH_WRITE_PATTERNS = ['import', 'register', 'registrar', 'marcacao', 'batimento'];
 
 function isPunchWrite(urlLower: string): boolean {
   return PUNCH_WRITE_PATTERNS.some(p => urlLower.includes(p));
@@ -82,7 +82,7 @@ function spyRequest(url: string | URL | Request, method: string, body: unknown) 
   const urlStr = typeof url === 'string' ? url : (url && 'url' in url) ? url.url : '';
   if (!urlStr.includes('senior.com.br') && !urlStr.includes('gestaoponto')) return;
   const ul = urlStr.toLowerCase();
-  if ((method === 'POST' || method === 'PUT') && (ul.includes('clocking') || ul.includes('pontomobile') || ul.includes('/ponto/'))) {
+  if ((method === 'POST' || method === 'PUT') && (ul.includes('clocking') || ul.includes('pontomobile') || ul.includes('/ponto/') || ul.includes('marcacao') || ul.includes('batimento') || ul.includes('registro'))) {
     const info = { url: urlStr, method, body: typeof body === 'string' ? body : JSON.stringify(body) };
     window.dispatchEvent(new CustomEvent('__sponto_api_spy', { detail: JSON.stringify(info) }));
 

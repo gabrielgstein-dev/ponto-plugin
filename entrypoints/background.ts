@@ -1,7 +1,7 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
 import { debugLog } from '../lib/domain/debug';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm } from '../lib/application/handle-alarm';
-import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet } from '../lib/application/background-detect';
+import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
 import { addPendingPunch, loadPendingPunches } from '../lib/application/detect-punches';
 import { resetGpPunchCache } from '#company/providers';
@@ -86,6 +86,10 @@ export default defineBackground(() => {
       });
       return true;
     }
+    if (message.type === 'REQUEST_TS_SYNC') {
+      backgroundTimesheetSync().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'TEST_TS_NOTIFICATION') {
       notifyPendingTimesheet().catch(() => {});
       sendResponse({ ok: true });
@@ -118,7 +122,7 @@ export default defineBackground(() => {
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'dailyReset') { handleDailyReset(); return; }
-    if (alarm.name === 'bgDetect') { backgroundDetect().catch(() => {}); return; }
+    if (alarm.name === 'bgDetect') { backgroundDetect().catch(() => {}); backgroundTimesheetSync().catch(() => {}); return; }
     if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name); return; }
     if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name); return; }
     if (alarm.name.startsWith('ts_')) { handleTsAlarm(alarm.name); }
@@ -134,7 +138,7 @@ export default defineBackground(() => {
     }
   });
 
-  chrome.alarms.create('bgDetect', { periodInMinutes: 2 });
+  chrome.alarms.create('bgDetect', { periodInMinutes: 10 });
 
   function resetAllCaches() {
     resetGpPunchCache();
@@ -181,10 +185,14 @@ export default defineBackground(() => {
       debugLog('Background: metaTsToken capturado, verificando timesheet pendente...');
       notifyPendingTimesheet().catch(() => {});
     }
+    if (changes.tsMutationTs) {
+      debugLog('Background: edição manual de timesheet detectada, re-sincronizando...');
+      backgroundTimesheetSync().catch(() => {});
+    }
     if (changes.seniorPunchApi && !changes.punchSuccessTs) {
       const info = changes.seniorPunchApi.newValue;
       const url = (info?.url || '').toLowerCase();
-      if (url.includes('import') || url.includes('register') || url.includes('registrar')) {
+      if (url.includes('import') || url.includes('register') || url.includes('registrar') || url.includes('marcacao') || url.includes('batimento')) {
         const now = new Date();
         const fallbackTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         debugLog(`Background: punch API detectada via spy (${fallbackTime}), re-detectando...`);
@@ -193,5 +201,8 @@ export default defineBackground(() => {
     }
   });
 
-  loadPendingPunches().then(() => backgroundDetect()).catch(() => {});
+  loadPendingPunches().then(() => {
+    backgroundDetect().catch(() => {});
+    backgroundTimesheetSync().catch(() => {});
+  }).catch(() => {});
 });

@@ -8,6 +8,13 @@ export default defineContentScript({
   },
 });
 
+const TS_MUTATION_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+function isTimesheetMutation(url: string, method: string): boolean {
+  const ul = url.toLowerCase();
+  return TS_MUTATION_METHODS.includes(method.toUpperCase()) && (ul.includes('/timesheets/') || ul.includes('/reported-hours'));
+}
+
 function interceptMetaFetch() {
   const originalFetch = window.fetch;
   window.fetch = function (this: typeof globalThis, input: RequestInfo | URL, init?: RequestInit) {
@@ -18,7 +25,22 @@ function interceptMetaFetch() {
       }
     }
 
-    return originalFetch.apply(this, [input, init]);
+    const method = (init?.method || 'GET').toUpperCase();
+    const fetchUrl = typeof input === 'string' ? input : (input as Request).url || '';
+
+    const result = originalFetch.apply(this, [input, init]);
+
+    if (isTimesheetMutation(fetchUrl, method)) {
+      (result as Promise<Response>).then(response => {
+        if (response.ok) {
+          window.dispatchEvent(new CustomEvent('__sponto_ts_mutation', {
+            detail: JSON.stringify({ url: fetchUrl, method, timestamp: Date.now() }),
+          }));
+        }
+      }).catch(() => {});
+    }
+
+    return result;
   };
 }
 

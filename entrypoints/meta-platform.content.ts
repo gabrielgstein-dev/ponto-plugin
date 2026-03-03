@@ -9,6 +9,7 @@ export default defineContentScript({
   main() {
     if (window.top !== window) return;
     captureMetaTokens();
+    captureTimesheetMutations();
     autoClickColaborador();
   },
 });
@@ -29,6 +30,16 @@ function captureMetaTokens() {
 
         chrome.storage.local.set(save);
       }
+    } catch (_) {}
+  }) as EventListener);
+}
+
+function captureTimesheetMutations() {
+  window.addEventListener('__sponto_ts_mutation', ((e: CustomEvent) => {
+    if (!isContextValid()) return;
+    try {
+      const info = typeof e.detail === 'string' ? JSON.parse(e.detail) : e.detail;
+      chrome.storage.local.set({ tsMutationTs: Date.now(), tsMutationInfo: info });
     } catch (_) {}
   }) as EventListener);
 }

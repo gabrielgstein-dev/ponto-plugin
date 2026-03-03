@@ -4,9 +4,6 @@ import { ENABLE_META_TIMESHEET } from '../../domain/build-flags';
 import { debugLog, debugWarn } from '../../domain/debug';
 import { getTimesheetProvider, getWorkedHoursForDate } from '#company/providers';
 
-const META_PLATFORM_URL = 'https://plataforma.meta.com.br';
-const AUTO_CONNECT_TIMEOUT_MS = 20000;
-
 function getCurrentPeriod(offset: number): string {
   const d = new Date();
   d.setMonth(d.getMonth() + offset);
@@ -25,43 +22,26 @@ export function useTimesheetData() {
   const [available, setAvailable] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [periodOffset, setPeriodOffset] = useState(0);
-  const autoConnectTriedRef = useRef(false);
+  const syncRequestedRef = useRef(false);
+  const hasCacheRef = useRef(false);
 
   const period = getCurrentPeriod(periodOffset);
   const periodLabel = formatPeriodLabel(period);
 
-  const autoConnect = useCallback(async () => {
-    if (connecting) return;
-    setConnecting(true);
-    debugLog('Timesheet: auto-connect, abrindo aba plataforma.meta.com.br...');
-    let tabId: number | undefined;
-    try {
-      const tab = await chrome.tabs.create({ url: META_PLATFORM_URL, active: false });
-      tabId = tab.id;
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => {
-          debugLog('Timesheet: auto-connect timeout');
-          resolve();
-        }, AUTO_CONNECT_TIMEOUT_MS);
-
-        const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-          if (area === 'local' && changes.metaTsToken?.newValue) {
-            debugLog('Timesheet: token capturado via auto-connect!');
-            clearTimeout(timeout);
-            chrome.storage.onChanged.removeListener(onChange);
-            resolve();
-          }
-        };
-        chrome.storage.onChanged.addListener(onChange);
-      });
-    } catch (e) {
-      debugWarn('Timesheet auto-connect erro:', (e as Error).message);
-    }
-    if (tabId) {
-      try { chrome.tabs.remove(tabId); } catch (_) {}
-    }
-    setConnecting(false);
-  }, [connecting]);
+  useEffect(() => {
+    if (!ENABLE_META_TIMESHEET) return;
+    chrome.storage.local.get('timesheetSummaryCache').then((data) => {
+      if (data.timesheetSummaryCache) {
+        const cached = data.timesheetSummaryCache as TimesheetSummary;
+        if (cached.period === period) {
+          setSummary(cached);
+          setAvailable(true);
+          hasCacheRef.current = true;
+          debugLog('Timesheet: carregado do cache do background');
+        }
+      }
+    }).catch(() => {});
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!ENABLE_META_TIMESHEET) return;
@@ -69,38 +49,50 @@ export function useTimesheetData() {
     try {
       const provider = getTimesheetProvider();
       const isOk = await provider.isAvailable();
-      setAvailable(isOk);
       if (!isOk) {
-        setSummary(null);
+        if (!hasCacheRef.current) setAvailable(false);
         setLoading(false);
-        if (!autoConnectTriedRef.current) {
-          autoConnectTriedRef.current = true;
-          autoConnect().then(() => loadData());
+        if (!syncRequestedRef.current) {
+          syncRequestedRef.current = true;
+          if (!hasCacheRef.current) setConnecting(true);
+          chrome.runtime.sendMessage({ type: 'REQUEST_TS_SYNC' }).catch(() => {});
         }
         return;
       }
-      autoConnectTriedRef.current = false;
+      setAvailable(isOk);
+      syncRequestedRef.current = false;
+      setConnecting(false);
       const result = await provider.getSummary(period);
-      setSummary(result);
       if (result) {
+        setSummary(result);
+        hasCacheRef.current = true;
         chrome.storage.local.set({ timesheetSummaryCache: result });
       }
     } catch (e) {
       debugWarn('Timesheet load error:', (e as Error).message);
-      setSummary(null);
+      if (!hasCacheRef.current) setSummary(null);
     }
     setLoading(false);
-  }, [period, autoConnect]);
+  }, [period]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
       if (changes.metaTsToken || changes.metaTsUserId) loadData();
+      if (changes.timesheetSummaryCache?.newValue) {
+        const cached = changes.timesheetSummaryCache.newValue as TimesheetSummary;
+        if (cached.period === period) {
+          setSummary(cached);
+          setAvailable(true);
+          setConnecting(false);
+          syncRequestedRef.current = false;
+        }
+      }
     };
     chrome.storage.onChanged.addListener(handler);
     return () => chrome.storage.onChanged.removeListener(handler);
-  }, [loadData]);
+  }, [loadData, period]);
 
   const updateEntry = useCallback(async (entry: TimesheetEntry, observation: string): Promise<{ ok: boolean; gpHours: number | null }> => {
     if (!ENABLE_META_TIMESHEET) return { ok: false, gpHours: null };

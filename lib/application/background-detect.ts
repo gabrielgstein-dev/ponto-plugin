@@ -153,27 +153,90 @@ export function resetBackgroundHash(): void {
   _lastHash = '';
 }
 
-export async function notifyPendingTimesheet(): Promise<void> {
+const TS_AUTO_CONNECT_THROTTLE_MS = 30 * 60 * 1000;
+const TS_AUTO_CONNECT_TIMEOUT_MS = 20000;
+const META_PLATFORM_URL = 'https://plataforma.meta.com.br';
+
+async function tsAutoConnect(): Promise<boolean> {
+  try {
+    const stored = await chrome.storage.local.get('tsAutoConnectTs');
+    const lastAttempt = stored.tsAutoConnectTs || 0;
+    if (Date.now() - lastAttempt < TS_AUTO_CONNECT_THROTTLE_MS) {
+      debugLog('TS auto-connect: throttled (último há <30min)');
+      return false;
+    }
+    chrome.storage.local.set({ tsAutoConnectTs: Date.now() });
+    debugLog('TS auto-connect: abrindo aba plataforma.meta.com.br...');
+
+    const tab = await chrome.tabs.create({ url: META_PLATFORM_URL, active: false });
+    const tabId = tab.id;
+    const captured = await new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => {
+        chrome.storage.onChanged.removeListener(onChange);
+        resolve(false);
+      }, TS_AUTO_CONNECT_TIMEOUT_MS);
+
+      function onChange(changes: Record<string, unknown>, area: string) {
+        if (area === 'local' && (changes as any).metaTsToken) {
+          clearTimeout(timeout);
+          chrome.storage.onChanged.removeListener(onChange);
+          resolve(true);
+        }
+      }
+      chrome.storage.onChanged.addListener(onChange);
+    });
+
+    if (tabId) {
+      try { await chrome.tabs.remove(tabId); } catch (_) {}
+    }
+    debugLog(`TS auto-connect: ${captured ? 'token capturado' : 'timeout'}`);
+    return captured;
+  } catch (e) {
+    debugWarn('TS auto-connect erro:', (e as Error).message);
+    return false;
+  }
+}
+
+export async function backgroundTimesheetSync(): Promise<void> {
+  if (!ENABLE_META_TIMESHEET) return;
   try {
     const provider = getTimesheetProvider();
-    const isOk = await provider.isAvailable();
-    if (!isOk) return;
+    let isOk = await provider.isAvailable();
+    if (!isOk) {
+      debugLog('TS sync: sem token, tentando auto-connect...');
+      const connected = await tsAutoConnect();
+      if (connected) {
+        isOk = await provider.isAvailable();
+      }
+      if (!isOk) return;
+    }
     const now = new Date();
     const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const summary = await provider.getSummary(period);
+    if (summary) {
+      chrome.storage.local.set({ timesheetSummaryCache: summary, timesheetSyncTs: Date.now() });
+      debugLog(`TS sync: ${summary.entries.length} entries, ${summary.pendingHours}h pendentes`);
+    }
+  } catch (e) {
+    debugWarn('TS sync erro:', (e as Error).message);
+  }
+}
+
+export async function notifyPendingTimesheet(): Promise<void> {
+  try {
+    await backgroundTimesheetSync();
+    const stored = await chrome.storage.local.get(['timesheetSummaryCache', 'tsNotifWindowId']);
+    const summary = stored.timesheetSummaryCache;
     if (!summary) return;
-    const pendingNoObs = summary.entries.filter(e => e.status === 'PENDING' && !e.observation);
+    const pendingNoObs = summary.entries.filter((e: any) => e.status === 'PENDING' && !e.observation);
     if (pendingNoObs.length === 0) return;
     const url = `ts-notification.html?count=${pendingNoObs.length}`;
     const width = 420;
     const height = 300;
 
-    try {
-      const stored = await chrome.storage.local.get('tsNotifWindowId');
-      if (stored.tsNotifWindowId) {
-        try { await chrome.windows.remove(stored.tsNotifWindowId); } catch (_) {}
-      }
-    } catch (_) {}
+    if (stored.tsNotifWindowId) {
+      try { await chrome.windows.remove(stored.tsNotifWindowId); } catch (_) {}
+    }
 
     const currentWin = await chrome.windows.getCurrent();
     const left = Math.round((currentWin.left ?? 0) + ((currentWin.width ?? 1920) - width) / 2);
