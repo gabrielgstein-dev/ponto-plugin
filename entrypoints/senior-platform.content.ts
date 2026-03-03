@@ -1,3 +1,5 @@
+import { debugLog } from '../lib/domain/debug';
+
 function isContextValid(): boolean {
   try { return !!chrome.runtime && !!chrome.runtime.id; } catch (_) { return false; }
 }
@@ -106,7 +108,7 @@ function capturePageTokens() {
       const save: Record<string, unknown> = { punchSuccessTs: Date.now() };
       const info = typeof e.detail === 'string' ? JSON.parse(e.detail) : e.detail;
       if (info?.punchTime) save.punchSuccessTime = info.punchTime;
-      console.log('[Senior Ponto] Punch success interceptado:', info?.punchTime || 'sem horário');
+      debugLog('Punch success interceptado:', info?.punchTime || 'sem horário');
       chrome.storage.local.set(save);
     } catch (_) {}
   }) as EventListener);

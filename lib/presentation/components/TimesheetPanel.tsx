@@ -3,19 +3,18 @@ import type { TimesheetEntry } from '../../domain/types';
 import { useTimesheetData } from '../hooks/useTimesheetData';
 
 export function TimesheetPanel() {
-  const { summary, loading, available, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, updateEntry, fetchGpHours } = useTimesheetData();
+  const { summary, loading, available, connecting, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, updateEntry, fetchGpHours } = useTimesheetData();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  if (!available && !loading) {
+  if (connecting || (!available && !loading)) {
     return (
       <div className="ts-container">
         <h2 className="ts-title">Timesheet</h2>
         <div className="ts-empty">
-          <p>Sem token disponível.</p>
-          <button
-            className="ts-login-btn"
-            onClick={() => chrome.tabs.create({ url: 'https://plataforma.meta.com.br' })}
-          >Fazer Login</button>
+          {connecting
+            ? <p>Conectando ao Timesheet...</p>
+            : <p>Não foi possível conectar. <a href="https://plataforma.meta.com.br" target="_blank" rel="noreferrer" className="token-login-link">Abrir plataforma</a></p>
+          }
         </div>
       </div>
     );

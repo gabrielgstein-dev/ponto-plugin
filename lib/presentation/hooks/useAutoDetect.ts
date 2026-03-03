@@ -14,6 +14,8 @@ import { SeniorApiPunchProvider } from '../../infrastructure/senior/senior-api-p
 import { SeniorScraperProvider } from '../../infrastructure/senior/senior-scraper';
 import { ManualPunchProvider } from '../../infrastructure/manual/manual-punch-provider';
 import { resetGpPunchCache } from '#company/providers';
+import { resetSeniorApiCache } from '../../infrastructure/senior/senior-api-provider';
+import { resetSeniorStorageCache } from '../../infrastructure/senior/senior-storage-provider';
 
 function buildProviders(): IPunchProvider[] {
   const providers: IPunchProvider[] = [];
@@ -83,6 +85,8 @@ export function useAutoDetect(
         console.log(`[${APP_NAME}] Ponto registrado! Pending: ${time}. Re-detectando em 2s, 6s e 15s...`);
         addPendingPunch(time);
         resetGpPunchCache();
+        resetSeniorApiCache();
+        resetSeniorStorageCache();
         lastPunchHash = '';
         [2000, 6000, 15000].forEach(delay => {
           setTimeout(() => { lastPunchHash = ''; detect(true, true); }, delay);

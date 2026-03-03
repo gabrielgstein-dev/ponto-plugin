@@ -32,10 +32,12 @@ A plataforma Senior é composta por **dois sistemas independentes** com domínio
 
 ### 2.2 Fontes de token (ordem de prioridade no plugin)
 1. **Cookie OAuth** (`com.senior.token`) — mais confiável
-2. **webRequest interceptor** (background) — captura Bearer de requests reais
+2. **seniorToken do storage** — capturado pelo webRequest interceptor, válido por 60 min
 3. **Content script interceptor** — captura via monkey-patch de fetch/XHR
 4. **Page scan** — varre sessionStorage/localStorage da aba Senior buscando JWTs
-- Token válido por ~60 minutos (TTL configurado em `TOKEN_MAX_AGE_MIN = 60`)
+- Token válido por ~60 minutos (`TOKEN_MAX_AGE_MS = 60 * 60000`)
+- `getSeniorAccessToken()` em `gp-auth.ts` tenta cookie primeiro, depois storage
+- `attemptGpAuth()` em `gp-tab-session.ts` usa mesma estratégia de fallback
 
 ### 2.3 Header de autenticação
 ```
@@ -97,10 +99,13 @@ Accept: application/json, text/plain, */*
 - `colaborador.id` formato: `{empresa}-{tipo}-{cadastro}` (ex: `1410-1-35829`)
 - `codigoCalculo` extraído de `userRange[].condition` via regex: `CodCal=\d+-(\d+)` → captura o segundo número
 
-### 3.6 Cache
-- Assertion cacheada por **6 horas** (`GP_CACHE_DURATION_MS = 6 * 3600000`)
+### 3.6 Cache e Persistência
+- Assertion cacheada por **6 dias** (`GP_CACHE_DURATION_MS = 144 * 3600000`)
+  - JWT do GP vale 7 dias, cacheamos 6 dias para margem de segurança
+  - Timer reseta toda vez que um novo token Senior é capturado (refresh proativo)
 - Invalidada automaticamente em 401/403
 - Re-autenticação forçada se cache existe mas `codigoCalculo` está ausente
+- `getGpAssertion(force=true)` pula cache e força renovação (usado no refresh proativo)
 
 ### 3.7 Refresh/validação de sessão
 ```
@@ -348,10 +353,15 @@ O plugin tenta **11 endpoints** em sequência até encontrar um que retorne dado
 ### 9.1 Fluxo
 1. Busca aba existente com URL contendo `gestaoponto`
 2. Se não existe e `allowCreate=true`: cria aba com `GP_FRONTEND_URL` (inactive)
-3. Aguarda sessão (`SeniorGPOSession.token` no sessionStorage): até 10s se aba criada, 5s se existente
-4. Se sessão não disponível: tenta autenticação injetando fetch para `/senior/auth/g7` na aba
+3. Aguarda sessão (`SeniorGPOSession.token` no sessionStorage): até 45s se aba criada, 15s se existente
+4. Durante espera:
+   - Se aba sair do domínio GP (SSO em andamento via Keycloak): apenas aguarda sem interferir
+   - A cada 3s: tenta autenticação injetando fetch para `/senior/auth/g7` usando token do cookie ou storage
+   - Se `SeniorGPOSession.token` aparecer: sessão pronta
 5. Executa fetch dos dados via `chrome.scripting.executeScript` (world: MAIN)
 6. Fecha aba se foi criada pelo plugin
+
+**Importante**: Não redirecionar a aba para `platform.senior.com.br` manualmente — isso interrompe o fluxo SSO natural do GP SPA (que redireciona para Keycloak em `sso.senior.com.br`).
 
 ### 9.2 URL do frontend GP
 ```
@@ -382,6 +392,14 @@ URLs: ['https://platform.senior.com.br/*', 'https://*.senior.com.br/*']
 Extrai: Authorization: Bearer <token>
 Salva: seniorToken + seniorTokenTs
 ```
+
+**Refresh Proativo**: Quando `seniorToken` é salvo no storage (= usuário navegou no Senior):
+1. Background detecta mudança via `chrome.storage.onChanged`
+2. Chama `getGpAssertion(force=true)` — ignora cache, força nova autenticação
+3. Reseta `gpAssertionTs = Date.now()` — timer de 6 dias reinicia
+4. Limpa caches de providers e re-detecta punches
+
+Isso garante que o assertion GP sempre tenha validade máxima enquanto o usuário usar o Senior regularmente.
 
 ### 10.2 Content Script (interceptor.content.ts)
 Monkey-patches `fetch` e `XMLHttpRequest` na página para capturar:
@@ -433,6 +451,6 @@ O interceptor roda em MAIN world e não tem acesso direto a `chrome.storage`. Ev
 
 12. **Fetch direto vs via aba**: Fetch direto funciona do background/popup (CORS OK para a API GP). Via aba é fallback quando a autenticação direta falha.
 
-13. **GP assertion dura 7 dias**: Mas cacheamos por apenas 6h para segurança.
+13. **GP assertion dura 7 dias**: Cacheamos por 6 dias com refresh proativo. Quando o usuário acessa o Senior (token capturado pelo webRequest), o assertion é renovado automaticamente, resetando o timer. Na prática, se o usuário acessar o Senior 1x por semana, o plugin nunca pede login.
 
 14. **O pontomobile não tem API de histórico**: Apenas `clockingEventImportByBrowser` (para BATER ponto) e `getEmployeeClockingConfigQuery` (para CONFIG). Consultas de histórico são impossíveis via Senior — só via GP.

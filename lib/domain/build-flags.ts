@@ -12,6 +12,7 @@ if (flags.ENABLE_YESTERDAY && !flags.ENABLE_SENIOR_INTEGRATION) {
   throw new Error('[build-flags] ENABLE_YESTERDAY requer ENABLE_SENIOR_INTEGRATION.');
 }
 
+export const DEBUG = flags.DEBUG as boolean;
 export const ACTIVE_COMPANY = flags.ACTIVE_COMPANY as string;
 export const APP_NAME = flags.APP_NAME as string;
 export const ENABLE_SENIOR_INTEGRATION = flags.ENABLE_SENIOR_INTEGRATION as boolean;

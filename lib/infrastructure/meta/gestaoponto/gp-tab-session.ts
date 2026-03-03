@@ -1,14 +1,31 @@
 import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
+import { debugLog, debugWarn } from '../../../domain/debug';
+
+const AUTH_RETRY_INTERVAL_MS = 3000;
+
+function isGpDomain(url: string): boolean {
+  try { return new URL(url).hostname.includes('gestaoponto'); } catch { return false; }
+}
 
 export async function waitForGpSession(tabId: number, maxWait: number): Promise<boolean> {
+  debugLog(`GP waitSession: iniciando (tabId=${tabId}, maxWait=${maxWait}ms)`);
   let elapsed = 0;
-  let authAttempted = false;
+  let lastAuthAttempt = -AUTH_RETRY_INTERVAL_MS;
 
   while (elapsed < maxWait) {
     await new Promise(r => setTimeout(r, 1000));
     elapsed += 1000;
 
     try {
+      const tab = await chrome.tabs.get(tabId);
+      const tabUrl = tab.url || '';
+      const onGp = isGpDomain(tabUrl);
+
+      if (!onGp) {
+        debugLog(`GP waitSession: SSO em andamento (${elapsed}ms), url=${tabUrl.substring(0, 100)}`);
+        continue;
+      }
+
       const results = await chrome.scripting.executeScript({
         target: { tabId },
         func: () => {
@@ -19,21 +36,48 @@ export async function waitForGpSession(tabId: number, maxWait: number): Promise<
           return false;
         },
       });
-      if (results?.[0]?.result) return true;
-
-      if (!authAttempted) {
-        authAttempted = true;
-        const ok = await attemptGpAuth(tabId);
-        if (ok) return true;
+      if (results?.[0]?.result) {
+        debugLog('GP waitSession: SeniorGPOSession encontrado!');
+        return true;
       }
-    } catch (_) {}
+
+      if (elapsed - lastAuthAttempt >= AUTH_RETRY_INTERVAL_MS) {
+        lastAuthAttempt = elapsed;
+        debugLog(`GP waitSession: tentando auth (${elapsed}ms)`);
+        const ok = await attemptGpAuth(tabId);
+        if (ok) {
+          debugLog('GP waitSession: auth bem-sucedido!');
+          return true;
+        }
+        debugLog(`GP waitSession: auth falhou, aguardando SSO do SPA ou cookie...`);
+      }
+    } catch (e) {
+      debugWarn(`GP waitSession: erro no loop (${elapsed}ms):`, (e as Error).message);
+    }
   }
+  debugLog(`GP waitSession: timeout após ${maxWait}ms`);
   return false;
 }
 
-async function attemptGpAuth(tabId: number): Promise<boolean> {
+const TOKEN_MAX_AGE_MS = 60 * 60000;
+
+async function getAnyAccessToken(): Promise<string | null> {
   const cookieAuth = new SeniorCookieAuth();
-  const token = await cookieAuth.getAccessToken();
+  const fromCookie = await cookieAuth.getAccessToken();
+  if (fromCookie) return fromCookie;
+
+  try {
+    const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
+    if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < TOKEN_MAX_AGE_MS) {
+      debugLog('attemptGpAuth: usando seniorToken do storage');
+      return stored.seniorToken;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function attemptGpAuth(tabId: number): Promise<boolean> {
+  const token = await getAnyAccessToken();
   if (!token) return false;
 
   const results = await chrome.scripting.executeScript({

@@ -1,4 +1,5 @@
 import { generateWidgetStyles } from '../lib/presentation/widget-styles';
+import { ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
 
 declare global {
   namespace chrome {
@@ -93,7 +94,7 @@ function injectWidget() {
     ${generateWidgetStyles()}
     <div id="spw-panel">
       <div class="spw-clock" id="spw-live-clock">--:--:--</div>
-      <div class="spw-title">Senior · Ponto</div>
+      <div class="spw-ts-pending" id="spw-ts-pending" style="display:none;"></div>
       <div class="spw-row"><span class="spw-label">Entrada</span><span class="spw-time" id="spw-entrada">--:--</span></div>
       <div class="spw-row"><span class="spw-label">Almoço</span><span class="spw-time" id="spw-almoco">--:--</span></div>
       <div class="spw-row"><span class="spw-label">Volta</span><span class="spw-time" id="spw-volta">--:--</span></div>
@@ -271,7 +272,7 @@ async function restoreWidgetPosition(widget: HTMLElement) {
 async function updateWidgetFromStorage() {
   if (!isContextValid()) { cleanup(); return; }
   try {
-    const data = await chrome.storage.local.get(['pontoState', 'pontoDate']);
+    const data = await chrome.storage.local.get(['pontoState', 'pontoDate', 'timesheetSummaryCache']);
     const today = new Date().toDateString();
     if (data.pontoDate !== today || !data.pontoState) return;
 
@@ -299,6 +300,21 @@ async function updateWidgetFromStorage() {
     set('spw-almoco', s.almoco ?? s._almocoSugerido ?? null, !s.almoco);
     set('spw-volta', s.volta ?? s._voltaSugerida ?? null, !s.volta);
     set('spw-saida', s.saida ?? s._saidaEstimada ?? null, !s.saida);
+
+    if (ENABLE_META_TIMESHEET && data.timesheetSummaryCache) {
+      const summary = data.timesheetSummaryCache;
+      const pendingNoObs = (summary.entries || []).filter((e: any) => e.status === 'PENDING' && !e.observation);
+      const count = pendingNoObs.length;
+      const el = document.getElementById('spw-ts-pending');
+      if (el) {
+        if (count > 0) {
+          el.textContent = `${count} lançamento${count > 1 ? 's' : ''} pendente${count > 1 ? 's' : ''} sem observação`;
+          el.style.display = 'block';
+        } else {
+          el.style.display = 'none';
+        }
+      }
+    }
   } catch (_) {
     cleanup();
   }
@@ -309,7 +325,7 @@ function listenStorageChanges() {
     chrome.storage.onChanged.addListener((changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (!isContextValid()) return;
       if (area !== 'local') return;
-      if (changes.pontoState || changes.punchSuccessTs) {
+      if (changes.pontoState || changes.punchSuccessTs || changes.timesheetSummaryCache) {
         updateWidgetFromStorage();
       }
       if (changes['senior-ponto-theme-mode']) {

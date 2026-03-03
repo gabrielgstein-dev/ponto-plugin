@@ -2,89 +2,86 @@ import { useState, useEffect } from 'react';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
-const THEME_MODE_KEY = 'senior-ponto-theme-mode';
+const THEME_STORAGE_KEY = 'senior-ponto-theme-mode';
 
-// Inicializar o tema antes do React renderizar
+function isValidTheme(v: unknown): v is ThemeMode {
+  return v === 'light' || v === 'dark' || v === 'system';
+}
+
 const getInitialTheme = (): ThemeMode => {
-  const stored = localStorage.getItem(THEME_MODE_KEY);
-  if (stored === 'light' || stored === 'dark' || stored === 'system') {
-    return stored;
-  }
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (isValidTheme(stored)) return stored;
   return 'system';
 };
 
-const getInitialDarkMode = (): boolean => {
-  const themeMode = getInitialTheme();
-  if (themeMode === 'dark') return true;
-  if (themeMode === 'light') return false;
+function resolveDark(mode: ThemeMode): boolean {
+  if (mode === 'dark') return true;
+  if (mode === 'light') return false;
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
-};
+}
 
-// Aplicar tema imediatamente
-if (typeof window !== 'undefined') {
-  const isDark = getInitialDarkMode();
+function applyDarkClass(dark: boolean) {
   const root = document.documentElement;
-  if (isDark) {
-    root.classList.add('dark');
-  } else {
-    root.classList.remove('dark');
-  }
+  if (dark) root.classList.add('dark');
+  else root.classList.remove('dark');
+}
+
+if (typeof window !== 'undefined') {
+  applyDarkClass(resolveDark(getInitialTheme()));
+  chrome.storage.local.get(THEME_STORAGE_KEY).then((data) => {
+    const remote = data[THEME_STORAGE_KEY];
+    if (isValidTheme(remote) && remote !== getInitialTheme()) {
+      localStorage.setItem(THEME_STORAGE_KEY, remote);
+      applyDarkClass(resolveDark(remote));
+    }
+  }).catch(() => {});
 }
 
 export function useThemeMode() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(getInitialTheme);
-  const [isDark, setIsDark] = useState(getInitialDarkMode);
+  const [isDark, setIsDark] = useState(() => resolveDark(getInitialTheme()));
 
   useEffect(() => {
-    const updateTheme = () => {
-      let shouldBeDark = false;
-      
-      if (themeMode === 'dark') {
-        shouldBeDark = true;
-      } else if (themeMode === 'light') {
-        shouldBeDark = false;
-      } else {
-        shouldBeDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      }
-
-      setIsDark(shouldBeDark);
-      
-      const root = document.documentElement;
-      if (shouldBeDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-    };
-
-    updateTheme();
+    const dark = resolveDark(themeMode);
+    setIsDark(dark);
+    applyDarkClass(dark);
 
     if (themeMode === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      mediaQuery.addEventListener('change', updateTheme);
-      return () => mediaQuery.removeEventListener('change', updateTheme);
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = () => {
+        const d = resolveDark(themeMode);
+        setIsDark(d);
+        applyDarkClass(d);
+      };
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
     }
   }, [themeMode]);
 
+  useEffect(() => {
+    const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+      if (area !== 'local') return;
+      const change = changes[THEME_STORAGE_KEY];
+      if (!change || !isValidTheme(change.newValue)) return;
+      const remote = change.newValue;
+      localStorage.setItem(THEME_STORAGE_KEY, remote);
+      setThemeMode(remote);
+    };
+    chrome.storage.onChanged.addListener(onChange);
+    return () => chrome.storage.onChanged.removeListener(onChange);
+  }, []);
+
   const setTheme = (mode: ThemeMode) => {
     setThemeMode(mode);
-    localStorage.setItem(THEME_MODE_KEY, mode);
+    localStorage.setItem(THEME_STORAGE_KEY, mode);
+    chrome.storage.local.set({ [THEME_STORAGE_KEY]: mode });
   };
 
   const toggleTheme = () => {
-    if (themeMode === 'light') {
-      setTheme('dark');
-    } else if (themeMode === 'dark') {
-      setTheme('light');
-    } else {
-      setTheme(isDark ? 'light' : 'dark');
-    }
+    if (themeMode === 'light') setTheme('dark');
+    else if (themeMode === 'dark') setTheme('light');
+    else setTheme(isDark ? 'light' : 'dark');
   };
 
-  return {
-    themeMode,
-    isDark,
-    setTheme,
-    toggleTheme,
-  };
+  return { themeMode, isDark, setTheme, toggleTheme };
 }

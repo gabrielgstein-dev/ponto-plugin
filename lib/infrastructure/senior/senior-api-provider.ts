@@ -4,6 +4,7 @@ import { extractTimesFromApiResponse } from './api-response-parser';
 import { SeniorCookieAuth } from './senior-cookie-auth';
 import { SeniorPageAuth } from './senior-page-auth';
 import { SeniorInterceptorAuth } from './senior-interceptor-auth';
+import { debugWarn } from '../../domain/debug';
 
 let _cachedEndpoint: { url: string; method: string; body: string | null } | null = null;
 let _allFailTs = 0;
@@ -15,6 +16,12 @@ const CACHE_TTL_MS = 30000;
 const cookieAuth = new SeniorCookieAuth();
 const pageAuth = new SeniorPageAuth();
 const interceptorAuth = new SeniorInterceptorAuth();
+
+export function resetSeniorApiCache(): void {
+  _cachedTimes = null;
+  _cachedTimesTs = 0;
+  _allFailTs = 0;
+}
 
 export class SeniorApiPunchProvider implements IPunchProvider {
   readonly name = 'seniorApi';
@@ -101,7 +108,7 @@ export class SeniorApiPunchProvider implements IPunchProvider {
     const data = results?.[0]?.result;
     if (!data?.text) {
       _allFailTs = Date.now();
-      console.warn('[Senior Ponto] SeniorApi: todos endpoints falharam, cooldown 2min');
+      debugWarn('SeniorApi: todos endpoints falharam, cooldown 2min');
       return [];
     }
 

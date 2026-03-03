@@ -1,5 +1,6 @@
 import type { IAuthProvider } from '../../domain/interfaces';
 import { findSeniorTab } from './tab-utils';
+import { debugWarn } from '../../domain/debug';
 
 export class SeniorPageAuth implements IAuthProvider {
   readonly name = 'pageContext';
@@ -32,7 +33,7 @@ export class SeniorPageAuth implements IAuthProvider {
 
       return this.extractToken(results?.[0]?.result);
     } catch (e) {
-      console.warn('[Senior Ponto] Page auth erro:', (e as Error).message);
+      debugWarn('Page auth erro:', (e as Error).message);
     }
     return null;
   }

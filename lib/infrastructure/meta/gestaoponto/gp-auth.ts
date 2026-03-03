@@ -1,22 +1,23 @@
 import type { GpAuthData } from '../../../domain/types';
 import { GP_API_BASE, GP_CACHE_DURATION_MS } from './constants';
+import { debugLog, debugWarn } from '../../../domain/debug';
 
-export async function getGpAssertion(): Promise<GpAuthData | null> {
+export async function getGpAssertion(force = false): Promise<GpAuthData | null> {
   const stored = await chrome.storage.local.get(['gpAssertion', 'gpAssertionTs', 'gestaoPontoColaboradorId', 'gestaoPontoCodigoCalculo']);
-  if (stored.gpAssertion && stored.gpAssertionTs && Date.now() - stored.gpAssertionTs < GP_CACHE_DURATION_MS && stored.gestaoPontoCodigoCalculo) {
-    console.log('[Senior Ponto] GP auth: usando cache (colab:', stored.gestaoPontoColaboradorId, 'calc:', stored.gestaoPontoCodigoCalculo, ')');
+  if (!force && stored.gpAssertion && stored.gpAssertionTs && Date.now() - stored.gpAssertionTs < GP_CACHE_DURATION_MS && stored.gestaoPontoCodigoCalculo) {
+    debugLog('GP auth: usando cache (colab:', stored.gestaoPontoColaboradorId, 'calc:', stored.gestaoPontoCodigoCalculo, ')');
     return { assertion: stored.gpAssertion, colaboradorId: stored.gestaoPontoColaboradorId, codigoCalculo: stored.gestaoPontoCodigoCalculo };
   }
   if (stored.gpAssertion && !stored.gestaoPontoCodigoCalculo) {
-    console.log('[Senior Ponto] GP auth: cache sem codigoCalculo, re-autenticando...');
+    debugLog('GP auth: cache sem codigoCalculo, re-autenticando...');
   }
 
   const accessToken = await getSeniorAccessToken();
   if (!accessToken) {
-    console.log('[Senior Ponto] GP auth: sem access_token do cookie');
+    debugLog('GP auth: sem access_token do cookie');
     return null;
   }
-  console.log('[Senior Ponto] GP auth: access_token obtido, autenticando com GP...');
+  debugLog('GP auth: access_token obtido, autenticando com GP...');
 
   try {
     const r = await fetch(`${GP_API_BASE}senior/auth/g7`, {
@@ -25,12 +26,12 @@ export async function getGpAssertion(): Promise<GpAuthData | null> {
       body: '{}',
     });
     if (!r.ok) {
-      console.warn('[Senior Ponto] GP auth/g7 falhou:', r.status);
+      debugWarn('GP auth/g7 falhou:', r.status);
       return null;
     }
     const json = await r.json();
     if (!json.token) {
-      console.warn('[Senior Ponto] GP auth/g7: resposta sem token');
+      debugWarn('GP auth/g7: resposta sem token');
       return null;
     }
 
@@ -40,29 +41,45 @@ export async function getGpAssertion(): Promise<GpAuthData | null> {
     if (colaboradorId) save.gestaoPontoColaboradorId = colaboradorId;
     if (codigoCalculo) save.gestaoPontoCodigoCalculo = codigoCalculo;
     chrome.storage.local.set(save);
-    console.log('[Senior Ponto] GP auth/g7 OK, colaboradorId:', colaboradorId, 'codigoCalculo:', codigoCalculo, 'userRange:', JSON.stringify(json.userRange)?.substring(0, 200));
+    debugLog('GP auth/g7 OK, colaboradorId:', colaboradorId, 'codigoCalculo:', codigoCalculo, 'userRange:', JSON.stringify(json.userRange)?.substring(0, 200));
     return { assertion: json.token, colaboradorId, codigoCalculo };
   } catch (e) {
-    console.warn('[Senior Ponto] GP auth/g7 erro:', (e as Error).message);
+    debugWarn('GP auth/g7 erro:', (e as Error).message);
     return null;
   }
 }
 
+const TOKEN_MAX_AGE_MS = 60 * 60000;
+
 async function getSeniorAccessToken(): Promise<string | null> {
   try {
     const cookies = await chrome.cookies.getAll({ domain: '.senior.com.br', name: 'com.senior.token' });
-    if (!cookies.length) {
-      console.log('[Senior Ponto] Cookie com.senior.token NAO encontrado');
-      return null;
+    if (cookies.length) {
+      const tokenObj = JSON.parse(decodeURIComponent(cookies[0].value));
+      const token = tokenObj.access_token || null;
+      if (token) {
+        debugLog('Cookie com.senior.token: access_token encontrado');
+        return token;
+      }
     }
-    const tokenObj = JSON.parse(decodeURIComponent(cookies[0].value));
-    const token = tokenObj.access_token || null;
-    console.log('[Senior Ponto] Cookie com.senior.token:', token ? 'access_token encontrado' : 'sem access_token');
-    return token;
+    debugLog('Cookie com.senior.token NAO encontrado, tentando storage...');
   } catch (e) {
-    console.warn('[Senior Ponto] Erro ao ler cookie:', (e as Error).message);
-    return null;
+    debugWarn('Erro ao ler cookie:', (e as Error).message);
   }
+
+  try {
+    const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
+    if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < TOKEN_MAX_AGE_MS) {
+      debugLog('getSeniorAccessToken: usando seniorToken do storage (age:', Math.round((Date.now() - stored.seniorTokenTs) / 1000), 's)');
+      return stored.seniorToken;
+    }
+    if (stored.seniorToken) debugLog('getSeniorAccessToken: seniorToken expirado');
+  } catch (e) {
+    debugWarn('Erro ao ler seniorToken do storage:', (e as Error).message);
+  }
+
+  debugLog('getSeniorAccessToken: nenhuma fonte de token disponível');
+  return null;
 }
 
 export function invalidateGpCache(): void {

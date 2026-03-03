@@ -3,6 +3,7 @@ import type { PunchState, Settings } from '../domain/types';
 import { DEFAULT_STATE, DEFAULT_SETTINGS } from '../domain/types';
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, ENABLE_META_TIMESHEET } from '../domain/build-flags';
+import { debugLog, debugWarn } from '../domain/debug';
 import { PunchDetector } from './detect-punches';
 import { getCompanyPunchProviders, getTimesheetProvider } from '#company/providers';
 import { SeniorStoragePunchProvider } from '../infrastructure/senior/senior-storage-provider';
@@ -30,6 +31,7 @@ const detector = new PunchDetector(buildProviders());
 let _lastHash = '';
 
 export async function backgroundDetect(): Promise<boolean> {
+  debugLog('backgroundDetect: iniciando...');
   const data = await chrome.storage.local.get(['pontoState', 'pontoSettings', 'pontoDate']);
   const today = new Date().toDateString();
 
@@ -50,18 +52,34 @@ export async function backgroundDetect(): Promise<boolean> {
   const hadVolta = !!savedState.volta;
 
   const result = await detector.detect(new Date(), true);
-  if (!result || result.times.length === 0) return false;
+  if (!result || result.times.length === 0) {
+    debugLog('backgroundDetect: detector não retornou batimentos');
+    return false;
+  }
+  debugLog(`backgroundDetect: detector retornou ${result.times.length} batimentos de ${result.source}`);
 
   const hash = result.times.join(',');
-  if (hash === _lastHash) return false;
+  if (hash === _lastHash) {
+    debugLog('backgroundDetect: hash igual ao anterior, sem mudanças');
+    return false;
+  }
+  debugLog(`backgroundDetect: hash mudou (anterior: ${_lastHash.substring(0, 30)}, novo: ${hash.substring(0, 30)})`);
   _lastHash = hash;
 
   const nowMin = getNowMinutes();
   const past = result.times.filter(t => (timeToMinutes(t) ?? 9999) <= nowMin + 5);
-  if (past.length === 0) return false;
+  if (past.length === 0) {
+    debugLog('backgroundDetect: nenhum batimento no passado');
+    return false;
+  }
+  debugLog(`backgroundDetect: ${past.length} batimentos no passado: ${past.join(', ')}`);
 
   const currentSlots = [state.entrada, state.almoco, state.volta, state.saida].filter(Boolean).length;
-  if (past.length < currentSlots) return false;
+  if (past.length < currentSlots) {
+    debugLog(`backgroundDetect: past.length (${past.length}) < currentSlots (${currentSlots}), ignorando`);
+    return false;
+  }
+  debugLog(`backgroundDetect: aplicando ${past.length} batimentos ao estado...`);
 
   state.entrada = past[0];
   state.almoco = null;
@@ -99,6 +117,7 @@ export async function backgroundDetect(): Promise<boolean> {
   }
 
   calcHorarios();
+  debugLog(`backgroundDetect: estado calculado - entrada=${state.entrada}, almoco=${state.almoco}, volta=${state.volta}, saida=${state.saida}`);
 
   await chrome.storage.local.set({ pontoState: state, pontoDate: today });
   resetNotifScheduled();
@@ -112,7 +131,7 @@ export async function backgroundDetect(): Promise<boolean> {
     );
   }
 
-  console.log('[Senior Ponto] Background detect: state atualizado', {
+  debugLog('Background detect: state atualizado', {
     entrada: state.entrada, almoco: state.almoco, volta: state.volta, saida: state.saida,
   });
 
@@ -148,14 +167,22 @@ export async function notifyPendingTimesheet(): Promise<void> {
     const url = `ts-notification.html?count=${pendingNoObs.length}`;
     const width = 420;
     const height = 300;
+
+    try {
+      const stored = await chrome.storage.local.get('tsNotifWindowId');
+      if (stored.tsNotifWindowId) {
+        try { await chrome.windows.remove(stored.tsNotifWindowId); } catch (_) {}
+      }
+    } catch (_) {}
+
     const currentWin = await chrome.windows.getCurrent();
     const left = Math.round((currentWin.left ?? 0) + ((currentWin.width ?? 1920) - width) / 2);
     const top = Math.round((currentWin.top ?? 0) + ((currentWin.height ?? 1080) - height) / 2);
     chrome.windows.create({ url, type: 'popup', width, height, left, top, focused: true }, (win) => {
       if (win?.id) chrome.storage.local.set({ tsNotifWindowId: win.id });
     });
-    console.log(`[Senior Ponto] Popup timesheet: ${pendingNoObs.length} pendente(s) sem obs`);
+    debugLog(`Popup timesheet: ${pendingNoObs.length} pendente(s) sem obs`);
   } catch (e) {
-    console.warn('[Senior Ponto] notifyPendingTimesheet erro:', (e as Error).message);
+    debugWarn('notifyPendingTimesheet erro:', (e as Error).message);
   }
 }

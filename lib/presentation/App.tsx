@@ -22,6 +22,7 @@ import { Toast } from './components/Toast';
 import { PunchHistory } from './components/PunchHistory';
 import { HourBankBanner } from './components/HourBankBanner';
 import { useHourBank } from './hooks/useHourBank';
+import { useAuthStatus } from './hooks/useAuthStatus';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
 
 const LABELS: Record<string, string> = { entrada: 'Entrada', almoco: 'Almoço', volta: 'Volta', saida: 'Saída' };
@@ -40,6 +41,7 @@ export function App() {
   const yesterdayTimes = useYesterdayPunches();
   const hourBankProvider = useMemo(() => ENABLE_MANUAL_PUNCH ? new ManualHourBankProvider() : null, []);
   const { balance } = useHourBank(hourBankProvider, settings);
+  const hasAuth = useAuthStatus();
 
   const nowMin = getNowMinutes();
   const nextSlot = loading ? null : getNextSlot(punchState, nowMin);
@@ -53,7 +55,7 @@ export function App() {
   return (
     <div className="popup-container">
       <LiveClock time={time} date={date} />
-      {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} />}
+      {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} hasAuth={hasAuth} />}
       {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
       <div className="cards-grid">
         {PUNCH_SLOTS.map(slot => {

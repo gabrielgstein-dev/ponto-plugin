@@ -50,6 +50,34 @@ function extractGestaoPonto(headers: Record<string, string> | Headers, url: stri
   window.dispatchEvent(new CustomEvent('__sponto_gestao_ponto', { detail: JSON.stringify(info) }));
 }
 
+function extractPunchTime(body: unknown): string {
+  try {
+    const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
+    if (bodyStr) {
+      const parsed = JSON.parse(bodyStr);
+      const dt = parsed?.clockingInfo?.clientDateTimeEvent || parsed?.dateTimeEvent || parsed?.dateTime || '';
+      if (typeof dt === 'string') {
+        const m = dt.match(/(\d{2}):(\d{2})/);
+        if (m) return `${m[1]}:${m[2]}`;
+      }
+    }
+  } catch (_) {}
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+}
+
+function dispatchPunchSuccess(urlStr: string, punchTime: string) {
+  window.dispatchEvent(new CustomEvent('__sponto_punch_success', {
+    detail: JSON.stringify({ url: urlStr, timestamp: Date.now(), punchTime }),
+  }));
+}
+
+const PUNCH_WRITE_PATTERNS = ['import', 'register', 'registrar'];
+
+function isPunchWrite(urlLower: string): boolean {
+  return PUNCH_WRITE_PATTERNS.some(p => urlLower.includes(p));
+}
+
 function spyRequest(url: string | URL | Request, method: string, body: unknown) {
   const urlStr = typeof url === 'string' ? url : (url && 'url' in url) ? url.url : '';
   if (!urlStr.includes('senior.com.br') && !urlStr.includes('gestaoponto')) return;
@@ -57,6 +85,11 @@ function spyRequest(url: string | URL | Request, method: string, body: unknown) 
   if ((method === 'POST' || method === 'PUT') && (ul.includes('clocking') || ul.includes('pontomobile') || ul.includes('/ponto/'))) {
     const info = { url: urlStr, method, body: typeof body === 'string' ? body : JSON.stringify(body) };
     window.dispatchEvent(new CustomEvent('__sponto_api_spy', { detail: JSON.stringify(info) }));
+
+    if (isPunchWrite(ul)) {
+      const punchTime = extractPunchTime(body);
+      dispatchPunchSuccess(urlStr, punchTime);
+    }
   }
 }
 
@@ -129,9 +162,19 @@ function interceptXHR() {
   };
 
   XMLHttpRequest.prototype.send = function (body?: Document | XMLHttpRequestBodyInit | null) {
-    spyRequest((this as XHRWithMeta).__sponto_url || '', (this as XHRWithMeta).__sponto_method || '', body);
+    const xhrUrl = (this as XHRWithMeta).__sponto_url || '';
+    spyRequest(xhrUrl, (this as XHRWithMeta).__sponto_method || '', body);
     if ((this as XHRWithMeta).__sponto_headers) {
-      extractGestaoPonto((this as XHRWithMeta).__sponto_headers, (this as XHRWithMeta).__sponto_url || '');
+      extractGestaoPonto((this as XHRWithMeta).__sponto_headers, xhrUrl);
+    }
+    const ul = xhrUrl.toLowerCase();
+    if (ul.includes(PUNCH_URL_MATCH)) {
+      this.addEventListener('load', () => {
+        if (this.status >= 200 && this.status < 300) {
+          const punchTime = extractPunchTime(body);
+          dispatchPunchSuccess(xhrUrl, punchTime);
+        }
+      });
     }
     return originalSend.apply(this, [body]);
   };

@@ -1,4 +1,5 @@
 import { GP_FRONTEND_URL } from './constants';
+import { debugWarn } from '../../../domain/debug';
 
 export async function findGpTab(): Promise<chrome.tabs.Tab | null> {
   const allTabs = await chrome.tabs.query({});
@@ -14,7 +15,7 @@ export async function getOrCreateGpTab(allowCreate: boolean): Promise<{ tab: chr
     const tab = await chrome.tabs.create({ url: GP_FRONTEND_URL, active: false });
     return { tab, created: true };
   } catch (e) {
-    console.warn('[Senior Ponto] Falha ao criar aba GP:', (e as Error).message);
+    debugWarn('Falha ao criar aba GP:', (e as Error).message);
     return null;
   }
 }

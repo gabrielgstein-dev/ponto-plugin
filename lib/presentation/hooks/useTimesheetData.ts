@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { TimesheetSummary, TimesheetEntry } from '../../domain/types';
 import { ENABLE_META_TIMESHEET } from '../../domain/build-flags';
+import { debugLog, debugWarn } from '../../domain/debug';
 import { getTimesheetProvider, getWorkedHoursForDate } from '#company/providers';
+
+const META_PLATFORM_URL = 'https://plataforma.meta.com.br';
+const AUTO_CONNECT_TIMEOUT_MS = 20000;
 
 function getCurrentPeriod(offset: number): string {
   const d = new Date();
@@ -19,10 +23,45 @@ export function useTimesheetData() {
   const [summary, setSummary] = useState<TimesheetSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [available, setAvailable] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [periodOffset, setPeriodOffset] = useState(0);
+  const autoConnectTriedRef = useRef(false);
 
   const period = getCurrentPeriod(periodOffset);
   const periodLabel = formatPeriodLabel(period);
+
+  const autoConnect = useCallback(async () => {
+    if (connecting) return;
+    setConnecting(true);
+    debugLog('Timesheet: auto-connect, abrindo aba plataforma.meta.com.br...');
+    let tabId: number | undefined;
+    try {
+      const tab = await chrome.tabs.create({ url: META_PLATFORM_URL, active: false });
+      tabId = tab.id;
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          debugLog('Timesheet: auto-connect timeout');
+          resolve();
+        }, AUTO_CONNECT_TIMEOUT_MS);
+
+        const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+          if (area === 'local' && changes.metaTsToken?.newValue) {
+            debugLog('Timesheet: token capturado via auto-connect!');
+            clearTimeout(timeout);
+            chrome.storage.onChanged.removeListener(onChange);
+            resolve();
+          }
+        };
+        chrome.storage.onChanged.addListener(onChange);
+      });
+    } catch (e) {
+      debugWarn('Timesheet auto-connect erro:', (e as Error).message);
+    }
+    if (tabId) {
+      try { chrome.tabs.remove(tabId); } catch (_) {}
+    }
+    setConnecting(false);
+  }, [connecting]);
 
   const loadData = useCallback(async () => {
     if (!ENABLE_META_TIMESHEET) return;
@@ -34,16 +73,24 @@ export function useTimesheetData() {
       if (!isOk) {
         setSummary(null);
         setLoading(false);
+        if (!autoConnectTriedRef.current) {
+          autoConnectTriedRef.current = true;
+          autoConnect().then(() => loadData());
+        }
         return;
       }
+      autoConnectTriedRef.current = false;
       const result = await provider.getSummary(period);
       setSummary(result);
+      if (result) {
+        chrome.storage.local.set({ timesheetSummaryCache: result });
+      }
     } catch (e) {
-      console.warn('[Senior Ponto] Timesheet load error:', (e as Error).message);
+      debugWarn('Timesheet load error:', (e as Error).message);
       setSummary(null);
     }
     setLoading(false);
-  }, [period]);
+  }, [period, autoConnect]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -60,7 +107,7 @@ export function useTimesheetData() {
     const dateOnly = entry.date.includes('T') ? entry.date.split('T')[0] : entry.date;
     const gpHours = await getWorkedHoursForDate(dateOnly);
     const hourQuantity = gpHours ?? entry.hourQuantity;
-    console.log(`[Senior Ponto] updateEntry: TS=${entry.hourQuantity.toFixed(2)}h GP=${gpHours?.toFixed(2) ?? 'N/A'} → usando ${hourQuantity.toFixed(2)}h`);
+    debugLog(`updateEntry: TS=${entry.hourQuantity.toFixed(2)}h GP=${gpHours?.toFixed(2) ?? 'N/A'} → usando ${hourQuantity.toFixed(2)}h`);
     const provider = getTimesheetProvider();
     const ok = await provider.updateEntry(entry.id, entry, { observation, hourQuantity });
     if (ok && summary) {
@@ -81,5 +128,5 @@ export function useTimesheetData() {
   const goToCurrent = useCallback(() => setPeriodOffset(0), []);
   const isCurrentPeriod = periodOffset === 0;
 
-  return { summary, loading, available, period, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, refresh: loadData, updateEntry, fetchGpHours };
+  return { summary, loading, available, connecting, period, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, refresh: loadData, updateEntry, fetchGpHours };
 }

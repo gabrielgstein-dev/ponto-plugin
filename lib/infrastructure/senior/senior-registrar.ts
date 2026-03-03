@@ -1,6 +1,7 @@
 import type { IPunchRegistrar } from '../../domain/interfaces';
 import type { PunchResult } from '../../domain/types';
 import { findSeniorTab } from './tab-utils';
+import { debugLog } from '../../domain/debug';
 
 const BASE = 'https://platform.senior.com.br/t/senior.com.br/bridge/1.0/rest';
 const PUNCH_URL = `${BASE}/hcm/pontomobile_clocking_event/actions/clockingEventImportByBrowser`;
@@ -93,7 +94,7 @@ export class SeniorPunchRegistrar implements IPunchRegistrar {
     });
 
     const result = results?.[0]?.result;
-    if (result?.logs) result.logs.forEach((l: string) => console.log('[Senior Ponto]', l));
+    if (result?.logs) result.logs.forEach((l: string) => debugLog(l));
     return result ?? { success: false, logs: ['executeScript sem resultado'] };
   }
 }

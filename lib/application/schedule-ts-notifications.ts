@@ -1,5 +1,6 @@
 import { getNowMinutes } from '../domain/time-utils';
 import { notifyPendingTimesheet } from './background-detect';
+import { debugLog } from '../domain/debug';
 
 const TS_ALARM_PREFIX = 'ts_';
 let _tsScheduled: Record<string, boolean> = {};
@@ -43,11 +44,11 @@ function scheduleIfFuture(key: string, triggerMin: number, today: Date, nowMin: 
   triggerDate.setHours(Math.floor(triggerMin / 60), triggerMin % 60, 0, 0);
 
   chrome.alarms.create(key, { when: triggerDate.getTime() });
-  console.log(`[Senior Ponto] Alarm TS agendado: ${key} para ${Math.floor(triggerMin / 60)}:${String(triggerMin % 60).padStart(2, '0')}`);
+  debugLog(`Alarm TS agendado: ${key} para ${Math.floor(triggerMin / 60)}:${String(triggerMin % 60).padStart(2, '0')}`);
 }
 
 export async function handleTsAlarm(alarmName: string): Promise<void> {
   if (!alarmName.startsWith(TS_ALARM_PREFIX)) return;
-  console.log(`[Senior Ponto] Alarm TS disparado: ${alarmName}`);
+  debugLog(`Alarm TS disparado: ${alarmName}`);
   await notifyPendingTimesheet();
 }

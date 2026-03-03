@@ -1,8 +1,13 @@
 import type { IPunchProvider } from '../../domain/interfaces';
 import { todayDateStr } from '../../domain/time-utils';
+import { debugLog, debugWarn } from '../../domain/debug';
 
 let _emptyTs = 0;
 const EMPTY_TTL_MS = 30000;
+
+export function resetSeniorStorageCache(): void {
+  _emptyTs = 0;
+}
 
 export class SeniorStoragePunchProvider implements IPunchProvider {
   readonly name = 'localStorage';
@@ -16,11 +21,11 @@ export class SeniorStoragePunchProvider implements IPunchProvider {
       const allTabs = await chrome.tabs.query({});
       const seniorTab = allTabs.find((t: { url?: string; id?: number }) => t.url?.includes('senior.com.br'));
       if (!seniorTab?.id) {
-        if (aggressive) console.log('[Senior Ponto] localStorage: nenhuma aba senior.com.br (total abas:', allTabs.length, ')');
+        if (aggressive) debugLog('localStorage: nenhuma aba senior.com.br (total abas:', allTabs.length, ')');
         _emptyTs = Date.now();
         return [];
       }
-      if (aggressive) console.log('[Senior Ponto] localStorage: aba Senior encontrada (id:', seniorTab.id, 'url:', seniorTab.url?.substring(0, 60), ')');
+      if (aggressive) debugLog('localStorage: aba Senior encontrada (id:', seniorTab.id, 'url:', seniorTab.url?.substring(0, 60), ')');
 
       const results = await chrome.scripting.executeScript({
         target: { tabId: seniorTab.id },
@@ -33,23 +38,23 @@ export class SeniorStoragePunchProvider implements IPunchProvider {
 
       const raw = results?.[0]?.result;
       if (!raw) {
-        if (aggressive) console.log('[Senior Ponto] localStorage: clockingEventsStorage NAO existe na aba');
+        if (aggressive) debugLog('localStorage: clockingEventsStorage NAO existe na aba');
         _emptyTs = Date.now();
         return [];
       }
-      console.log('[Senior Ponto] localStorage: clockingEventsStorage encontrado, tamanho:', raw.length);
+      debugLog('localStorage: clockingEventsStorage encontrado, tamanho:', raw.length);
 
       const parsed = JSON.parse(raw);
       const times = this.extractTodayPunches(parsed);
       if (times.length > 0) {
         _emptyTs = 0; // resetar cache quando encontrar dados
-        console.log('[Senior Ponto] localStorage: batimentos hoje:', times);
+        debugLog('localStorage: batimentos hoje:', times);
       } else {
         _emptyTs = Date.now();
       }
       return times;
     } catch (e) {
-      if (aggressive) console.warn('[Senior Ponto] localStorage erro:', (e as Error).message);
+      if (aggressive) debugWarn('localStorage erro:', (e as Error).message);
       return [];
     }
   }

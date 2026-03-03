@@ -2,6 +2,7 @@ import type { DayRecord, HourBankBalance } from '../../../domain/types';
 import { calcWorkedMinutes } from '../../../application/calc-hour-bank';
 import { getGpAssertion } from './gp-auth';
 import { GP_API_BASE } from './constants';
+import { debugLog } from '../../../domain/debug';
 
 interface GpPeriodInfo {
   codigoCalculo: number;
@@ -92,7 +93,7 @@ export async function getWorkedHoursForDate(dateStr: string): Promise<number | n
   const records = parseRecords(json);
   const record = records.find(r => r.date === dateStr);
   if (!record || record.workedMinutes === 0) return null;
-  console.log(`[Senior Ponto] GP horas para ${dateStr}: ${record.workedMinutes}min (${(record.workedMinutes / 60).toFixed(2)}h)`);
+  debugLog(`GP horas para ${dateStr}: ${record.workedMinutes}min (${(record.workedMinutes / 60).toFixed(2)}h)`);
   return record.workedMinutes / 60;
 }
 

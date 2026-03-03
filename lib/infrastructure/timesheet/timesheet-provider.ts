@@ -2,6 +2,7 @@ import type { ITimesheetProvider } from '../../domain/interfaces';
 import type { TimesheetSummary, TimesheetEntry, TimesheetEntryStatus } from '../../domain/types';
 import type { TimesheetConfig } from './timesheet-config';
 import type { TimesheetAuth } from './timesheet-auth';
+import { debugLog, debugWarn } from '../../domain/debug';
 
 export function createTimesheetProvider(config: TimesheetConfig, auth: TimesheetAuth): ITimesheetProvider {
   const { apiUrl, timesheetsBase, name } = config;
@@ -14,13 +15,13 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
   async function getSummary(period: string): Promise<TimesheetSummary | null> {
     const token = await auth.getToken();
     if (!token) {
-      console.log(`[Senior Ponto] ${name}: sem token disponível`);
+      debugLog(`${name}: sem token disponível`);
       return null;
     }
 
     const userId = await auth.getUserId();
     if (!userId) {
-      console.warn(`[Senior Ponto] ${name}: sem userId`);
+      debugWarn(`${name}: sem userId`);
       return null;
     }
 
@@ -43,17 +44,17 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
         entries: pendingEntries,
       };
     } catch (e) {
-      console.warn(`[Senior Ponto] ${name} getSummary erro:`, (e as Error).message);
+      debugWarn(`${name} getSummary erro:`, (e as Error).message);
       return null;
     }
   }
 
   async function fetchHoursSummary(headers: Record<string, string>, period: string): Promise<HoursSummaryResponse | null> {
     const url = `${apiUrl}${timesheetsBase}/hours-summary?period=${period}`;
-    console.log(`[Senior Ponto] ${name} fetchHoursSummary:`, url);
+    debugLog(`${name} fetchHoursSummary:`, url);
     const r = await fetch(url, { headers });
     if (!r.ok) {
-      console.warn(`[Senior Ponto] ${name} hours-summary:`, r.status);
+      debugWarn(`${name} hours-summary:`, r.status);
       return null;
     }
     return r.json();
@@ -61,10 +62,10 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
 
   async function fetchReportedHours(headers: Record<string, string>, userId: string, period: string): Promise<TimesheetEntry[]> {
     const url = `${apiUrl}${timesheetsBase}/users/${userId}/reported-hours?period=${period}&sort=-date`;
-    console.log(`[Senior Ponto] ${name} fetchReportedHours:`, url);
+    debugLog(`${name} fetchReportedHours:`, url);
     const r = await fetch(url, { headers });
     if (!r.ok) {
-      console.warn(`[Senior Ponto] ${name} reported-hours:`, r.status);
+      debugWarn(`${name} reported-hours:`, r.status);
       return [];
     }
     const json: ReportedHoursResponse = await r.json();
