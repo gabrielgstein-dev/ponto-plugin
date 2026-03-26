@@ -49,6 +49,8 @@ export function App() {
   const countdown = useCountdown(nextTime);
   const workedMin = loading ? 0 : calcWorkedMinutes(punchState, nowMin);
   const status = loading ? '' : getStatusText(punchState, detecting);
+  const entMin = timeToMinutes(punchState.entrada);
+  const shouldShowOvertime = !punchState.saida && entMin != null && nowMin >= entMin;
 
   if (loading) return <div className="loading-screen">Carregando...</div>;
 
@@ -69,7 +71,7 @@ export function App() {
           );
         })}
       </div>
-      <ProgressBar workedMinutes={workedMin} totalMinutes={settings.jornada} />
+      <ProgressBar workedMinutes={workedMin} totalMinutes={settings.jornada} showOvertime={shouldShowOvertime} />
       {ENABLE_YESTERDAY && yesterdayTimes.length > 0 && (
         <div className="yesterday-banner">
           <span className="yesterday-label">Ontem</span>
@@ -105,6 +107,14 @@ function getNextSlot(ps: PunchState, nowMin: number): string | null {
 function calcWorkedMinutes(ps: PunchState, nowMin: number): number {
   const entMin = timeToMinutes(ps.entrada);
   if (entMin == null) return 0;
+  
+  const now = new Date();
+  const entradaDate = ps._entradaTimestamp ? new Date(ps._entradaTimestamp) : null;
+  
+  if (entradaDate && now.getDate() !== entradaDate.getDate() && !ps.saida) {
+    return 0;
+  }
+  
   const almocoMin = timeToMinutes(ps.almoco);
   const voltaMin = timeToMinutes(ps.volta);
   const saidaMin = timeToMinutes(ps.saida);

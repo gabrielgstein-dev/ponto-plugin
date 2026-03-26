@@ -12,6 +12,10 @@
   --text: #111827;
   --text-dim: #374151;
   --text-dimmer: #6b7280;
+  --overtime-bg: rgba(255, 165, 0, 0.1);
+  --overtime-accent: #ff9500;
+  --overtime-text: #cc7700;
+  --overtime-value: #ff9500;
   
   --dark-bg: #0f1117;
   --dark-surface: #1a1d23;
@@ -24,6 +28,10 @@
   --dark-text: #f9fafb;
   --dark-text-dim: #d1d5db;
   --dark-text-dimmer: #9ca3af;
+  --dark-overtime-bg: rgba(255, 165, 0, 0.15);
+  --dark-overtime-accent: #ffaa33;
+  --dark-overtime-text: #ffaa33;
+  --dark-overtime-value: #ffcc66;
   --mono: 'Space Mono', monospace;
   --sans: 'DM Sans', sans-serif;
 }
@@ -41,6 +49,10 @@
   --text: var(--dark-text);
   --text-dim: var(--dark-text-dim);
   --text-dimmer: var(--dark-text-dimmer);
+  --overtime-bg: var(--dark-overtime-bg);
+  --overtime-accent: var(--dark-overtime-accent);
+  --overtime-text: var(--dark-overtime-text);
+  --overtime-value: var(--dark-overtime-value);
 }
 
 /* Smooth transitions for theme switching */

@@ -6,6 +6,7 @@ export interface PunchState {
   _almocoSugerido?: string | null;
   _voltaSugerida?: string | null;
   _saidaEstimada?: string | null;
+  _entradaTimestamp?: number;
 }
 
 export interface Settings {

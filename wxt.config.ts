@@ -16,7 +16,9 @@ const permissions = [
   ...(ENABLE_NOTIFICATIONS ? notifPermissions : []),
 ];
 
-const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET || ENABLE_META_TIMESHEET ? ['<all_urls>'] : [];
+const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET || ENABLE_META_TIMESHEET
+  ? ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*']
+  : [];
 
 function injectThemeCSS() {
   const themeCSSPath = resolve(__dirname, 'lib/presentation/theme.css');
@@ -32,7 +34,7 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: `${APP_NAME}`,
-    description: 'Extensão para controle de ponto eletrônico. Calcula automaticamente horários de almoço, volta e saída com base nos batimentos registrados. Visualize banco de horas, receba notificações e gerencie sua jornada de trabalho de forma prática.',
+    description: 'Controle de ponto eletrônico. Calcula horários de almoço, volta e saída. Visualize banco de horas e receba notificações.',
     permissions,
     host_permissions: hostPermissions,
     icons: {

@@ -67,29 +67,17 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
     try {
       const r = await fetch(url, { headers });
       if (!r.ok) {
-        debugLog(`${name} cost-centers não disponível (mock ativado):`, r.status);
-        return [
-          { code: '1001', name: 'Desenvolvimento de Software' },
-          { code: '2002', name: 'Infraestrutura e DevOps' },
-          { code: '3003', name: 'Suporte Técnico' },
-        ];
+        debugLog(`${name} cost-centers não disponível:`, r.status);
+        return [];
       }
       const json = await r.json();
       if (Array.isArray(json.data)) {
         return json.data.map((cc: { code: string; name: string }) => ({ code: cc.code, name: cc.name }));
       }
-      return [
-        { code: '1001', name: 'Desenvolvimento de Software' },
-        { code: '2002', name: 'Infraestrutura e DevOps' },
-        { code: '3003', name: 'Suporte Técnico' },
-      ];
+      return [];
     } catch (e) {
-      debugLog(`${name} fetchUserCostCenters erro (mock ativado):`, (e as Error).message);
-      return [
-        { code: '1001', name: 'Desenvolvimento de Software' },
-        { code: '2002', name: 'Infraestrutura e DevOps' },
-        { code: '3003', name: 'Suporte Técnico' },
-      ];
+      debugLog(`${name} fetchUserCostCenters erro:`, (e as Error).message);
+      return [];
     }
   }
 
