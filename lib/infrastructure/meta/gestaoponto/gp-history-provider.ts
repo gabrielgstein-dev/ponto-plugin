@@ -34,6 +34,16 @@ async function fetchPeriodForCompetencia(colaboradorId: string, assertion: strin
 }
 
 
+async function fetchSaldoMensal(colaboradorId: string, assertion: string, codigoCalculo: number): Promise<number | null> {
+  const url = `${GP_API_BASE}colaborador/${colaboradorId}/bancos-horas/saldo-mensal?codigoCalculo=${codigoCalculo}&projecaoMeses=3`;
+  try {
+    const r = await fetch(url, { headers: HEADERS(assertion) });
+    if (!r.ok) return null;
+    const json = await r.json();
+    return typeof json.saldoMinutos === 'number' ? json.saldoMinutos : null;
+  } catch { return null; }
+}
+
 async function fetchHistory(colaboradorId: string, assertion: string, codigoCalculo: number, dataInicial: string, dataFinal: string): Promise<Record<string, unknown> | null> {
   const url = `${GP_API_BASE}acertoPontoColaboradorPeriodo/colaborador/${colaboradorId}?codigoCalculo=${codigoCalculo}&dataInicial=${dataInicial}&dataFinal=${dataFinal}&orderby=-dataApuracao`;
   try {
@@ -128,8 +138,8 @@ export async function fetchGpHistoryForPeriod(monthOffset: number): Promise<GpHi
   if (!json) return null;
 
   const records = parseRecords(json);
-  const today = new Date().toISOString().split('T')[0];
-  const totalMinutes = records.filter(r => r.date !== today).reduce((sum, r) => sum + r.balanceMinutes, 0);
+  const saldoMinutos = await fetchSaldoMensal(auth.colaboradorId, auth.assertion, period.codigoCalculo);
+  const totalMinutes = saldoMinutos ?? 0;
 
   return {
     records,

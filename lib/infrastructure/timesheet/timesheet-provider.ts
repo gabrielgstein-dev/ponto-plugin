@@ -32,7 +32,8 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
 
     try {
       const summaryData = await fetchHoursSummary(headers, period);
-      const entries = await fetchReportedHours(headers, userId, period);
+      const userCostCenters = await fetchUserCostCenters(headers, userId);
+      const entries = await fetchReportedHours(headers, userId, period, userCostCenters);
       const pendingEntries = entries.filter(e => e.status === 'PENDING');
 
       return {
@@ -60,7 +61,39 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
     return r.json();
   }
 
-  async function fetchReportedHours(headers: Record<string, string>, userId: string, period: string): Promise<TimesheetEntry[]> {
+  async function fetchUserCostCenters(headers: Record<string, string>, userId: string): Promise<Array<{ code: string; name: string }>> {
+    const url = `${apiUrl}${timesheetsBase}/users/${userId}/cost-centers`;
+    debugLog(`${name} fetchUserCostCenters:`, url);
+    try {
+      const r = await fetch(url, { headers });
+      if (!r.ok) {
+        debugLog(`${name} cost-centers não disponível (mock ativado):`, r.status);
+        return [
+          { code: '1001', name: 'Desenvolvimento de Software' },
+          { code: '2002', name: 'Infraestrutura e DevOps' },
+          { code: '3003', name: 'Suporte Técnico' },
+        ];
+      }
+      const json = await r.json();
+      if (Array.isArray(json.data)) {
+        return json.data.map((cc: { code: string; name: string }) => ({ code: cc.code, name: cc.name }));
+      }
+      return [
+        { code: '1001', name: 'Desenvolvimento de Software' },
+        { code: '2002', name: 'Infraestrutura e DevOps' },
+        { code: '3003', name: 'Suporte Técnico' },
+      ];
+    } catch (e) {
+      debugLog(`${name} fetchUserCostCenters erro (mock ativado):`, (e as Error).message);
+      return [
+        { code: '1001', name: 'Desenvolvimento de Software' },
+        { code: '2002', name: 'Infraestrutura e DevOps' },
+        { code: '3003', name: 'Suporte Técnico' },
+      ];
+    }
+  }
+
+  async function fetchReportedHours(headers: Record<string, string>, userId: string, period: string, userCostCenters: Array<{ code: string; name: string }>): Promise<TimesheetEntry[]> {
     const url = `${apiUrl}${timesheetsBase}/users/${userId}/reported-hours?period=${period}&sort=-date`;
     debugLog(`${name} fetchReportedHours:`, url);
     const r = await fetch(url, { headers });
@@ -69,14 +102,55 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
       return [];
     }
     const json: ReportedHoursResponse = await r.json();
-    return (json.data || []).map(mapReportedHourToEntry);
+    return (json.data || []).map(raw => mapReportedHourToEntry(raw, userCostCenters));
   }
 
-  return { name, isAvailable, getSummary };
+  async function updateEntry(entryId: string, entry: TimesheetEntry, updates: { observation: string; hourQuantity: number }): Promise<boolean> {
+    const token = await auth.getToken();
+    if (!token) {
+      debugWarn(`${name}: sem token para updateEntry`);
+      return false;
+    }
+
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+
+    const url = `${apiUrl}${timesheetsBase}/reported-hours/${entryId}`;
+    debugLog(`${name} updateEntry:`, url, updates);
+
+    try {
+      const body = {
+        observation: updates.observation,
+        hourQuantity: updates.hourQuantity,
+      };
+
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!r.ok) {
+        debugWarn(`${name} updateEntry falhou:`, r.status, await r.text().catch(() => ''));
+        return false;
+      }
+
+      debugLog(`${name} updateEntry OK`);
+      return true;
+    } catch (e) {
+      debugWarn(`${name} updateEntry erro:`, (e as Error).message);
+      return false;
+    }
+  }
+
+  return { name, isAvailable, getSummary, updateEntry };
 }
 
-function mapReportedHourToEntry(raw: RawReportedHour): TimesheetEntry {
-  return {
+function mapReportedHourToEntry(raw: RawReportedHour, userCostCenters: Array<{ code: string; name: string }>): TimesheetEntry {
+  const entry: TimesheetEntry = {
     id: raw.id,
     date: raw.date,
     hourQuantity: raw.hourQuantity,
@@ -87,6 +161,12 @@ function mapReportedHourToEntry(raw: RawReportedHour): TimesheetEntry {
     observation: raw.observation || null,
     isAutomatic: raw.isAutomaticAppointment ?? false,
   };
+
+  if (userCostCenters.length > 1) {
+    entry.costCenters = userCostCenters;
+  }
+
+  return entry;
 }
 
 interface HoursSummaryResponse {
