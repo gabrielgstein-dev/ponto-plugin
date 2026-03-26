@@ -32,7 +32,7 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: `${APP_NAME}`,
-    description: 'Calcula automaticamente seus horários de almoço e saída com base nos batimentos do ponto.',
+    description: 'Extensão para controle de ponto eletrônico. Calcula automaticamente horários de almoço, volta e saída com base nos batimentos registrados. Visualize banco de horas, receba notificações e gerencie sua jornada de trabalho de forma prática.',
     permissions,
     host_permissions: hostPermissions,
     icons: {
