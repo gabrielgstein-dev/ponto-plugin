@@ -225,7 +225,12 @@ export async function backgroundTimesheetSync(): Promise<void> {
 export async function notifyPendingTimesheet(): Promise<void> {
   try {
     await backgroundTimesheetSync();
-    const stored = await chrome.storage.local.get(['timesheetSummaryCache', 'tsNotifWindowId']);
+    const stored = await chrome.storage.local.get(['timesheetSummaryCache', 'tsNotifWindowId', 'pontoState']);
+    const ps = stored.pontoState as { entrada?: string | null; saida?: string | null } | null;
+
+    // Só exibe dentro da janela de trabalho: entrada registrada e saída ainda não batida
+    if (!ps?.entrada || ps?.saida) return;
+
     const summary = stored.timesheetSummaryCache;
     if (!summary) return;
     const pendingNoObs = summary.entries.filter((e: any) => e.status === 'PENDING' && !e.observation);
