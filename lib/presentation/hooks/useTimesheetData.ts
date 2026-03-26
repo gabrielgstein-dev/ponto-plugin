@@ -94,18 +94,63 @@ export function useTimesheetData() {
     return () => chrome.storage.onChanged.removeListener(handler);
   }, [loadData, period]);
 
-  const updateEntry = useCallback(async (entry: TimesheetEntry, observation: string): Promise<{ ok: boolean; gpHours: number | null }> => {
+  const updateEntry = useCallback(async (entry: TimesheetEntry, observation: string, manualHours?: number): Promise<{ ok: boolean; gpHours: number | null }> => {
     if (!ENABLE_META_TIMESHEET) return { ok: false, gpHours: null };
     const dateOnly = entry.date.includes('T') ? entry.date.split('T')[0] : entry.date;
     const gpHours = await getWorkedHoursForDate(dateOnly);
-    const hourQuantity = gpHours ?? entry.hourQuantity;
-    debugLog(`updateEntry: TS=${entry.hourQuantity.toFixed(2)}h GP=${gpHours?.toFixed(2) ?? 'N/A'} → usando ${hourQuantity.toFixed(2)}h`);
+    
+    const hasMultipleCostCenters = entry.costCenters && entry.costCenters.length > 1;
+    
+    let hourQuantity: number;
+    if (hasMultipleCostCenters) {
+      if (manualHours === undefined) {
+        debugWarn('updateEntry: múltiplos centros de custo, mas horas não fornecidas');
+        return { ok: false, gpHours };
+      }
+      if (gpHours !== null && manualHours > gpHours) {
+        debugWarn(`updateEntry: horas manuais (${manualHours}) excedem GP (${gpHours})`);
+        return { ok: false, gpHours };
+      }
+      hourQuantity = manualHours;
+    } else {
+      hourQuantity = gpHours ?? entry.hourQuantity;
+    }
+    
+    debugLog(`updateEntry: TS=${entry.hourQuantity.toFixed(2)}h GP=${gpHours?.toFixed(2) ?? 'N/A'} → usando ${hourQuantity.toFixed(2)}h (manual: ${hasMultipleCostCenters})`);
     const provider = getTimesheetProvider();
     const ok = await provider.updateEntry(entry.id, entry, { observation, hourQuantity });
     if (ok && summary) {
       setSummary({
         ...summary,
         entries: summary.entries.map(e => e.id === entry.id ? { ...e, observation, hourQuantity } : e),
+      });
+    }
+    return { ok, gpHours };
+  }, [summary]);
+
+  const updateEntryWithAllocations = useCallback(async (entry: TimesheetEntry, allocations: import('../../domain/types').CostCenterAllocation[]): Promise<{ ok: boolean; gpHours: number | null }> => {
+    if (!ENABLE_META_TIMESHEET) return { ok: false, gpHours: null };
+    const dateOnly = entry.date.includes('T') ? entry.date.split('T')[0] : entry.date;
+    const gpHours = await getWorkedHoursForDate(dateOnly);
+    
+    const totalHours = allocations.reduce((sum, a) => sum + a.hours, 0);
+    
+    if (gpHours !== null && totalHours > gpHours) {
+      debugWarn(`updateEntryWithAllocations: total (${totalHours}) excede GP (${gpHours})`);
+      return { ok: false, gpHours };
+    }
+    
+    const observation = allocations.map(a => 
+      `${a.costCenter.code}: ${a.hours}h${a.observation ? ` - ${a.observation}` : ''}`
+    ).join('\n');
+    
+    debugLog(`updateEntryWithAllocations: ${allocations.length} alocações, total ${totalHours.toFixed(2)}h`);
+    const provider = getTimesheetProvider();
+    const ok = await provider.updateEntry(entry.id, entry, { observation, hourQuantity: totalHours });
+    if (ok && summary) {
+      setSummary({
+        ...summary,
+        entries: summary.entries.map(e => e.id === entry.id ? { ...e, observation, hourQuantity: totalHours } : e),
       });
     }
     return { ok, gpHours };
@@ -120,5 +165,5 @@ export function useTimesheetData() {
   const goToCurrent = useCallback(() => setPeriodOffset(0), []);
   const isCurrentPeriod = periodOffset === 0;
 
-  return { summary, loading, available, connecting, period, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, refresh: loadData, updateEntry, fetchGpHours };
+  return { summary, loading, available, connecting, period, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, refresh: loadData, updateEntry, updateEntryWithAllocations, fetchGpHours };
 }

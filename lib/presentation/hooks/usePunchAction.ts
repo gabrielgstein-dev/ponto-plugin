@@ -44,7 +44,9 @@ export function usePunchAction(onToast: (msg: string) => void, onRefresh: () => 
           await injectPunchIntoLocalStorage(newPunchTime);
         }
 
-        chrome.storage.local.set({ punchSuccessTs: Date.now() });
+        const storageUpdate: Record<string, unknown> = { punchSuccessTs: Date.now() };
+        if (newPunchTime) storageUpdate.punchSuccessTime = newPunchTime;
+        chrome.storage.local.set(storageUpdate);
         onRefresh();
       } else {
         onToast(`Falha: ${result.logs.join(', ')}`);
