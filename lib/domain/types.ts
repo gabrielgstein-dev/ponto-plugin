@@ -36,6 +36,14 @@ export interface PunchResult {
 
 export type PunchSlot = 'entrada' | 'almoco' | 'volta' | 'saida';
 
+export type PunchReminderSlot = 'almoco' | 'volta' | 'saida';
+
+export interface PunchReminderStorage {
+  punchPopupSlot: PunchReminderSlot | null;
+  punchPopupExpectedTime: string | null;
+  punchPopupWindowId: number | null;
+}
+
 export const PUNCH_SLOTS: PunchSlot[] = ['entrada', 'almoco', 'volta', 'saida'];
 
 export const DEFAULT_STATE: PunchState = {
@@ -70,12 +78,21 @@ export interface HourBankBalance {
 
 export type TimesheetEntryStatus = 'PENDING' | 'APPROVED' | 'REPROVED';
 
+export interface CostCenterAllocation {
+  costCenter: { code: string; name: string };
+  task: { id: string; name: string } | null;
+  hourType: { id: string; description: string } | null;
+  hours: number;
+  observation: string;
+}
+
 export interface TimesheetEntry {
   id: string;
   date: string;
   hourQuantity: number;
   status: TimesheetEntryStatus;
   costCenter: { code: string; name: string } | null;
+  costCenters?: Array<{ code: string; name: string }>;
   task: { id: string; name: string } | null;
   hourType: { id: string; description: string } | null;
   observation: string | null;
