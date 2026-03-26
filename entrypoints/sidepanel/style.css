@@ -564,3 +564,135 @@ body {
   color: var(--text-dimmer);
   font-size: 13px;
 }
+
+.ts-cc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.ts-cc-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.ts-cc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--surface2);
+  transition: background 0.15s;
+}
+.ts-cc-header:hover {
+  background: var(--bg);
+}
+.ts-cc-code {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent2);
+  min-width: 60px;
+}
+.ts-cc-name {
+  font-size: 12px;
+  color: var(--text-dim);
+  flex: 1;
+}
+.ts-cc-detail {
+  padding: 8px;
+  background: var(--bg);
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ts-cc-detail .ts-obs-input {
+  min-height: 50px;
+}
+.ts-cc-detail .ts-obs-counter {
+  text-align: right;
+}
+.ts-cc-hours {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 50px;
+  text-align: right;
+}
+
+.ts-alloc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.ts-alloc-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dimmer);
+}
+.ts-alloc-value {
+  font-size: 13px;
+  color: var(--text);
+  padding: 4px 0;
+}
+
+.ts-global-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 8px;
+  color: var(--danger);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.ts-save-hint {
+  font-size: 11px;
+  color: var(--text-dimmer);
+  font-style: italic;
+}
+
+.ts-hours-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  padding: 8px;
+  outline: none;
+}
+.ts-hours-input:focus {
+  border-color: var(--accent2);
+}
+.ts-hours-input.error {
+  border-color: var(--danger);
+}
+.ts-hours-input::placeholder {
+  color: var(--text-dimmer);
+  font-style: italic;
+}
+.ts-hours-limit {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ts-hours-error {
+  font-size: 11px;
+  color: var(--danger);
+  margin-top: 2px;
+}
+.ts-hours-hint {
+  font-size: 11px;
+  color: var(--text-dimmer);
+  font-style: italic;
+  margin-top: 2px;
+}

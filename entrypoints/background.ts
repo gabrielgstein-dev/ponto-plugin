@@ -1,6 +1,8 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
 import { debugLog } from '../lib/domain/debug';
-import { handleDailyReset, handleReminderAlarm, handleNotifAlarm } from '../lib/application/handle-alarm';
+import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
+import { recheckReminder, resolveReminder } from '../lib/application/punch-reminder-manager';
+import type { PunchReminderSlot } from '../lib/domain/types';
 import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
 import { addPendingPunch, loadPendingPunches } from '../lib/application/detect-punches';
@@ -123,9 +125,19 @@ export default defineBackground(() => {
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'dailyReset') { handleDailyReset(); return; }
     if (alarm.name === 'bgDetect') { backgroundDetect().catch(() => {}); backgroundTimesheetSync().catch(() => {}); return; }
+    if (alarm.name === 'punch_recheck') { recheckReminder().catch(() => {}); return; }
+    if (alarm.name.startsWith('punch_popup_')) { handlePunchPopupAlarm(alarm.name).catch(() => {}); return; }
     if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name); return; }
     if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name); return; }
     if (alarm.name.startsWith('ts_')) { handleTsAlarm(alarm.name); }
+  });
+
+  chrome.windows.onRemoved.addListener((windowId) => {
+    chrome.storage.local.get('punchPopupWindowId', (data) => {
+      if (data.punchPopupWindowId === windowId) {
+        chrome.storage.local.remove('punchPopupWindowId');
+      }
+    });
   });
 
   chrome.alarms.get('dailyReset', (existing) => {
@@ -161,6 +173,16 @@ export default defineBackground(() => {
 
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
+    if (changes.pontoState) {
+      const newState = changes.pontoState.newValue;
+      chrome.storage.local.get('punchPopupSlot', (data) => {
+        const slot = data.punchPopupSlot as PunchReminderSlot | null;
+        if (!slot) return;
+        if (newState?.[slot] || newState?.saida) {
+          resolveReminder(slot).catch(() => {});
+        }
+      });
+    }
     if (changes.punchSuccessTs) {
       const punchTime = changes.punchSuccessTime?.newValue as string | undefined;
       const now = new Date();
