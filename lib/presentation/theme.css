@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #f9fafb;
+  --surface: #ffffff;
+  --surface2: #f1f5f9;
+  --border: #e2e8f0;
+  --accent: #0032ff;
+  --accent2: #0056b3;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --text: #111827;
+  --text-dim: #374151;
+  --text-dimmer: #6b7280;
+  
+  --dark-bg: #0f1117;
+  --dark-surface: #1a1d23;
+  --dark-surface2: #23272f;
+  --dark-border: #2d3239;
+  --dark-accent: #3b82f6;
+  --dark-accent2: #2563eb;
+  --dark-warn: #f59e0b;
+  --dark-danger: #ef4444;
+  --dark-text: #f9fafb;
+  --dark-text-dim: #d1d5db;
+  --dark-text-dimmer: #9ca3af;
+  --mono: 'Space Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+
+/* Dark mode variables */
+.dark {
+  --bg: var(--dark-bg);
+  --surface: var(--dark-surface);
+  --surface2: var(--dark-surface2);
+  --border: var(--dark-border);
+  --accent: var(--dark-accent);
+  --accent2: var(--dark-accent2);
+  --warn: var(--dark-warn);
+  --danger: var(--dark-danger);
+  --text: var(--dark-text);
+  --text-dim: var(--dark-text-dim);
+  --text-dimmer: var(--dark-text-dimmer);
+}
+
+/* Smooth transitions for theme switching */
+*, *::before, *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}

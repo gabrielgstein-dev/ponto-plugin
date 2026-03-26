@@ -1,6 +1,10 @@
 {
   "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "moduleResolution": "bundler",
     "paths": {
       "#company/*": ["./lib/infrastructure/meta/*"]
     }

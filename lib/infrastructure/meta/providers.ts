@@ -12,7 +12,7 @@ export function getTimesheetProvider(): ITimesheetProvider {
 }
 
 export { getGpAssertion, invalidateGpCache } from './gestaoponto/gp-auth';
-export { parseGpResponse } from './gestaoponto/gp-provider';
+export { parseGpResponse, resetGpPunchCache } from './gestaoponto/gp-provider';
 export { GP_API_BASE } from './gestaoponto/constants';
-export { fetchGpHistoryForPeriod } from './gestaoponto/gp-history-provider';
+export { fetchGpHistoryForPeriod, getWorkedHoursForDate } from './gestaoponto/gp-history-provider';
 export type { GpHistoryResult } from './gestaoponto/gp-history-provider';

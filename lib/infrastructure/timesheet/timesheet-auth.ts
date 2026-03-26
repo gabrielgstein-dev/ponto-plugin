@@ -1,4 +1,5 @@
 import type { TimesheetConfig } from './timesheet-config';
+import { debugLog } from '../../domain/debug';
 
 export interface TimesheetAuth {
   getToken(): Promise<string | null>;
@@ -28,7 +29,7 @@ export function createTimesheetAuth(config: TimesheetConfig): TimesheetAuth {
 
     const age = Date.now() - (stored[KEY_TS] || 0);
     if (age >= config.tokenMaxAgeMs) {
-      console.log(`[Senior Ponto] ${config.name} auth: token expirado (${Math.round(age / 1000)}s)`);
+      debugLog(`${config.name} auth: token expirado (${Math.round(age / 1000)}s)`);
       return null;
     }
 

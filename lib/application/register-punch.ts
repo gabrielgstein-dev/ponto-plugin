@@ -1,5 +1,6 @@
 import type { IAuthProvider, IPunchRegistrar } from '../domain/interfaces';
 import type { PunchResult } from '../domain/types';
+import { debugLog, debugWarn } from '../domain/debug';
 
 export async function registerPunch(
   authProviders: IAuthProvider[],
@@ -11,11 +12,11 @@ export async function registerPunch(
     try {
       accessToken = await provider.getAccessToken();
       if (accessToken) {
-        console.log(`[Senior Ponto] Token via ${provider.name}`);
+        debugLog(`Token via ${provider.name}`);
         break;
       }
     } catch (e) {
-      console.warn(`[Senior Ponto] Auth ${provider.name} falhou:`, (e as Error).message);
+      debugWarn(`Auth ${provider.name} falhou:`, (e as Error).message);
     }
   }
 

@@ -1,3 +1,5 @@
+import { debugLog } from '../lib/domain/debug';
+
 function isContextValid(): boolean {
   try { return !!chrome.runtime && !!chrome.runtime.id; } catch (_) { return false; }
 }
@@ -100,10 +102,14 @@ function capturePageTokens() {
     } catch (_) {}
   }) as EventListener);
 
-  window.addEventListener('__sponto_punch_success', (() => {
+  window.addEventListener('__sponto_punch_success', ((e: CustomEvent) => {
     if (!isContextValid()) return;
     try {
-      chrome.storage.local.set({ punchSuccessTs: Date.now() });
+      const save: Record<string, unknown> = { punchSuccessTs: Date.now() };
+      const info = typeof e.detail === 'string' ? JSON.parse(e.detail) : e.detail;
+      if (info?.punchTime) save.punchSuccessTime = info.punchTime;
+      debugLog('Punch success interceptado:', info?.punchTime || 'sem horário');
+      chrome.storage.local.set(save);
     } catch (_) {}
   }) as EventListener);
 }

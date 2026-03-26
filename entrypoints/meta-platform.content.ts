@@ -9,6 +9,8 @@ export default defineContentScript({
   main() {
     if (window.top !== window) return;
     captureMetaTokens();
+    captureTimesheetMutations();
+    autoClickColaborador();
   },
 });
 
@@ -30,6 +32,37 @@ function captureMetaTokens() {
       }
     } catch (_) {}
   }) as EventListener);
+}
+
+function captureTimesheetMutations() {
+  window.addEventListener('__sponto_ts_mutation', ((e: CustomEvent) => {
+    if (!isContextValid()) return;
+    try {
+      const info = typeof e.detail === 'string' ? JSON.parse(e.detail) : e.detail;
+      chrome.storage.local.set({ tsMutationTs: Date.now(), tsMutationInfo: info });
+    } catch (_) {}
+  }) as EventListener);
+}
+
+function autoClickColaborador() {
+  const tryClick = () => {
+    const buttons = document.querySelectorAll('button');
+    for (const btn of buttons) {
+      if (btn.textContent?.toLowerCase().includes('colaborador')) {
+        btn.click();
+        return true;
+      }
+    }
+    return false;
+  };
+
+  if (tryClick()) return;
+
+  const observer = new MutationObserver(() => {
+    if (tryClick()) observer.disconnect();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  setTimeout(() => observer.disconnect(), 15000);
 }
 
 function extractMetaUUID(jwt: string): string | null {

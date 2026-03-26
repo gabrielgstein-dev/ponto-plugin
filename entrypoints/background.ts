@@ -1,6 +1,15 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
-import { handleDailyReset, handleReminderAlarm, handleNotifAlarm } from '../lib/application/handle-alarm';
-import { backgroundDetect, resetBackgroundHash } from '../lib/application/background-detect';
+import { debugLog } from '../lib/domain/debug';
+import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
+import { recheckReminder, resolveReminder } from '../lib/application/punch-reminder-manager';
+import type { PunchReminderSlot } from '../lib/domain/types';
+import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync } from '../lib/application/background-detect';
+import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
+import { addPendingPunch, loadPendingPunches } from '../lib/application/detect-punches';
+import { resetGpPunchCache } from '#company/providers';
+import { resetSeniorApiCache } from '../lib/infrastructure/senior/senior-api-provider';
+import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-storage-provider';
+import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
 
 export default defineBackground(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
@@ -55,10 +64,37 @@ export default defineBackground(() => {
       if (windowId) {
         chrome.sidePanel.open({ windowId }).then(() => sendResponse({ ok: true }));
       } else {
-        chrome.windows.getCurrent((win) => {
-          if (win.id) chrome.sidePanel.open({ windowId: win.id }).then(() => sendResponse({ ok: true }));
+        chrome.windows.getAll({ windowTypes: ['normal'] }, (wins) => {
+          const target = wins.find(w => w.focused) || wins[0];
+          if (target?.id) chrome.sidePanel.open({ windowId: target.id }).then(() => sendResponse({ ok: true }));
         });
       }
+      return true;
+    }
+    if (message.type === 'CLOSE_TS_NOTIFICATION') {
+      chrome.storage.local.get('tsNotifWindowId', (data) => {
+        if (data.tsNotifWindowId) {
+          chrome.windows.remove(data.tsNotifWindowId, () => {
+            chrome.storage.local.remove('tsNotifWindowId');
+            sendResponse({ ok: true });
+          });
+        } else if (sender.tab?.windowId) {
+          chrome.windows.remove(sender.tab.windowId, () => {
+            sendResponse({ ok: true });
+          });
+        } else {
+          sendResponse({ ok: false });
+        }
+      });
+      return true;
+    }
+    if (message.type === 'REQUEST_TS_SYNC') {
+      backgroundTimesheetSync().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'TEST_TS_NOTIFICATION') {
+      notifyPendingTimesheet().catch(() => {});
+      sendResponse({ ok: true });
       return true;
     }
     if (message.type === 'SHOW_NOTIFICATION') {
@@ -76,11 +112,32 @@ export default defineBackground(() => {
     return true;
   });
 
+  chrome.notifications.onClicked.addListener((notifId) => {
+    if (notifId === 'timesheet-pending') {
+      chrome.notifications.clear(notifId);
+      chrome.storage.local.set({ sidePanelTab: 'timesheet' });
+      chrome.windows.getCurrent((win) => {
+        if (win?.id) chrome.sidePanel.open({ windowId: win.id });
+      });
+    }
+  });
+
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'dailyReset') { handleDailyReset(); return; }
-    if (alarm.name === 'bgDetect') { backgroundDetect().catch(() => {}); return; }
+    if (alarm.name === 'bgDetect') { backgroundDetect().catch(() => {}); backgroundTimesheetSync().catch(() => {}); return; }
+    if (alarm.name === 'punch_recheck') { recheckReminder().catch(() => {}); return; }
+    if (alarm.name.startsWith('punch_popup_')) { handlePunchPopupAlarm(alarm.name).catch(() => {}); return; }
     if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name); return; }
-    if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name); }
+    if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name); return; }
+    if (alarm.name.startsWith('ts_')) { handleTsAlarm(alarm.name); }
+  });
+
+  chrome.windows.onRemoved.addListener((windowId) => {
+    chrome.storage.local.get('punchPopupWindowId', (data) => {
+      if (data.punchPopupWindowId === windowId) {
+        chrome.storage.local.remove('punchPopupWindowId');
+      }
+    });
   });
 
   chrome.alarms.get('dailyReset', (existing) => {
@@ -93,20 +150,81 @@ export default defineBackground(() => {
     }
   });
 
-  chrome.alarms.create('bgDetect', { periodInMinutes: 2 });
+  chrome.alarms.create('bgDetect', { periodInMinutes: 10 });
+
+  function resetAllCaches() {
+    resetGpPunchCache();
+    resetSeniorApiCache();
+    resetSeniorStorageCache();
+    resetBackgroundHash();
+  }
+
+  function triggerReDetection(time: string) {
+    addPendingPunch(time);
+    resetAllCaches();
+    backgroundDetect().catch(() => {});
+    [5000, 12000, 25000].forEach(delay => {
+      setTimeout(() => {
+        resetAllCaches();
+        backgroundDetect().catch(() => {});
+      }, delay);
+    });
+  }
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.punchSuccessTs) {
-      console.log('[Senior Ponto] Background: punch registrado, re-detectando...');
-      resetBackgroundHash();
-      [3000, 8000, 18000].forEach(delay => {
-        setTimeout(() => {
-          resetBackgroundHash();
-          backgroundDetect().catch(() => {});
-        }, delay);
+    if (area !== 'local') return;
+    if (changes.pontoState) {
+      const newState = changes.pontoState.newValue;
+      chrome.storage.local.get('punchPopupSlot', (data) => {
+        const slot = data.punchPopupSlot as PunchReminderSlot | null;
+        if (!slot) return;
+        if (newState?.[slot] || newState?.saida) {
+          resolveReminder(slot).catch(() => {});
+        }
       });
+    }
+    if (changes.punchSuccessTs) {
+      const punchTime = changes.punchSuccessTime?.newValue as string | undefined;
+      const now = new Date();
+      const fallbackTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const time = punchTime || fallbackTime;
+      debugLog(`Background: punch registrado (${time}), pending + re-detectando...`);
+      triggerReDetection(time);
+    }
+    if (changes.seniorToken && changes.seniorToken.newValue) {
+      debugLog('Background: seniorToken capturado, renovando GP assertion...');
+      getGpAssertion(true).then(auth => {
+        if (auth) {
+          debugLog('Background: GP assertion renovado (colab:', auth.colaboradorId, 'calc:', auth.codigoCalculo, ')');
+          resetAllCaches();
+          backgroundDetect().catch(() => {});
+        } else {
+          debugLog('Background: falha ao renovar GP assertion');
+        }
+      }).catch(() => {});
+    }
+    if (changes.metaTsToken && changes.metaTsToken.newValue) {
+      debugLog('Background: metaTsToken capturado, verificando timesheet pendente...');
+      notifyPendingTimesheet().catch(() => {});
+    }
+    if (changes.tsMutationTs) {
+      debugLog('Background: edição manual de timesheet detectada, re-sincronizando...');
+      backgroundTimesheetSync().catch(() => {});
+    }
+    if (changes.seniorPunchApi && !changes.punchSuccessTs) {
+      const info = changes.seniorPunchApi.newValue;
+      const url = (info?.url || '').toLowerCase();
+      if (url.includes('import') || url.includes('register') || url.includes('registrar') || url.includes('marcacao') || url.includes('batimento')) {
+        const now = new Date();
+        const fallbackTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        debugLog(`Background: punch API detectada via spy (${fallbackTime}), re-detectando...`);
+        triggerReDetection(fallbackTime);
+      }
     }
   });
 
-  backgroundDetect().catch(() => {});
+  loadPendingPunches().then(() => {
+    backgroundDetect().catch(() => {});
+    backgroundTimesheetSync().catch(() => {});
+  }).catch(() => {});
 });

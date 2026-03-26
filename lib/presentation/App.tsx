@@ -22,6 +22,7 @@ import { Toast } from './components/Toast';
 import { PunchHistory } from './components/PunchHistory';
 import { HourBankBanner } from './components/HourBankBanner';
 import { useHourBank } from './hooks/useHourBank';
+import { useAuthStatus } from './hooks/useAuthStatus';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
 
 const LABELS: Record<string, string> = { entrada: 'Entrada', almoco: 'Almoço', volta: 'Volta', saida: 'Saída' };
@@ -40,6 +41,7 @@ export function App() {
   const yesterdayTimes = useYesterdayPunches();
   const hourBankProvider = useMemo(() => ENABLE_MANUAL_PUNCH ? new ManualHourBankProvider() : null, []);
   const { balance } = useHourBank(hourBankProvider, settings);
+  const hasAuth = useAuthStatus();
 
   const nowMin = getNowMinutes();
   const nextSlot = loading ? null : getNextSlot(punchState, nowMin);
@@ -53,7 +55,7 @@ export function App() {
   return (
     <div className="popup-container">
       <LiveClock time={time} date={date} />
-      {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} />}
+      {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} hasAuth={hasAuth} />}
       {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
       <div className="cards-grid">
         {PUNCH_SLOTS.map(slot => {
@@ -74,7 +76,7 @@ export function App() {
           <span className="yesterday-times">{yesterdayTimes.join(' → ')}</span>
         </div>
       )}
-      <StatusBanner text={status} type={punchState.saida ? 'success' : 'info'} />
+      {!ENABLE_SENIOR_INTEGRATION && <StatusBanner text={status} type={punchState.saida ? 'success' : 'info'} />}
       <NextAction label={nextSlot ? LABELS[nextSlot] : ''} countdown={countdown} visible={!!nextSlot && !!countdown} />
       {ENABLE_SENIOR_PUNCH_BUTTON && <PunchButton onClick={doPunch} loading={punching} disabled={!!punchState.saida} />}
       {ENABLE_MANUAL_PUNCH && <PunchButton onClick={doManualPunch} loading={manualPunching} disabled={!!punchState.saida} />}
@@ -114,10 +116,10 @@ function calcWorkedMinutes(ps: PunchState, nowMin: number): number {
 }
 
 function getStatusText(ps: PunchState, detecting: boolean): string {
-  if (detecting) return 'Detectando batimentos...';
+  if (detecting) return '';
   if (ps.saida) return 'Jornada concluída!';
-  if (ps.volta) return 'Trabalhando — aguardando saída';
-  if (ps.almoco) return 'Almoço — aguardando volta';
-  if (ps.entrada) return 'Trabalhando — aguardando almoço';
+  if (ps.volta) return 'Aguardando saída';
+  if (ps.almoco) return 'Em almoço';
+  if (ps.entrada) return 'Aguardando almoço';
   return 'Aguardando entrada';
 }

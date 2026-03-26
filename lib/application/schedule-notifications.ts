@@ -1,10 +1,11 @@
-import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
+import { timeToMinutes, minutesToTime, getNowMinutes } from '../domain/time-utils';
 import { settings, notifScheduled } from './state';
 
 interface NotifEntry {
   key: string;
   time: number;
   msg: string;
+  expectedTime?: string;
 }
 
 export function scheduleNotifications(
@@ -19,33 +20,29 @@ export function scheduleNotifications(
 
   if (entMin && !almocoMin) {
     const almocoHorarioMin = timeToMinutes(settings.almocoHorario) || 720;
+    const almocoTime = minutesToTime(almocoHorarioMin) || settings.almocoHorario;
     entries.push({ key: 'notif_almoco', time: almocoHorarioMin - antecip, msg: `Hora do almoço em ${antecip} minutos!` });
-    if (atraso > 0) {
-      entries.push({ key: 'reminder_almoco', time: almocoHorarioMin + atraso, msg: `Você esqueceu de registrar o almoço? Já passou ${atraso}min do horário.` });
-    }
+    entries.push({ key: 'punch_popup_almoco', time: almocoHorarioMin, msg: '', expectedTime: almocoTime });
   }
 
   if (almocoMin && !voltaMin) {
     const voltaSug = almocoMin + settings.almocoDur;
+    const voltaTime = minutesToTime(voltaSug) || '';
     entries.push({ key: 'notif_volta', time: voltaSug - antecip, msg: `Hora de voltar do almoço em ${antecip} minutos!` });
-    entries.push({ key: 'notif_volta_now', time: voltaSug, msg: 'Registre a volta do almoço agora!' });
-    if (atraso > 0) {
-      entries.push({ key: 'reminder_volta', time: voltaSug + atraso, msg: `Você esqueceu de registrar a volta do almoço? Já passou ${atraso}min.` });
-    }
+    entries.push({ key: 'punch_popup_volta', time: voltaSug, msg: '', expectedTime: voltaTime });
   }
 
   if (saidaMin) {
+    const saidaTime = minutesToTime(saidaMin) || '';
     entries.push({ key: 'notif_saida', time: saidaMin - antecip, msg: `Saída em ${antecip} minutos! Prepare-se.` });
-    entries.push({ key: 'notif_saida_now', time: saidaMin, msg: 'Hora de bater o ponto de saída!' });
-    if (atraso > 0) {
-      entries.push({ key: 'reminder_saida', time: saidaMin + atraso, msg: `Você esqueceu de registrar a saída? Já passou ${atraso}min do horário.` });
-    }
+    entries.push({ key: 'punch_popup_saida', time: saidaMin, msg: '', expectedTime: saidaTime });
   }
 
   const nowMin = getNowMinutes();
   const today = new Date();
 
-  for (const { key, time, msg } of entries) {
+  for (const entry of entries) {
+    const { key, time, msg } = entry;
     if (notifScheduled[key] || time <= nowMin) continue;
     notifScheduled[key] = true;
 
@@ -53,6 +50,10 @@ export function scheduleNotifications(
     triggerDate.setHours(Math.floor(time / 60), time % 60, 0, 0);
 
     chrome.alarms.create(key, { when: triggerDate.getTime() });
-    chrome.storage.local.set({ [`alarm_msg_${key}`]: msg });
+    if (key.startsWith('punch_popup_') && entry.expectedTime != null) {
+      chrome.storage.local.set({ [`alarm_time_${key}`]: entry.expectedTime });
+    } else if (msg) {
+      chrome.storage.local.set({ [`alarm_msg_${key}`]: msg });
+    }
   }
 }

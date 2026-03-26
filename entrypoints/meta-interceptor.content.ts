@@ -8,13 +8,16 @@ export default defineContentScript({
   },
 });
 
-const SESSION_PATH = '/api/auth/session';
+const TS_MUTATION_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+function isTimesheetMutation(url: string, method: string): boolean {
+  const ul = url.toLowerCase();
+  return TS_MUTATION_METHODS.includes(method.toUpperCase()) && (ul.includes('/timesheets/') || ul.includes('/reported-hours'));
+}
 
 function interceptMetaFetch() {
   const originalFetch = window.fetch;
   window.fetch = function (this: typeof globalThis, input: RequestInfo | URL, init?: RequestInit) {
-    const fetchUrl = typeof input === 'string' ? input : (input as Request).url || '';
-
     if (init?.headers) {
       const bearer = extractBearerFromHeaders(init.headers);
       if (bearer) {
@@ -22,16 +25,18 @@ function interceptMetaFetch() {
       }
     }
 
+    const method = (init?.method || 'GET').toUpperCase();
+    const fetchUrl = typeof input === 'string' ? input : (input as Request).url || '';
+
     const result = originalFetch.apply(this, [input, init]);
 
-    if (fetchUrl.includes(SESSION_PATH)) {
+    if (isTimesheetMutation(fetchUrl, method)) {
       (result as Promise<Response>).then(response => {
-        if (!response.ok) return;
-        response.clone().json().then((json: Record<string, unknown>) => {
-          if (json.accessToken && typeof json.accessToken === 'string') {
-            dispatchMetaToken(json.accessToken);
-          }
-        }).catch(() => {});
+        if (response.ok) {
+          window.dispatchEvent(new CustomEvent('__sponto_ts_mutation', {
+            detail: JSON.stringify({ url: fetchUrl, method, timestamp: Date.now() }),
+          }));
+        }
       }).catch(() => {});
     }
 

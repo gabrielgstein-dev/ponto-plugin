@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
+import { debugLog } from '../../domain/debug';
 import { registerPunch } from '../../application/register-punch';
+import { addPendingPunch } from '../../application/detect-punches';
 import { SeniorCookieAuth } from '../../infrastructure/senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../../infrastructure/senior/senior-page-auth';
 import { SeniorInterceptorAuth } from '../../infrastructure/senior/senior-interceptor-auth';
@@ -37,11 +39,14 @@ export function usePunchAction(onToast: (msg: string) => void, onRefresh: () => 
         } catch (_) {}
 
         if (newPunchTime) {
-          console.log('[Senior Ponto] Novo ponto da API:', newPunchTime);
+          debugLog('Novo ponto da API:', newPunchTime);
+          addPendingPunch(newPunchTime);
           await injectPunchIntoLocalStorage(newPunchTime);
         }
 
-        chrome.storage.local.set({ punchSuccessTs: Date.now() });
+        const storageUpdate: Record<string, unknown> = { punchSuccessTs: Date.now() };
+        if (newPunchTime) storageUpdate.punchSuccessTime = newPunchTime;
+        chrome.storage.local.set(storageUpdate);
         onRefresh();
       } else {
         onToast(`Falha: ${result.logs.join(', ')}`);

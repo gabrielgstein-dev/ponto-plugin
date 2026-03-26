@@ -1,21 +1,22 @@
 import { getOrCreateGpTab, safeCloseTab } from './gp-tab-utils';
 import { waitForGpSession } from './gp-tab-session';
 import { executeGpFetch } from './gp-tab-fetch';
+import { debugLog, debugWarn } from '../../../domain/debug';
 
 export async function fetchGpViaTabs(allowCreate = false): Promise<string[]> {
   const tabInfo = await getOrCreateGpTab(allowCreate);
   if (!tabInfo) {
-    console.log('[Senior Ponto] GP viaTabs: sem aba GP disponível (allowCreate:', allowCreate, ')');
+    debugLog('GP viaTabs: sem aba GP disponível (allowCreate:', allowCreate, ')');
     return [];
   }
 
   const { tab, created } = tabInfo;
-  console.log('[Senior Ponto] GP viaTabs: aba encontrada (id:', tab.id, 'created:', created, ')');
+  debugLog('GP viaTabs: aba encontrada (id:', tab.id, 'created:', created, ')');
   try {
-    const waitTime = created ? 10000 : 5000;
+    const waitTime = created ? 45000 : 15000;
     const ready = await waitForGpSession(tab.id!, waitTime);
     if (!ready) {
-      console.warn('[Senior Ponto] GP viaTabs: sessão não disponível após', waitTime, 'ms');
+      debugWarn('GP viaTabs: sessão não disponível após', waitTime, 'ms');
       if (created) safeCloseTab(tab.id!);
       return [];
     }
@@ -24,10 +25,10 @@ export async function fetchGpViaTabs(allowCreate = false): Promise<string[]> {
     if (created) safeCloseTab(tab.id!);
 
     if (result?.logs) {
-      result.logs.forEach(l => console.log('[Senior Ponto GP]', l));
+      result.logs.forEach(l => debugLog('GP tab:', l));
     }
     if (result?.error) {
-      console.warn('[Senior Ponto] GP viaTabs erro interno:', result.error);
+      debugWarn('GP viaTabs erro interno:', result.error);
     }
 
     if (result?.colaboradorId) {
@@ -36,10 +37,10 @@ export async function fetchGpViaTabs(allowCreate = false): Promise<string[]> {
       chrome.storage.local.set(save);
     }
 
-    console.log('[Senior Ponto] GP viaTabs resultado:', result?.times?.length ?? 0, 'marcações');
+    debugLog('GP viaTabs resultado:', result?.times?.length ?? 0, 'marcações');
     return result?.times ?? [];
   } catch (e) {
-    console.warn('[Senior Ponto] GP viaTabs erro:', (e as Error).message);
+    debugWarn('GP viaTabs erro:', (e as Error).message);
     if (created) safeCloseTab(tab.id!);
     return [];
   }

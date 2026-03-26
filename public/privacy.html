@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidade - Senior Ponto</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      color: #333;
+    }
+    h1 { color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; }
+    h2 { color: #1a73e8; margin-top: 30px; }
+    h3 { color: #555; margin-top: 20px; }
+    ul { padding-left: 20px; }
+    strong { color: #1a73e8; }
+    hr { border: none; border-top: 1px solid #ddd; margin: 30px 0; }
+  </style>
+</head>
+<body>
+  <h1>Política de Privacidade - Senior Ponto</h1>
+
+  <h2>Propósito Único</h2>
+  <p>A extensão Senior Ponto tem como <strong>único propósito</strong> auxiliar colaboradores CLT no controle de sua jornada de trabalho e ponto eletrônico. A extensão calcula automaticamente horários de almoço, volta e saída com base nos batimentos de ponto registrados no sistema Senior X / GestãoPonto, permitindo que o usuário acompanhe seu banco de horas e receba notificações sobre horários importantes.</p>
+
+  <h2>Justificativas de Permissões</h2>
+
+  <h3>activeTab</h3>
+  <p><strong>Justificativa:</strong> Utilizada para acessar a aba atual do sistema Senior X ou GestãoPonto quando o usuário deseja visualizar ou interagir com os dados de ponto. A permissão permite que a extensão injete scripts de content apenas nas páginas relevantes do sistema de ponto, sem acessar outras abas.</p>
+
+  <h3>alarms</h3>
+  <p><strong>Justificativa:</strong> Necessária para agendar notificações automáticas que alertam o usuário sobre horários de saída, retorno do almoço e fechamento de período. Os alarmes são criados localmente no dispositivo do usuário e não enviam dados para servidores externos.</p>
+
+  <h3>cookies</h3>
+  <p><strong>Justificativa:</strong> Utilizada para ler cookies de autenticação das plataformas Senior X (senior.com.br) e GestãoPonto (gestaoponto.meta.com.br). Esses cookies são necessários para que a extensão possa acessar os dados de ponto do usuário de forma segura, sem armazenar credenciais.</p>
+
+  <h3>notifications</h3>
+  <p><strong>Justificativa:</strong> Permite exibir notificações nativas do sistema operacional para alertar o usuário sobre horários importantes (saída para almoço, retorno, fim do expediente, fechamento de período). As notificações são geradas localmente e não envolvem comunicação externa.</p>
+
+  <h3>Host Permission (all_urls)</h3>
+  <p><strong>Justificativa:</strong> A permissão &lt;all_urls&gt; é necessária porque:</p>
+  <ol>
+    <li>A extensão precisa injetar o widget flutuante em qualquer página que o usuário esteja navegando, permitindo acesso rápido aos horários de ponto</li>
+    <li>O sistema Senior X pode ser acessado por diferentes subdomínios corporativos que variam por empresa</li>
+    <li>A extensão não coleta dados de navegação de outras páginas - apenas injeta o widget visual</li>
+  </ol>
+
+  <h3>Código Remoto</h3>
+  <p><strong>Justificativa:</strong> A extensão <strong>não utiliza código remoto</strong>. Todo o código executado está empacotado localmente na extensão. Os únicos recursos externos acessados são:</p>
+  <ul>
+    <li>APIs oficiais da Senior Platform (senior.com.br) para leitura de batimentos de ponto</li>
+    <li>APIs do sistema GestãoPonto (gestaoponto.meta.com.br) quando configurado para empresas Meta</li>
+  </ul>
+  <p>Essas comunicações são feitas através de requisições HTTPS autenticadas com tokens obtidos via cookies do usuário.</p>
+
+  <h3>scripting</h3>
+  <p><strong>Justificativa:</strong> Permite injetar scripts de content nas páginas do sistema Senior X e GestãoPonto para:</p>
+  <ol>
+    <li>Interceptar tokens de autenticação de forma segura</li>
+    <li>Realizar scraping dos batimentos de ponto exibidos na interface</li>
+    <li>Injetar o widget flutuante com horários calculados</li>
+  </ol>
+  <p>Todos os scripts injetados operam apenas nos domínios autorizados e não coletam dados de outras páginas.</p>
+
+  <h3>sidePanel</h3>
+  <p><strong>Justificativa:</strong> Utilizada para fornecer uma interface lateral persistente onde o usuário pode visualizar histórico completo de batimentos, banco de horas e configurações. O sidePanel oferece uma experiência mais conveniente que o popup, permitindo manter as informações de ponto visíveis enquanto o usuário trabalha em outras abas.</p>
+
+  <h3>storage</h3>
+  <p><strong>Justificativa:</strong> Necessária para armazenar localmente:</p>
+  <ul>
+    <li>Tokens de autenticação capturados (temporariamente, com expiração)</li>
+    <li>Cache dos últimos batimentos de ponto lidos</li>
+    <li>Configurações do usuário (tema, preferências de notificação)</li>
+    <li>Histórico de banco de horas calculado</li>
+  </ul>
+  <p>Todos os dados são armazenados apenas no dispositivo local usando chrome.storage.local e nunca são sincronizados com servidores externos.</p>
+
+  <h3>tabs</h3>
+  <p><strong>Justificativa:</strong> Permite que a extensão:</p>
+  <ol>
+    <li>Detecte quando o usuário está navegando nas páginas do sistema Senior X ou GestãoPonto</li>
+    <li>Atualize automaticamente os dados de ponto quando o usuário acessa a página de batimentos</li>
+    <li>Abra o sidePanel de forma programática quando solicitado pelo usuário</li>
+  </ol>
+
+  <h3>webRequest</h3>
+  <p><strong>Justificativa:</strong> Utilizada para interceptar requisições de rede feitas pelo sistema Senior X / GestãoPonto. Isso permite capturar automaticamente tokens de autenticação (Bearer tokens) quando o usuário faz login na plataforma, eliminando a necessidade de login manual na extensão. A interceptação é feita apenas nos headers das requisições para os domínios autorizados.</p>
+
+  <hr>
+
+  <h2>Coleta e Uso de Dados</h2>
+
+  <p><strong>Dados coletados:</strong></p>
+  <ul>
+    <li>Batimentos de ponto (entrada, saída para almoço, retorno, saída) lidos do sistema Senior/GestãoPonto</li>
+    <li>Tokens de autenticação temporários (expiram após 60 minutos)</li>
+    <li>Configurações de preferência do usuário (tema, notificações)</li>
+  </ul>
+
+  <p><strong>Como os dados são usados:</strong></p>
+  <ul>
+    <li>Cálculos de horários de almoço, volta e saída são realizados localmente no dispositivo</li>
+    <li>Notificações são agendadas e exibidas localmente</li>
+    <li>Banco de horas é calculado a partir dos batimentos históricos armazenados localmente</li>
+  </ul>
+
+  <p><strong>Compartilhamento de dados:</strong></p>
+  <ul>
+    <li>Nenhum dado é compartilhado com terceiros</li>
+    <li>Nenhum dado é enviado para servidores externos além das APIs oficiais da Senior Platform</li>
+    <li>Nenhum dado é vendido ou utilizado para fins publicitários</li>
+  </ul>
+
+  <h2>Segurança</h2>
+  <ul>
+    <li>Todos os tokens de autenticação possuem expiração automática (60 minutos)</li>
+    <li>Comunicações com APIs externas utilizam apenas HTTPS</li>
+    <li>Dados sensíveis são armazenados usando criptografia do navegador (chrome.storage.local)</li>
+    <li>A extensão não executa código remoto nem utiliza eval()/Function()</li>
+  </ul>
+
+  <h2>Contato</h2>
+  <p>Para questões sobre privacidade ou uso de dados, entre em contato através do repositório do projeto.</p>
+
+  <hr>
+
+  <p><em>Última atualização: Março de 2026</em></p>
+</body>
+</html>

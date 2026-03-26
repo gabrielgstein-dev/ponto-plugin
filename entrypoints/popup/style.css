@@ -1,22 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('../../lib/presentation/theme.css');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg: #0f1117;
-  --surface: #181b25;
-  --surface2: #1e2230;
-  --border: #2a2f40;
-  --accent: #4ade80;
-  --accent2: #22d3ee;
-  --warn: #fbbf24;
-  --danger: #f87171;
-  --text: #e8eaf0;
-  --text-dim: #9da7b8;
-  --text-dimmer: #6b7589;
-  --mono: 'Space Mono', monospace;
-  --sans: 'DM Sans', sans-serif;
-}
 
 body {
   width: 340px;
@@ -68,6 +52,7 @@ body {
   border-bottom: 1px solid var(--border);
 }
 .token-status.connected { color: var(--accent); }
+.token-status.disconnected { color: var(--error, #e74c3c); }
 .token-status.loading { color: var(--warn); }
 .token-dot {
   width: 5px; height: 5px;
@@ -76,7 +61,18 @@ body {
   flex-shrink: 0;
 }
 .token-status.connected .token-dot { background: var(--accent); }
+.token-status.disconnected .token-dot { background: var(--error, #e74c3c); }
 .token-status.loading .token-dot { background: var(--warn); }
+.token-status-text {
+  color: var(--text-dim);
+  font-weight: 400;
+  margin-left: 2px;
+}
+.token-login-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 .cards-grid {
   padding: 8px 16px;

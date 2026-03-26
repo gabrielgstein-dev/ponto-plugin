@@ -37,4 +37,6 @@ export interface ITimesheetProvider {
   readonly name: string;
   isAvailable(): Promise<boolean>;
   getSummary(period: string): Promise<TimesheetSummary | null>;
+  updateEntry(entryId: string, entry: import('./types').TimesheetEntry, updates: { observation: string; hourQuantity: number }): Promise<boolean>;
+  updateEntryWithAllocations?(entryId: string, entry: import('./types').TimesheetEntry, allocations: import('./types').CostCenterAllocation[]): Promise<boolean>;
 }

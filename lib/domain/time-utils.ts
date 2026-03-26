@@ -27,8 +27,7 @@ export function formatCountdown(diffMs: number): string {
   const h = Math.floor(abs / 3600000);
   const m = Math.floor((abs % 3600000) / 60000);
   const s = Math.floor((abs % 60000) / 1000);
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 export function getNowMinutes(): number {

@@ -1,7 +1,7 @@
 {
   "name": "senior-ponto",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=24.0.0",
@@ -9,10 +9,21 @@
   },
   "scripts": {
     "preinstall": "node -e \"if(!/pnpm/.test(process.env.npm_config_user_agent||'')){console.error('\\x1b[31m❌ Use pnpm! Outros gerenciadores estão bloqueados.\\x1b[0m');process.exit(1)}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "dev": "wxt",
     "dev:firefox": "wxt --browser firefox",
     "build": "wxt build",
+    "build:manual": "node -e \"const fs=require('fs');const path=require('path');const flags=JSON.parse(fs.readFileSync('lib/domain/build-flags.json','utf8'));flags.ENABLE_SENIOR_INTEGRATION=false;flags.ENABLE_SENIOR_PUNCH_BUTTON=false;flags.ENABLE_MANUAL_PUNCH=true;flags.ENABLE_META_TIMESHEET=false;flags.ACTIVE_COMPANY='manual';fs.writeFileSync('lib/domain/build-flags.json',JSON.stringify(flags,null,2));console.log('✅ Modo manual ativado!');\" && wxt build",
+    "build:senior": "node -e \"const fs=require('fs');const path=require('path');const flags=JSON.parse(fs.readFileSync('lib/domain/build-flags.json','utf8'));flags.ENABLE_SENIOR_INTEGRATION=true;flags.ENABLE_SENIOR_PUNCH_BUTTON=false;flags.ENABLE_MANUAL_PUNCH=false;flags.ENABLE_META_TIMESHEET=true;flags.ACTIVE_COMPANY='meta';fs.writeFileSync('lib/domain/build-flags.json',JSON.stringify(flags,null,2));console.log('✅ Modo Senior ativado!');\" && wxt build",
+    "build:meta": "node -e \"const fs=require('fs');const path=require('path');const flags=JSON.parse(fs.readFileSync('lib/domain/build-flags.json','utf8'));flags.ENABLE_SENIOR_INTEGRATION=true;flags.ENABLE_SENIOR_PUNCH_BUTTON=false;flags.ENABLE_MANUAL_PUNCH=false;flags.ENABLE_META_TIMESHEET=true;flags.ACTIVE_COMPANY='meta';flags.APP_NAME='Ponto Meta';flags.ENABLE_WIDGET=true;flags.ENABLE_NOTIFICATIONS=true;flags.ENABLE_YESTERDAY=false;flags.THEME='meta';fs.writeFileSync('lib/domain/build-flags.json',JSON.stringify(flags,null,2));console.log('✅ Configurações Meta aplicadas!');\" && wxt build && wxt zip && node -e \"const fs=require('fs');const path=require('path');const oldPath=path.join('.output','senior-ponto-0.1.0-chrome.zip');const newPath=path.join('.output','exemplo-meta.zip');if(fs.existsSync(oldPath)){fs.renameSync(oldPath,newPath);console.log('✅ Arquivo renomeado para exemplo-meta.zip');}else{console.log('⚠️ Arquivo zip não encontrado');}\"",
+    "set-theme": "tsx scripts/set-theme.ts",
     "zip": "wxt zip",
+    "zip:manual": "pnpm build:manual && wxt zip",
+    "zip:meta": "pnpm build:meta && wxt zip",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -20,10 +31,15 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
     "@wxt-dev/module-react": "^1.1.0",
+    "jsdom": "^26.0.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
     "wxt": "^0.20.0"
   }
 }
