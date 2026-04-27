@@ -81,7 +81,14 @@ function assignLunchAndExit(past: string[]): void {
   const lastMin = timeToMinutes(lastPunch)!;
   const totalSpan = lastMin - entradaMin;
 
-  if (totalSpan >= 120 && totalSpan < settings.jornada + settings.almocoDur) {
-    state.almoco = lastPunch;
+  const almocoConfigMin = timeToMinutes(settings.almocoHorario) ?? 720;
+  const estimatedVoltaMin = almocoConfigMin + settings.almocoDur;
+
+  if (totalSpan >= Math.min(settings.almocoDur, 60)) {
+    if (lastMin >= estimatedVoltaMin) {
+      state.volta = lastPunch;
+    } else if (totalSpan < settings.jornada + settings.almocoDur) {
+      state.almoco = lastPunch;
+    }
   }
 }
