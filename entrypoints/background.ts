@@ -73,13 +73,18 @@ export default defineBackground(() => {
     }
     if (message.type === 'CLOSE_TS_NOTIFICATION') {
       chrome.storage.local.get('tsNotifWindowId', (data) => {
+        const dismiss = () => {
+          chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
+          chrome.storage.local.remove('tsNotifWindowId');
+        };
         if (data.tsNotifWindowId) {
           chrome.windows.remove(data.tsNotifWindowId, () => {
-            chrome.storage.local.remove('tsNotifWindowId');
+            dismiss();
             sendResponse({ ok: true });
           });
         } else if (sender.tab?.windowId) {
           chrome.windows.remove(sender.tab.windowId, () => {
+            dismiss();
             sendResponse({ ok: true });
           });
         } else {
@@ -133,9 +138,13 @@ export default defineBackground(() => {
   });
 
   chrome.windows.onRemoved.addListener((windowId) => {
-    chrome.storage.local.get('punchPopupWindowId', (data) => {
+    chrome.storage.local.get(['punchPopupWindowId', 'tsNotifWindowId'], (data) => {
       if (data.punchPopupWindowId === windowId) {
         chrome.storage.local.remove('punchPopupWindowId');
+      }
+      if (data.tsNotifWindowId === windowId) {
+        chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
+        chrome.storage.local.remove('tsNotifWindowId');
       }
     });
   });

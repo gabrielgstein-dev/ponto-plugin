@@ -38,6 +38,7 @@ export const mockWindowsGetCurrent = vi
 export const mockWindowsGet = vi.fn().mockResolvedValue({ id: 42 })
 export const mockWindowsCreate = vi.fn().mockResolvedValue({ id: 42 })
 export const mockWindowsRemove = vi.fn().mockResolvedValue(undefined)
+export const mockWindowsUpdate = vi.fn().mockResolvedValue({ id: 42 })
 
 // ── Runtime ───────────────────────────────────────────────────────────────────
 export const mockRuntimeSendMessage = vi.fn().mockResolvedValue(undefined)
@@ -80,6 +81,7 @@ const chromeMock = {
     get: mockWindowsGet,
     create: mockWindowsCreate,
     remove: mockWindowsRemove,
+    update: mockWindowsUpdate,
   },
   runtime: {
     onMessage: {
@@ -123,6 +125,7 @@ beforeEach(() => {
   mockWindowsGet.mockResolvedValue({ id: 42 })
   mockWindowsCreate.mockResolvedValue({ id: 42 })
   mockWindowsRemove.mockResolvedValue(undefined)
+  mockWindowsUpdate.mockResolvedValue({ id: 42 })
   mockRuntimeSendMessage.mockResolvedValue(undefined)
   mockRuntimeGetURL.mockImplementation((path: string) => `chrome-extension://test-id/${path}`)
   mockAlarmsClear.mockResolvedValue(true)

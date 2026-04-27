@@ -50,8 +50,13 @@ vi.mock('../../lib/application/schedule-ts-notifications', () => ({
   resetTsScheduled: vi.fn(),
 }))
 
-import { notifyPendingTimesheet } from '../../lib/application/background-detect'
+import { notifyPendingTimesheet, resetTsNotifDebounce } from '../../lib/application/background-detect'
 import { mockStorageGet, mockWindowsCreate } from '../setup/chrome-mock'
+import { beforeEach } from 'vitest'
+
+beforeEach(() => {
+  resetTsNotifDebounce()
+})
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
