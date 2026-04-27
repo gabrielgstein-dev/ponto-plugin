@@ -37,3 +37,23 @@ Cobre os 5 fluxos críticos de sincronização do plugin:
 **Melhoria (2026-03-25):** "Saldo do Período" no Histórico de Ponto passou a consumir o endpoint `/colaborador/{id}/bancos-horas/saldo-mensal` da API do GeståoPonto, removendo o cálculo local que somava `balanceMinutes` dia a dia. O valor `saldoMinutos` retornado pela API é usado diretamente; negativo exibe vermelho, positivo exibe azul. Alterado em [lib/infrastructure/meta/gestaoponto/gp-history-provider.ts](../../lib/infrastructure/meta/gestaoponto/gp-history-provider.ts).
 
 **Melhoria (2026-03-25):** Popup de timesheet (`ts-notification`) passou a respeitar a janela de trabalho — só exibe se `pontoState.entrada` está registrada e `pontoState.saida` ainda não foi batida (mesmos guards P6/P7 do punch-reminder). Alterado em [lib/application/background-detect.ts](../../lib/application/background-detect.ts) (`notifyPendingTimesheet`).
+
+---
+
+## [Melhorias Críticas — Análise 2026-03](roadmap-melhorias-criticas.md)
+
+Roadmaps de refatoração baseados em análise crítica rigorosa do projeto. Score atual: **7.5/10**.
+
+| Roadmap | Prioridade | Complexidade | Impacto | Tempo | Status |
+|---------|-----------|--------------|---------|-------|--------|
+| [Refatoração de Estado](roadmap-refatoracao-estado.md) | 🔥 CRÍTICO | Alta | Muito Alto | 1-2 semanas | 📋 Planejado |
+| [Tratamento de Erros](roadmap-tratamento-erros.md) | 🔥 CRÍTICO | Média | Alto | 3-5 dias | 📋 Planejado |
+| [Otimização de Performance](roadmap-otimizacao-performance.md) | ⚠️ ALTO | Média | Alto | 1 semana | 📋 Planejado |
+
+**Problemas Críticos Identificados:**
+1. Estado global mutável singleton → race conditions
+2. Cache fragmentado sem estratégia unificada
+3. Polling a cada 10min → desperdício de recursos
+4. Erros silenciosos (`catch (_) {}`) → dificulta debug
+
+**Meta:** Score 9.0/10 após implementação completa.
