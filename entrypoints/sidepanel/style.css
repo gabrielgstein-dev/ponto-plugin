@@ -246,6 +246,95 @@ body {
   border-color: var(--accent2);
   color: var(--accent2);
 }
+.sp-punch-add.active {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* GP punch adjustment panel */
+.sp-ajuste-panel {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sp-ajuste-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dimmer);
+}
+.sp-ajuste-fields {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sp-ajuste-time {
+  width: 78px;
+  flex-shrink: 0;
+}
+.sp-ajuste-select {
+  flex: 1;
+  min-width: 140px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  padding: 3px 6px;
+  height: 26px;
+  cursor: pointer;
+}
+.sp-ajuste-select:focus {
+  outline: none;
+  border-color: var(--accent2);
+}
+.sp-ajuste-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.sp-ajuste-btn {
+  border: none;
+  border-radius: 4px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 10px;
+  height: 26px;
+  transition: opacity 0.15s;
+}
+.sp-ajuste-btn.confirm {
+  background: var(--accent2);
+  color: #fff;
+}
+.sp-ajuste-btn.confirm:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.sp-ajuste-btn.confirm:hover:not(:disabled) {
+  opacity: 0.85;
+}
+.sp-ajuste-btn.cancel {
+  background: var(--surface2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.sp-ajuste-btn.cancel:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.sp-ajuste-error {
+  font-size: 11px;
+  color: var(--danger);
+}
 .sp-col-worked {
   font-family: var(--mono);
   font-size: 13px;
