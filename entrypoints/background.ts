@@ -1,5 +1,6 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
 import { debugLog } from '../lib/domain/debug';
+import { installErrorHandlers } from '../lib/domain/install-error-handlers';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
 import { recheckReminder, resolveReminder } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
@@ -12,6 +13,7 @@ import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-sto
 import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
 
 export default defineBackground(() => {
+  installErrorHandlers();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 
   chrome.runtime.onInstalled.addListener(() => {

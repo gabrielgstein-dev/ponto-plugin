@@ -1,8 +1,17 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('../../../lib/domain/build-flags', () => ({
   ENABLE_SENIOR_INTEGRATION: false,
+}))
+
+const exportLogsSpy = vi.fn()
+const clearLogsSpy = vi.fn()
+vi.mock('../../../lib/presentation/export-logs', () => ({
+  exportLogs: () => exportLogsSpy(),
+}))
+vi.mock('../../../lib/domain/log-store', () => ({
+  clearLogs: () => clearLogsSpy(),
 }))
 
 import { SettingsPanel } from '../../../lib/presentation/components/SettingsPanel'
@@ -178,5 +187,81 @@ describe('SettingsPanel', () => {
     )
     fireEvent.click(screen.getByText('Limpar registros de hoje'))
     expect(onClear).toHaveBeenCalled()
+  })
+
+  describe('LogsActions', () => {
+    function renderOpen() {
+      return render(
+        <SettingsPanel
+          open
+          settings={settings}
+          onToggle={() => {}}
+          onChange={() => {}}
+          onClear={() => {}}
+        />,
+      )
+    }
+
+    it('renders both buttons when panel is open', () => {
+      exportLogsSpy.mockReset()
+      clearLogsSpy.mockReset()
+      renderOpen()
+      expect(screen.getByText('Exportar logs')).toBeInTheDocument()
+      expect(screen.getByText('Limpar logs')).toBeInTheDocument()
+    })
+
+    it('exports successfully and shows feedback', async () => {
+      exportLogsSpy.mockReset().mockResolvedValue(undefined)
+      renderOpen()
+      fireEvent.click(screen.getByText('Exportar logs'))
+      expect(screen.getByText('Exportando...')).toBeInTheDocument()
+      await waitFor(() =>
+        expect(screen.getByText('Logs exportados.')).toBeInTheDocument(),
+      )
+    })
+
+    it('shows failure feedback when export rejects', async () => {
+      exportLogsSpy.mockReset().mockRejectedValue(new Error('boom'))
+      renderOpen()
+      fireEvent.click(screen.getByText('Exportar logs'))
+      await waitFor(() =>
+        expect(screen.getByText('Falha ao exportar logs.')).toBeInTheDocument(),
+      )
+    })
+
+    it('clears successfully and shows feedback', async () => {
+      clearLogsSpy.mockReset().mockResolvedValue(undefined)
+      renderOpen()
+      fireEvent.click(screen.getByText('Limpar logs'))
+      expect(screen.getByText('Limpando...')).toBeInTheDocument()
+      await waitFor(() =>
+        expect(screen.getByText('Logs limpos.')).toBeInTheDocument(),
+      )
+    })
+
+    it('shows failure feedback when clear rejects', async () => {
+      clearLogsSpy.mockReset().mockRejectedValue(new Error('boom'))
+      renderOpen()
+      fireEvent.click(screen.getByText('Limpar logs'))
+      await waitFor(() =>
+        expect(screen.getByText('Falha ao limpar logs.')).toBeInTheDocument(),
+      )
+    })
+
+    it('disables both buttons while busy', async () => {
+      let resolve!: () => void
+      exportLogsSpy.mockReset().mockReturnValue(
+        new Promise<void>(r => {
+          resolve = r
+        }),
+      )
+      renderOpen()
+      const exportBtn = screen.getByText('Exportar logs')
+      fireEvent.click(exportBtn)
+      const clearBtn = screen.getByText('Limpar logs')
+      expect(clearBtn).toBeDisabled()
+      resolve()
+      await waitFor(() => expect(screen.getByText('Logs exportados.')).toBeInTheDocument())
+    })
   })
 })
