@@ -57,7 +57,7 @@ export function useAutoDetect(
               timeToMinutes(state.entrada),
               timeToMinutes(state.almoco),
               timeToMinutes(state.volta),
-              timeToMinutes(state.saida),
+              timeToMinutes(state._saidaEstimada),
             );
           }
         }
