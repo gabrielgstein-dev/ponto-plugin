@@ -8,12 +8,27 @@ describe('TokenStatus', () => {
     expect(screen.getByText('Verificando token...')).toBeInTheDocument()
   })
 
-  it('renders disconnected (hasAuth=false) state with link', () => {
+  it('renders disconnected (hasAuth=false) state with default Senior link', () => {
     render(<TokenStatus hasToken={false} loading={false} hasAuth={false} />)
     expect(screen.getByText('Desconectado')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Conecte-se ao Senior' })).toHaveAttribute(
       'href',
       'https://platform.senior.com.br',
+    )
+  })
+
+  it('renders disconnected with custom loginUrl from tenant', () => {
+    render(
+      <TokenStatus
+        hasToken={false}
+        loading={false}
+        hasAuth={false}
+        loginUrl="https://plataforma.meta.com.br/login"
+      />,
+    )
+    expect(screen.getByRole('link', { name: 'Conecte-se ao Senior' })).toHaveAttribute(
+      'href',
+      'https://plataforma.meta.com.br/login',
     )
   })
 

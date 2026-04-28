@@ -24,6 +24,7 @@ import { HourBankBanner } from './components/HourBankBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
+import { COMPANY_LOGIN_URL } from '#company/providers';
 
 const LABELS: Record<string, string> = { entrada: 'Entrada', almoco: 'Almoço', volta: 'Volta', saida: 'Saída' };
 const ICONS: Record<string, string> = { entrada: '🌅', almoco: '🍽️', volta: '🔄', saida: '🏠' };
@@ -57,7 +58,7 @@ export function App() {
   return (
     <div className="popup-container">
       <LiveClock time={time} date={date} />
-      {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} hasAuth={hasAuth} />}
+      {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} />}
       {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
       <div className="cards-grid">
         {PUNCH_SLOTS.map(slot => {
