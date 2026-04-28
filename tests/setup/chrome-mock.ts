@@ -28,6 +28,7 @@ export const mockScriptingExecuteScript = vi.fn().mockResolvedValue([{ result: n
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 export const mockTabsQuery = vi.fn().mockResolvedValue([])
 export const mockTabsCreate = vi.fn().mockResolvedValue({ id: 99 })
+export const mockTabsGet = vi.fn().mockResolvedValue({ id: 99, status: 'complete', url: 'https://plataforma.meta.com.br/' })
 export const mockTabsRemove = vi.fn().mockResolvedValue(undefined)
 export const mockTabsSendMessage = vi.fn().mockResolvedValue(undefined)
 
@@ -87,6 +88,7 @@ const chromeMock = {
   tabs: {
     query: mockTabsQuery,
     create: mockTabsCreate,
+    get: mockTabsGet,
     remove: mockTabsRemove,
     sendMessage: mockTabsSendMessage,
   },
@@ -133,6 +135,7 @@ beforeEach(() => {
   mockScriptingExecuteScript.mockResolvedValue([{ result: null }])
   mockTabsQuery.mockResolvedValue([])
   mockTabsCreate.mockResolvedValue({ id: 99 })
+  mockTabsGet.mockResolvedValue({ id: 99, status: 'complete', url: 'https://plataforma.meta.com.br/' })
   mockTabsRemove.mockResolvedValue(undefined)
   mockTabsSendMessage.mockResolvedValue(undefined)
   mockWindowsGetCurrent.mockResolvedValue({ id: 42, left: 0, top: 0, width: 1920, height: 1080 })
