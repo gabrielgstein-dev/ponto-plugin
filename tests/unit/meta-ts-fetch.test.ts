@@ -11,7 +11,10 @@ import {
   mockScriptingExecuteScript,
 } from '../setup/chrome-mock'
 
-import { fetchViaMetaTab } from '../../lib/infrastructure/meta/timesheet/meta-ts-fetch'
+import {
+  fetchViaMetaTab,
+  _resetCacheForTests,
+} from '../../lib/infrastructure/meta/timesheet/meta-ts-fetch'
 import type { TimesheetConfig } from '../../lib/infrastructure/timesheet/timesheet-config'
 
 const CONFIG: TimesheetConfig = {
@@ -27,6 +30,7 @@ const CONFIG: TimesheetConfig = {
 
 describe('fetchViaMetaTab', () => {
   beforeEach(() => {
+    _resetCacheForTests()
     mockTabsQuery.mockReset()
     mockTabsCreate.mockReset()
     mockTabsRemove.mockReset()
@@ -56,27 +60,46 @@ describe('fetchViaMetaTab', () => {
     expect(r).toEqual({ ok: true, status: 200, text: '{"foo":1}' })
   })
 
-  it('cria nova aba quando não existe e fecha após o fetch', async () => {
-    mockTabsQuery
-      .mockResolvedValueOnce([]) // findPlatformTab
-      .mockResolvedValue([])
-    mockTabsCreate.mockResolvedValue({ id: 99, status: 'complete' })
-    // waitForTabComplete usa chrome.tabs.get, não query — precisa mockar
+  it('cria nova aba quando nenhuma existe e cacheia para chamadas seguintes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockTabsQuery.mockResolvedValue([])
+    mockTabsCreate.mockResolvedValue({ id: 99 })
     ;(globalThis.chrome.tabs.get as any) = vi
       .fn()
-      .mockResolvedValue({ id: 99, status: 'complete' })
+      .mockResolvedValue({ id: 99, status: 'complete', url: 'https://plataforma.meta.com.br/' })
     mockScriptingExecuteScript.mockResolvedValue([
       { result: { ok: true, status: 200, text: 'ok' } },
     ])
 
-    const r = await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/x')
+    const r1 = await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/a')
+    expect(mockTabsCreate).toHaveBeenCalledTimes(1)
+    expect(r1?.ok).toBe(true)
 
-    expect(mockTabsCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ url: CONFIG.platformUrl, active: false }),
-    )
-    expect(mockScriptingExecuteScript).toHaveBeenCalled()
-    expect(mockTabsRemove).toHaveBeenCalledWith(99)
-    expect(r?.ok).toBe(true)
+    // Segunda chamada: deve reusar a aba cacheada (sem criar de novo)
+    const r2 = await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/b')
+    expect(mockTabsCreate).toHaveBeenCalledTimes(1)
+    expect(r2?.ok).toBe(true)
+    expect(mockTabsRemove).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('fecha a aba criada após período de inatividade', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockTabsQuery.mockResolvedValue([])
+    mockTabsCreate.mockResolvedValue({ id: 77 })
+    ;(globalThis.chrome.tabs.get as any) = vi
+      .fn()
+      .mockResolvedValue({ id: 77, status: 'complete', url: 'https://plataforma.meta.com.br/' })
+    mockScriptingExecuteScript.mockResolvedValue([
+      { result: { ok: true, status: 200, text: 'ok' } },
+    ])
+
+    await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/x')
+    expect(mockTabsRemove).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(31_000)
+    expect(mockTabsRemove).toHaveBeenCalledWith(77)
+    vi.useRealTimers()
   })
 
   it('retorna null quando criação da aba falha', async () => {
@@ -93,18 +116,38 @@ describe('fetchViaMetaTab', () => {
     mockTabsCreate.mockResolvedValue({ id: 50 })
     ;(globalThis.chrome.tabs.get as any) = vi
       .fn()
-      .mockResolvedValue({ id: 50, status: 'loading' })
+      .mockResolvedValue({ id: 50, status: 'loading', url: 'about:blank' })
 
-    // O loop interno ainda dorme 250ms — usamos fake timers + advance
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const promise = fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/x')
-    // Avança 30s (timeoutMs default) para ele desistir
     await vi.advanceTimersByTimeAsync(31_000)
     const r = await promise
     vi.useRealTimers()
 
     expect(r).toBeNull()
     expect(mockTabsRemove).toHaveBeenCalledWith(50)
+  })
+
+  it('retorna null quando a aba criada redireciona para fora do origin', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockTabsQuery.mockResolvedValue([])
+    mockTabsCreate.mockResolvedValue({ id: 80 })
+    ;(globalThis.chrome.tabs.get as any) = vi.fn()
+      .mockResolvedValueOnce({ id: 80, status: 'complete', url: 'https://plataforma.meta.com.br/' })
+      .mockResolvedValue({
+        id: 80,
+        status: 'complete',
+        url: 'https://platform.senior.com.br/login/?tenant=meta.com.br',
+      })
+
+    const promise = fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/x')
+    await vi.advanceTimersByTimeAsync(3_000)
+    const r = await promise
+    vi.useRealTimers()
+
+    expect(r).toBeNull()
+    expect(mockTabsRemove).toHaveBeenCalledWith(80)
+    expect(mockScriptingExecuteScript).not.toHaveBeenCalled()
   })
 
   it('aborta gracefully quando chrome.tabs.get rejeita durante espera', async () => {
@@ -144,5 +187,69 @@ describe('fetchViaMetaTab', () => {
 
     const r = await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/x')
     expect(r).toBeNull()
+  })
+
+  it('descarta cache quando a aba cacheada some entre chamadas', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockTabsQuery.mockResolvedValue([])
+    mockScriptingExecuteScript.mockResolvedValue([
+      { result: { ok: true, status: 200, text: 'ok' } },
+    ])
+
+    // Mock por tabId: tab 99 funciona inicialmente, depois "some";
+    // tab 100 (criada na segunda chamada) funciona.
+    let tab99Alive = true
+    ;(globalThis.chrome.tabs.get as any) = vi
+      .fn()
+      .mockImplementation((id: number) => {
+        if (id === 99 && tab99Alive) {
+          return Promise.resolve({ id: 99, status: 'complete', url: 'https://plataforma.meta.com.br/' })
+        }
+        if (id === 100) {
+          return Promise.resolve({ id: 100, status: 'complete', url: 'https://plataforma.meta.com.br/' })
+        }
+        return Promise.reject(new Error('No tab with id ' + id))
+      })
+
+    mockTabsCreate
+      .mockResolvedValueOnce({ id: 99 })
+      .mockResolvedValueOnce({ id: 100 })
+
+    await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/a')
+    expect(mockTabsCreate).toHaveBeenCalledTimes(1)
+
+    // Simula que a aba 99 foi fechada entre as duas chamadas
+    tab99Alive = false
+
+    await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/b')
+    expect(mockTabsCreate).toHaveBeenCalledTimes(2)
+    vi.useRealTimers()
+  })
+
+  it('loga preview do body quando resposta não é OK', async () => {
+    mockTabsQuery.mockResolvedValue([
+      { id: 1, url: 'https://plataforma.meta.com.br/' },
+    ])
+    mockScriptingExecuteScript.mockResolvedValue([
+      { result: { ok: false, status: 500, text: 'a'.repeat(500) } },
+    ])
+
+    const r = await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/x')
+    expect(r?.ok).toBe(false)
+    expect(r?.status).toBe(500)
+    expect(r?.text.length).toBe(500)
+  })
+
+  it('loga preview do body para status 0 (fetch_error)', async () => {
+    mockTabsQuery.mockResolvedValue([
+      { id: 1, url: 'https://plataforma.meta.com.br/' },
+    ])
+    mockScriptingExecuteScript.mockResolvedValue([
+      { result: { ok: false, status: 0, text: 'fetch_error: TypeError: Failed to fetch' } },
+    ])
+
+    const r = await fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/x')
+    expect(r?.status).toBe(0)
+    expect(r?.text).toContain('fetch_error')
   })
 })

@@ -7,6 +7,10 @@
  * Estratégia: localizar (ou abrir) uma aba na plataforma, injetar um script
  * em `world: 'MAIN'` que faz o fetch dentro do contexto da página, e
  * devolver o resultado serializável (status + corpo em texto).
+ *
+ * A aba criada é cacheada em escopo de módulo e fechada após
+ * `TAB_IDLE_CLOSE_MS` de inatividade — um único `getSummary` que faz 3
+ * fetches usa a mesma aba em vez de criar/fechar 3 vezes.
  */
 import type { TimesheetConfig } from '../../timesheet/timesheet-config';
 import { debugLog, debugWarn } from '../../../domain/debug';
@@ -21,6 +25,43 @@ export interface TabFetchResponse {
   ok: boolean;
   status: number;
   text: string;
+}
+
+const TAB_IDLE_CLOSE_MS = 30_000;
+// Tempo extra após `status: 'complete'` para SPA / service worker da
+// plataforma se inicializarem antes do primeiro fetch.
+const POST_COMPLETE_DELAY_MS = 2_000;
+
+interface CachedTab {
+  tabId: number;
+  ownership: 'created' | 'reused';
+}
+
+let cachedTab: CachedTab | null = null;
+let closeTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleIdleClose(): void {
+  if (closeTimer) clearTimeout(closeTimer);
+  closeTimer = setTimeout(() => {
+    closeTimer = null;
+    const cache = cachedTab;
+    cachedTab = null;
+    if (cache?.ownership === 'created') {
+      try {
+        const res = chrome.tabs.remove(cache.tabId) as unknown as { catch?: (fn: (e: unknown) => void) => void } | void;
+        res?.catch?.(() => { /* ignore */ });
+      } catch (_) { /* ignore */ }
+    }
+  }, TAB_IDLE_CLOSE_MS);
+}
+
+/* v8 ignore next 8 -- helper apenas para testes; não roda em produção */
+export function _resetCacheForTests(): void {
+  cachedTab = null;
+  if (closeTimer) {
+    clearTimeout(closeTimer);
+    closeTimer = null;
+  }
 }
 
 async function findPlatformTab(platformUrl: string): Promise<chrome.tabs.Tab | null> {
@@ -43,24 +84,64 @@ async function waitForTabComplete(tabId: number, timeoutMs = 30_000): Promise<bo
   return false;
 }
 
-async function ensurePlatformTab(
+async function isTabOnPlatform(tabId: number, platformUrl: string): Promise<boolean> {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    const origin = new URL(platformUrl).origin;
+    return tab.url?.startsWith(origin) ?? false;
+  } catch {
+    return false;
+  }
+}
+
+async function getOrCreateTab(
   config: TimesheetConfig,
-): Promise<{ tabId: number; created: boolean } | null> {
+): Promise<CachedTab | null> {
+  // 1. Cache hit: usa a aba que abrimos antes (se ainda existe e está no domínio certo).
+  if (cachedTab) {
+    if (await isTabOnPlatform(cachedTab.tabId, config.platformUrl)) {
+      return cachedTab;
+    }
+    cachedTab = null;
+  }
+
+  // 2. Existing tab: o usuário pode já estar com plataforma.meta.com.br aberta.
   const existing = await findPlatformTab(config.platformUrl);
   if (existing?.id != null) {
-    return { tabId: existing.id, created: false };
+    cachedTab = { tabId: existing.id, ownership: 'reused' };
+    return cachedTab;
   }
+
+  // 3. Cria uma nova aba inativa.
   try {
     const tab = await chrome.tabs.create({ url: config.platformUrl, active: false });
     if (tab.id == null) return null;
     debugLog(`${config.name} fetchViaTab: aba criada (id=${tab.id})`);
+
     const ready = await waitForTabComplete(tab.id);
     if (!ready) {
       debugWarn(`${config.name} fetchViaTab: aba não ficou pronta`);
       try { await chrome.tabs.remove(tab.id); } catch (_) { /* ignore */ }
       return null;
     }
-    return { tabId: tab.id, created: true };
+
+    // SPA / service worker da plataforma costuma demorar um pouco extra
+    // para se registrar antes que fetches autenticados funcionem.
+    await new Promise(resolve => setTimeout(resolve, POST_COMPLETE_DELAY_MS));
+
+    // Confere se não foi redirecionado pra fora do origin (login SSO p.ex.)
+    if (!(await isTabOnPlatform(tab.id, config.platformUrl))) {
+      const finalTab = await chrome.tabs.get(tab.id).catch(() => null);
+      debugWarn(
+        `${config.name} fetchViaTab: aba redirecionada para fora do origin esperado`,
+        'url=' + (finalTab?.url ?? 'unknown'),
+      );
+      try { await chrome.tabs.remove(tab.id); } catch (_) { /* ignore */ }
+      return null;
+    }
+
+    cachedTab = { tabId: tab.id, ownership: 'created' };
+    return cachedTab;
   } catch (e) {
     debugWarn(`${config.name} fetchViaTab: falha ao criar aba:`, (e as Error).message);
     return null;
@@ -99,17 +180,28 @@ export async function fetchViaMetaTab(
   url: string,
   init: TabFetchInit = {},
 ): Promise<TabFetchResponse | null> {
-  const tabInfo = await ensurePlatformTab(config);
-  if (!tabInfo) return null;
+  const tab = await getOrCreateTab(config);
+  if (!tab) return null;
 
   try {
-    return await executeFetch(tabInfo.tabId, url, init);
+    const response = await executeFetch(tab.tabId, url, init);
+    scheduleIdleClose();
+    if (response && (!response.ok || response.status === 0)) {
+      // Loga o início do corpo da resposta pra ajudar diagnóstico
+      // (CORS/preflight devolvem texto vazio, fetch_error vem com a mensagem).
+      const preview = response.text.length > 200
+        ? response.text.slice(0, 200) + '…'
+        : response.text;
+      debugWarn(
+        `${config.name} fetchViaTab: resposta não-OK`,
+        'status=' + response.status,
+        'tabId=' + tab.tabId,
+        'body=' + preview,
+      );
+    }
+    return response;
   } catch (e) {
     debugWarn(`${config.name} fetchViaTab erro:`, (e as Error).message);
     return null;
-  } finally {
-    if (tabInfo.created) {
-      try { await chrome.tabs.remove(tabInfo.tabId); } catch (_) { /* ignore */ }
-    }
   }
 }
