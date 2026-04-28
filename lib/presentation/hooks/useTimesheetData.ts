@@ -2,13 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { TimesheetSummary, TimesheetEntry } from '../../domain/types';
 import { ENABLE_META_TIMESHEET } from '../../domain/build-flags';
 import { debugLog, debugWarn } from '../../domain/debug';
+import { getCurrentTimesheetPeriod } from '../../domain/timesheet-period';
 import { getTimesheetProvider, getWorkedHoursForDate } from '#company/providers';
-
-function getCurrentPeriod(offset: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() + offset);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 
 function formatPeriodLabel(period: string): string {
   const [y, m] = period.split('-');
@@ -25,7 +20,7 @@ export function useTimesheetData() {
   const syncRequestedRef = useRef(false);
   const hasCacheRef = useRef(false);
 
-  const period = getCurrentPeriod(periodOffset);
+  const period = getCurrentTimesheetPeriod(periodOffset);
   const periodLabel = formatPeriodLabel(period);
 
   useEffect(() => {

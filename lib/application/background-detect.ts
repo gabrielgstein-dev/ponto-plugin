@@ -4,6 +4,7 @@ import { DEFAULT_STATE, DEFAULT_SETTINGS } from '../domain/types';
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, ENABLE_META_TIMESHEET } from '../domain/build-flags';
 import { debugLog, debugWarn } from '../domain/debug';
+import { getCurrentTimesheetPeriod } from '../domain/timesheet-period';
 import { PunchDetector } from './detect-punches';
 import { getCompanyPunchProviders, getTimesheetProvider } from '#company/providers';
 import { SeniorStoragePunchProvider } from '../infrastructure/senior/senior-storage-provider';
@@ -186,8 +187,7 @@ export async function backgroundTimesheetSync(): Promise<void> {
       }
       if (!isOk) return;
     }
-    const now = new Date();
-    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const period = getCurrentTimesheetPeriod();
     const summary = await provider.getSummary(period);
     if (summary) {
       chrome.storage.local.set({ timesheetSummaryCache: summary, timesheetSyncTs: Date.now() });
