@@ -3,3 +3,14 @@ node_modules/
 .wxt/
 dist/
 *.log
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# Real-E2E persistent profile (contém cookies de login real, NUNCA commitar)
+tests/.real-profile/
+
+# macOS
+.DS_Store

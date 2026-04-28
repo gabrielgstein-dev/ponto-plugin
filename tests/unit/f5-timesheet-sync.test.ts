@@ -53,7 +53,7 @@ vi.mock('../../lib/application/schedule-notifications', () => ({ scheduleNotific
 vi.mock('../../lib/application/schedule-ts-notifications', () => ({ scheduleTsNotifications: vi.fn() }))
 
 import { backgroundTimesheetSync } from '../../lib/application/background-detect'
-import { mockStorageGet, mockStorageSet, mockTabsCreate, mockTabsRemove, triggerStorageChange } from '../setup/chrome-mock'
+import { mockStorageGet, mockStorageSet, mockStorageRemove, mockTabsCreate, mockTabsRemove, triggerStorageChange } from '../setup/chrome-mock'
 import type { TimesheetSummary } from '../../lib/domain/types'
 
 const MOCK_SUMMARY: TimesheetSummary = {
@@ -92,6 +92,8 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue('valid-token'),
       getUserId: vi.fn().mockResolvedValue('user-123'),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = {
       apiUrl: 'https://api.example.com',
@@ -109,6 +111,8 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue(null),
       getUserId: vi.fn().mockResolvedValue(null),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = { apiUrl: 'https://api.example.com', timesheetsBase: '/ts', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
@@ -122,6 +126,8 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue(null),
       getUserId: vi.fn().mockResolvedValue(null),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = { apiUrl: 'https://api.example.com', timesheetsBase: '/ts', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
@@ -135,34 +141,37 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue('tok'),
       getUserId: vi.fn().mockResolvedValue('u1'),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = { apiUrl: 'https://ts.example.com', timesheetsBase: '/v1', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
 
-    // Mock fetch global
+    // Mock fetch global — agora retorna text() porque o defaultFetcher
+    // serializa para { ok, status, text }
     const mockFetch = vi.fn()
     vi.stubGlobal('fetch', mockFetch)
 
-    // hours-summary
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: vi.fn().mockResolvedValue({ pendingHours: 8, approvedHours: 16, repprovedHours: 0, totalReportedHours: 24, countReportedHours: 3 }),
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify({ pendingHours: 8, approvedHours: 16, repprovedHours: 0, totalReportedHours: 24, countReportedHours: 3 })),
     })
-    // cost-centers
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: vi.fn().mockResolvedValue({ data: [{ code: '1001', name: 'Dev' }] }),
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify({ data: [{ code: '1001', name: 'Dev' }] })),
     })
-    // reported-hours with mix of PENDING and APPROVED
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: vi.fn().mockResolvedValue({
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify({
         data: [
           { id: 'e1', date: '2026-03-25', hourQuantity: 8, status: { title: 'PENDING', date: '', justify: null }, costCenter: null, task: null, hourType: null, observation: null, isAutomaticAppointment: false },
           { id: 'e2', date: '2026-03-24', hourQuantity: 8, status: { title: 'APPROVED', date: '', justify: null }, costCenter: null, task: null, hourType: null, observation: 'ok', isAutomaticAppointment: false },
         ],
         total: 2,
-      }),
+      })),
     })
 
     const summary = await provider.getSummary('2026-03')
@@ -176,6 +185,36 @@ describe('F5 — createTimesheetProvider', () => {
     vi.unstubAllGlobals()
   })
 
+  it('CV-5.5: getSummary com 401 limpa o token e fura o throttle do auto-connect', async () => {
+    const { createTimesheetProvider } = await import(
+      '../../lib/infrastructure/timesheet/timesheet-provider'
+    )
+    const clearToken = vi.fn().mockResolvedValue(undefined)
+    const auth = {
+      getToken: vi.fn().mockResolvedValue('stale-tok'),
+      getUserId: vi.fn().mockResolvedValue('u1'),
+      saveToken: vi.fn(),
+      clearToken,
+    }
+    const config = { apiUrl: 'https://ts.example.com', timesheetsBase: '/v1', name: 'test' }
+    const provider = createTimesheetProvider(config, auth)
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: vi.fn().mockResolvedValue(''),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const summary = await provider.getSummary('2026-03')
+
+    expect(summary).not.toBeNull()
+    expect(clearToken).toHaveBeenCalled()
+    expect(mockStorageRemove).toHaveBeenCalledWith(['tsAutoConnectTs'])
+
+    vi.unstubAllGlobals()
+  })
+
   it('CV-5.3: updateEntry faz PATCH no endpoint correto', async () => {
     const { createTimesheetProvider } = await import(
       '../../lib/infrastructure/timesheet/timesheet-provider'
@@ -183,11 +222,13 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue('tok'),
       getUserId: vi.fn().mockResolvedValue('u1'),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = { apiUrl: 'https://ts.example.com', timesheetsBase: '/v1', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
 
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('') })
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, text: vi.fn().mockResolvedValue('') })
     vi.stubGlobal('fetch', mockFetch)
 
     const entry = MOCK_SUMMARY.entries[0]

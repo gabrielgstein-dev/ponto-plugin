@@ -9,6 +9,7 @@ import {
 } from '../../infrastructure/manual/manual-punch-provider';
 import { ENABLE_SENIOR_INTEGRATION } from '../../domain/build-flags';
 import { fetchGpHistoryForPeriod } from '#company/providers';
+import { addGpPunchAjuste, type JustificativaCodigo } from '../../infrastructure/meta/gestaoponto/gp-ajuste';
 
 export type SidePanelSource = 'gp' | 'manual';
 
@@ -66,10 +67,19 @@ export function useSidePanelData() {
     if (time) await saveManualPunchForDate(date, time);
   }, []);
 
+  const addGpPunch = useCallback(
+    async (date: string, time: string, justificativaCodigo: JustificativaCodigo) => {
+      const result = await addGpPunchAjuste(date, time, justificativaCodigo);
+      if (result.ok) await loadData();
+      return result;
+    },
+    [loadData],
+  );
+
   const goToPrev = useCallback(() => setPeriodOffset(o => o - 1), []);
   const goToNext = useCallback(() => setPeriodOffset(o => Math.min(o + 1, 0)), []);
   const goToCurrent = useCallback(() => setPeriodOffset(0), []);
   const isCurrentPeriod = periodOffset === 0;
 
-  return { balance, records, source, loadingRecords, isCurrentPeriod, goToPrev, goToNext, goToCurrent, editPunch, removePunch, addPunch };
+  return { balance, records, source, loadingRecords, isCurrentPeriod, goToPrev, goToNext, goToCurrent, editPunch, removePunch, addPunch, addGpPunch };
 }

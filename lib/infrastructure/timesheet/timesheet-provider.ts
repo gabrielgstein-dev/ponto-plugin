@@ -4,12 +4,61 @@ import type { TimesheetConfig } from './timesheet-config';
 import type { TimesheetAuth } from './timesheet-auth';
 import { debugLog, debugWarn } from '../../domain/debug';
 
-export function createTimesheetProvider(config: TimesheetConfig, auth: TimesheetAuth): ITimesheetProvider {
+export interface TimesheetFetchInit {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+export interface TimesheetFetchResponse {
+  ok: boolean;
+  status: number;
+  text: string;
+}
+
+export type TimesheetFetcher = (
+  url: string,
+  init?: TimesheetFetchInit,
+) => Promise<TimesheetFetchResponse | null>;
+
+const defaultFetcher: TimesheetFetcher = async (url, init = {}) => {
+  const r = await fetch(url, {
+    method: init.method ?? 'GET',
+    headers: init.headers,
+    body: init.body,
+  });
+  return { ok: r.ok, status: r.status, text: await r.text() };
+};
+
+function parseJsonSafe<T>(text: string): T | null {
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+export function createTimesheetProvider(
+  config: TimesheetConfig,
+  auth: TimesheetAuth,
+  customFetch: TimesheetFetcher = defaultFetcher,
+): ITimesheetProvider {
   const { apiUrl, timesheetsBase, name } = config;
 
   async function isAvailable(): Promise<boolean> {
     const token = await auth.getToken();
     return token !== null;
+  }
+
+  async function handleAuthFailure(reason: string): Promise<void> {
+    debugWarn(`${name}: 401/403 em ${reason} — limpando token e furando throttle do auto-connect`);
+    await auth.clearToken();
+    // Zera o throttle de tsAutoConnect pra próxima sync já abrir aba de SSO.
+    await chrome.storage.local.remove(['tsAutoConnectTs']);
+  }
+
+  function isAuthFailure(status: number | undefined): boolean {
+    return status === 401 || status === 403;
   }
 
   async function getSummary(period: string): Promise<TimesheetSummary | null> {
@@ -53,26 +102,28 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
   async function fetchHoursSummary(headers: Record<string, string>, period: string): Promise<HoursSummaryResponse | null> {
     const url = `${apiUrl}${timesheetsBase}/hours-summary?period=${period}`;
     debugLog(`${name} fetchHoursSummary:`, url);
-    const r = await fetch(url, { headers });
-    if (!r.ok) {
-      debugWarn(`${name} hours-summary:`, r.status);
+    const r = await customFetch(url, { headers });
+    if (!r || !r.ok) {
+      debugWarn(`${name} hours-summary:`, r?.status ?? 'null');
+      if (isAuthFailure(r?.status)) await handleAuthFailure('hours-summary');
       return null;
     }
-    return r.json();
+    return parseJsonSafe<HoursSummaryResponse>(r.text);
   }
 
   async function fetchUserCostCenters(headers: Record<string, string>, userId: string): Promise<Array<{ code: string; name: string }>> {
     const url = `${apiUrl}${timesheetsBase}/users/${userId}/cost-centers`;
     debugLog(`${name} fetchUserCostCenters:`, url);
     try {
-      const r = await fetch(url, { headers });
-      if (!r.ok) {
-        debugLog(`${name} cost-centers não disponível:`, r.status);
+      const r = await customFetch(url, { headers });
+      if (!r || !r.ok) {
+        debugLog(`${name} cost-centers não disponível:`, r?.status ?? 'null');
+        if (isAuthFailure(r?.status)) await handleAuthFailure('cost-centers');
         return [];
       }
-      const json = await r.json();
-      if (Array.isArray(json.data)) {
-        return json.data.map((cc: { code: string; name: string }) => ({ code: cc.code, name: cc.name }));
+      const json = parseJsonSafe<{ data?: Array<{ code: string; name: string }> }>(r.text);
+      if (json && Array.isArray(json.data)) {
+        return json.data.map((cc) => ({ code: cc.code, name: cc.name }));
       }
       return [];
     } catch (e) {
@@ -84,13 +135,14 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
   async function fetchReportedHours(headers: Record<string, string>, userId: string, period: string, userCostCenters: Array<{ code: string; name: string }>): Promise<TimesheetEntry[]> {
     const url = `${apiUrl}${timesheetsBase}/users/${userId}/reported-hours?period=${period}&sort=-date`;
     debugLog(`${name} fetchReportedHours:`, url);
-    const r = await fetch(url, { headers });
-    if (!r.ok) {
-      debugWarn(`${name} reported-hours:`, r.status);
+    const r = await customFetch(url, { headers });
+    if (!r || !r.ok) {
+      debugWarn(`${name} reported-hours:`, r?.status ?? 'null');
+      if (isAuthFailure(r?.status)) await handleAuthFailure('reported-hours');
       return [];
     }
-    const json: ReportedHoursResponse = await r.json();
-    return (json.data || []).map(raw => mapReportedHourToEntry(raw, userCostCenters));
+    const json = parseJsonSafe<ReportedHoursResponse>(r.text);
+    return (json?.data || []).map(raw => mapReportedHourToEntry(raw, userCostCenters));
   }
 
   async function updateEntry(entryId: string, entry: TimesheetEntry, updates: { observation: string; hourQuantity: number }): Promise<boolean> {
@@ -115,14 +167,15 @@ export function createTimesheetProvider(config: TimesheetConfig, auth: Timesheet
         hourQuantity: updates.hourQuantity,
       };
 
-      const r = await fetch(url, {
+      const r = await customFetch(url, {
         method: 'PATCH',
         headers,
         body: JSON.stringify(body),
       });
 
-      if (!r.ok) {
-        debugWarn(`${name} updateEntry falhou:`, r.status, await r.text().catch(() => ''));
+      if (!r || !r.ok) {
+        debugWarn(`${name} updateEntry falhou:`, r?.status ?? 'null', r?.text ?? '');
+        if (isAuthFailure(r?.status)) await handleAuthFailure('updateEntry');
         return false;
       }
 

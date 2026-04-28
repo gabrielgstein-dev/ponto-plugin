@@ -14,6 +14,7 @@ export function usePunchState() {
   const initialized = useRef(false);
 
   useEffect(() => {
+    /* v8 ignore next -- StrictMode guard; second invocation is short-circuited */
     if (initialized.current) return;
     initialized.current = true;
     repo.loadState().then(({ state: s, settings: st }) => {

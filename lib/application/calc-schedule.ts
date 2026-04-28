@@ -29,8 +29,10 @@ export function calcHorarios(): void {
 function calcWithVolta(entMin: number): void {
   const voltaMin = timeToMinutes(state.volta)!;
   const almocoMin = state.almoco ? timeToMinutes(state.almoco) : null;
-  const horasAntesAlmoco = almocoMin ? almocoMin - entMin : 0;
-  const actualLunch = almocoMin ? voltaMin - almocoMin : 0;
+  const almocoHorarioMin = timeToMinutes(settings.almocoHorario) ?? 720;
+  const estimatedAlmocoMin = almocoMin ?? Math.max(entMin, almocoHorarioMin);
+  const horasAntesAlmoco = estimatedAlmocoMin - entMin;
+  const actualLunch = voltaMin - estimatedAlmocoMin;
   const lunchDeficit = Math.max(0, settings.almocoDur - actualLunch);
   const horasRestantes = settings.jornada - horasAntesAlmoco;
   const saidaMin = voltaMin + horasRestantes + lunchDeficit;

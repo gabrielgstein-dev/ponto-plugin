@@ -36,6 +36,13 @@ export async function handleDailyReset(): Promise<void> {
     await resolveReminder(activeSlot);
   }
 
+  // Fecha popup de timesheet e limpa cooldown
+  const tsData = await chrome.storage.local.get('tsNotifWindowId');
+  if (tsData.tsNotifWindowId) {
+    try { await chrome.windows.remove(tsData.tsNotifWindowId); } catch (_) {}
+  }
+  await chrome.storage.local.remove(['tsNotifWindowId', 'tsNotifDismissedTs']);
+
   const resetData: Record<string, unknown> = {
     pontoState: null,
     pontoDate: new Date().toDateString(),

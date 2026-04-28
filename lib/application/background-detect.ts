@@ -155,7 +155,13 @@ export function resetBackgroundHash(): void {
 
 const TS_AUTO_CONNECT_THROTTLE_MS = 30 * 60 * 1000;
 const TS_AUTO_CONNECT_TIMEOUT_MS = 20000;
-const META_PLATFORM_URL = 'https://plataforma.meta.com.br';
+// URL de login da plataforma com callback direto pra rota do timesheet.
+// Cair em /modules/timesheet/create faz o SPA bootstrapar o módulo do
+// timesheet (necessário para que a captura via webRequest pegue o Bearer
+// das chamadas reais ao api.meta.com.br). O SSO via Senior é encadeado
+// pela própria plataforma.
+const META_TS_BOOTSTRAP_URL =
+  'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create';
 
 async function tsAutoConnect(): Promise<boolean> {
   try {
@@ -166,9 +172,9 @@ async function tsAutoConnect(): Promise<boolean> {
       return false;
     }
     chrome.storage.local.set({ tsAutoConnectTs: Date.now() });
-    debugLog('TS auto-connect: abrindo aba plataforma.meta.com.br...');
+    debugLog('TS auto-connect: abrindo aba via SSO Senior (tenant=meta.com.br)...');
 
-    const tab = await chrome.tabs.create({ url: META_PLATFORM_URL, active: false });
+    const tab = await chrome.tabs.create({ url: META_TS_BOOTSTRAP_URL, active: false });
     const tabId = tab.id;
     const captured = await new Promise<boolean>((resolve) => {
       const timeout = setTimeout(() => {
@@ -222,26 +228,62 @@ export async function backgroundTimesheetSync(): Promise<void> {
   }
 }
 
+const TS_NOTIF_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2h após dismiss
+const TS_NOTIF_DEBOUNCE_MS = 30_000; // 30s entre chamadas
+let _tsNotifLastCall = 0;
+
+export function resetTsNotifDebounce(): void {
+  _tsNotifLastCall = 0;
+}
+
 export async function notifyPendingTimesheet(): Promise<void> {
+  // Debounce: ignora chamadas em sequência rápida
+  const now = Date.now();
+  if (now - _tsNotifLastCall < TS_NOTIF_DEBOUNCE_MS) {
+    debugLog('Popup timesheet: debounce, ignorando');
+    return;
+  }
+  _tsNotifLastCall = now;
+
   try {
     await backgroundTimesheetSync();
-    const stored = await chrome.storage.local.get(['timesheetSummaryCache', 'tsNotifWindowId', 'pontoState']);
+    const stored = await chrome.storage.local.get([
+      'timesheetSummaryCache', 'tsNotifWindowId', 'pontoState', 'tsNotifDismissedTs',
+    ]);
     const ps = stored.pontoState as { entrada?: string | null; saida?: string | null } | null;
 
     // Só exibe dentro da janela de trabalho: entrada registrada e saída ainda não batida
     if (!ps?.entrada || ps?.saida) return;
 
+    // Cooldown: respeita dismiss do usuário por 2h
+    const dismissedTs = (stored.tsNotifDismissedTs as number) || 0;
+    if (now - dismissedTs < TS_NOTIF_COOLDOWN_MS) {
+      debugLog('Popup timesheet: cooldown ativo (dismiss recente)');
+      return;
+    }
+
     const summary = stored.timesheetSummaryCache;
     if (!summary) return;
     const pendingNoObs = summary.entries.filter((e: any) => e.status === 'PENDING' && !e.observation);
     if (pendingNoObs.length === 0) return;
+
+    // Se já tem popup aberta, só foca nela
+    if (stored.tsNotifWindowId) {
+      try {
+        const existing = await chrome.windows.get(stored.tsNotifWindowId);
+        if (existing) {
+          await chrome.windows.update(stored.tsNotifWindowId, { focused: true });
+          debugLog('Popup timesheet: já aberta, focando');
+          return;
+        }
+      } catch (_) {
+        // janela não existe mais, segue para criar nova
+      }
+    }
+
     const url = `ts-notification.html?count=${pendingNoObs.length}`;
     const width = 420;
     const height = 300;
-
-    if (stored.tsNotifWindowId) {
-      try { await chrome.windows.remove(stored.tsNotifWindowId); } catch (_) {}
-    }
 
     const currentWin = await chrome.windows.getCurrent();
     const left = Math.round((currentWin.left ?? 0) + ((currentWin.width ?? 1920) - width) / 2);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { SENIOR_TOKEN_MAX_AGE_MS } from '../../infrastructure/senior/constants';
 
 export function useAuthStatus() {
   const [hasAuth, setHasAuth] = useState<boolean | null>(null);
@@ -7,7 +8,7 @@ export function useAuthStatus() {
     const check = () => {
       chrome.storage.local.get(['gpAssertion', 'gpAssertionTs', 'seniorToken', 'seniorTokenTs'], (data) => {
         const gpOk = !!data.gpAssertion && !!data.gpAssertionTs;
-        const tokenOk = !!data.seniorToken && !!data.seniorTokenTs && Date.now() - data.seniorTokenTs < 3600000;
+        const tokenOk = !!data.seniorToken && !!data.seniorTokenTs && Date.now() - data.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS;
         setHasAuth(gpOk || tokenOk);
       });
     };

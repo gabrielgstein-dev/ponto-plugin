@@ -88,10 +88,14 @@ test('F4-CV-4.3: token com mais de 60 min não é usado', async () => {
 
   // O SeniorInterceptorAuth deve retornar null para token expirado
   // (validado pelos unit tests — aqui confirmamos o fluxo completo)
-  const popupPage = await ctx.newPage()
-  await popupPage.goto(ctx.serviceWorkers()[0] ? `chrome-extension://internal/popup.html` : 'about:blank')
-  await popupPage.waitForTimeout(500)
-  await popupPage.close()
+  const sw = ctx.serviceWorkers()[0]
+  const extId = sw ? new URL(sw.url()).hostname : null
+  if (extId) {
+    const popupPage = await ctx.newPage()
+    await popupPage.goto(`chrome-extension://${extId}/popup.html`)
+    await popupPage.waitForTimeout(500)
+    await popupPage.close()
+  }
 
   // Limpa o token expirado
   await ctx.serviceWorkers()[0]?.evaluate(async () => {

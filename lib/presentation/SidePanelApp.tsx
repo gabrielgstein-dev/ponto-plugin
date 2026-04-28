@@ -10,7 +10,7 @@ type SidePanelTab = 'ponto' | 'timesheet';
 
 export function SidePanelApp() {
   const [activeTab, setActiveTab] = useState<SidePanelTab>('ponto');
-  const { balance, records, source, loadingRecords, isCurrentPeriod, goToPrev, goToNext, goToCurrent, editPunch, removePunch, addPunch } = useSidePanelData();
+  const { balance, records, source, loadingRecords, isCurrentPeriod, goToPrev, goToNext, goToCurrent, editPunch, removePunch, addPunch, addGpPunch } = useSidePanelData();
 
   useEffect(() => {
     chrome.storage.local.get('sidePanelTab').then((data) => {
@@ -70,7 +70,15 @@ export function SidePanelApp() {
               <div className="sp-empty">Nenhum registro no período atual</div>
             )}
             {records.map(r => (
-              <DayRow key={r.date} record={r} readOnly={source === 'gp' || r.date === today} onEdit={editPunch} onRemove={removePunch} onAdd={addPunch} />
+              <DayRow
+                key={r.date}
+                record={r}
+                readOnly={source === 'gp' || r.date === today}
+                onEdit={editPunch}
+                onRemove={removePunch}
+                onAdd={addPunch}
+                onAddGpAjuste={source === 'gp' ? addGpPunch : undefined}
+              />
             ))}
           </div>
         </>

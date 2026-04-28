@@ -1,9 +1,10 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
 import { debugLog } from '../lib/domain/debug';
+import { installErrorHandlers } from '../lib/domain/install-error-handlers';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
 import { recheckReminder, resolveReminder } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
-import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync } from '../lib/application/background-detect';
+import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
 import { addPendingPunch, loadPendingPunches } from '../lib/application/detect-punches';
 import { resetGpPunchCache } from '#company/providers';
@@ -12,6 +13,7 @@ import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-sto
 import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
 
 export default defineBackground(() => {
+  installErrorHandlers();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 
   chrome.runtime.onInstalled.addListener(() => {
@@ -73,13 +75,18 @@ export default defineBackground(() => {
     }
     if (message.type === 'CLOSE_TS_NOTIFICATION') {
       chrome.storage.local.get('tsNotifWindowId', (data) => {
+        const dismiss = () => {
+          chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
+          chrome.storage.local.remove('tsNotifWindowId');
+        };
         if (data.tsNotifWindowId) {
           chrome.windows.remove(data.tsNotifWindowId, () => {
-            chrome.storage.local.remove('tsNotifWindowId');
+            dismiss();
             sendResponse({ ok: true });
           });
         } else if (sender.tab?.windowId) {
           chrome.windows.remove(sender.tab.windowId, () => {
+            dismiss();
             sendResponse({ ok: true });
           });
         } else {
@@ -93,6 +100,8 @@ export default defineBackground(() => {
       return true;
     }
     if (message.type === 'TEST_TS_NOTIFICATION') {
+      // Bypass do debounce: o gatilho de teste deve sempre rodar imediatamente
+      resetTsNotifDebounce();
       notifyPendingTimesheet().catch(() => {});
       sendResponse({ ok: true });
       return true;
@@ -133,9 +142,13 @@ export default defineBackground(() => {
   });
 
   chrome.windows.onRemoved.addListener((windowId) => {
-    chrome.storage.local.get('punchPopupWindowId', (data) => {
+    chrome.storage.local.get(['punchPopupWindowId', 'tsNotifWindowId'], (data) => {
       if (data.punchPopupWindowId === windowId) {
         chrome.storage.local.remove('punchPopupWindowId');
+      }
+      if (data.tsNotifWindowId === windowId) {
+        chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
+        chrome.storage.local.remove('tsNotifWindowId');
       }
     });
   });

@@ -34,10 +34,11 @@ export const mockTabsSendMessage = vi.fn().mockResolvedValue(undefined)
 // ── Windows ───────────────────────────────────────────────────────────────────
 export const mockWindowsGetCurrent = vi
   .fn()
-  .mockResolvedValue({ left: 0, top: 0, width: 1920, height: 1080 })
+  .mockResolvedValue({ id: 42, left: 0, top: 0, width: 1920, height: 1080 })
 export const mockWindowsGet = vi.fn().mockResolvedValue({ id: 42 })
 export const mockWindowsCreate = vi.fn().mockResolvedValue({ id: 42 })
 export const mockWindowsRemove = vi.fn().mockResolvedValue(undefined)
+export const mockWindowsUpdate = vi.fn().mockResolvedValue({ id: 42 })
 
 // ── Runtime ───────────────────────────────────────────────────────────────────
 export const mockRuntimeSendMessage = vi.fn().mockResolvedValue(undefined)
@@ -47,13 +48,24 @@ export const mockRuntimeGetURL = vi.fn((path: string) => `chrome-extension://tes
 export const mockAlarmsCreate = vi.fn()
 export const mockAlarmsClear = vi.fn().mockResolvedValue(true)
 
+// ── Side Panel ────────────────────────────────────────────────────────────────
+export const mockSidePanelOpen = vi.fn().mockResolvedValue(undefined)
+
 // ── Chrome global object ──────────────────────────────────────────────────────
+const localChangedListener = {
+  addListener: vi.fn((fn: StorageListener) => _storageListeners.push(fn)),
+  removeListener: vi.fn((fn: StorageListener) => {
+    const i = _storageListeners.indexOf(fn)
+    if (i >= 0) _storageListeners.splice(i, 1)
+  }),
+}
 const chromeMock = {
   storage: {
     local: {
       get: mockStorageGet,
       set: mockStorageSet,
       remove: mockStorageRemove,
+      onChanged: localChangedListener,
     },
     onChanged: {
       addListener: vi.fn((fn: StorageListener) => _storageListeners.push(fn)),
@@ -62,6 +74,9 @@ const chromeMock = {
         if (i >= 0) _storageListeners.splice(i, 1)
       }),
     },
+  },
+  sidePanel: {
+    open: mockSidePanelOpen,
   },
   cookies: {
     getAll: mockCookiesGetAll,
@@ -80,6 +95,7 @@ const chromeMock = {
     get: mockWindowsGet,
     create: mockWindowsCreate,
     remove: mockWindowsRemove,
+    update: mockWindowsUpdate,
   },
   runtime: {
     onMessage: {
@@ -119,13 +135,15 @@ beforeEach(() => {
   mockTabsCreate.mockResolvedValue({ id: 99 })
   mockTabsRemove.mockResolvedValue(undefined)
   mockTabsSendMessage.mockResolvedValue(undefined)
-  mockWindowsGetCurrent.mockResolvedValue({ left: 0, top: 0, width: 1920, height: 1080 })
+  mockWindowsGetCurrent.mockResolvedValue({ id: 42, left: 0, top: 0, width: 1920, height: 1080 })
   mockWindowsGet.mockResolvedValue({ id: 42 })
   mockWindowsCreate.mockResolvedValue({ id: 42 })
   mockWindowsRemove.mockResolvedValue(undefined)
+  mockWindowsUpdate.mockResolvedValue({ id: 42 })
   mockRuntimeSendMessage.mockResolvedValue(undefined)
   mockRuntimeGetURL.mockImplementation((path: string) => `chrome-extension://test-id/${path}`)
   mockAlarmsClear.mockResolvedValue(true)
+  mockSidePanelOpen.mockResolvedValue(undefined)
 
   // Drain storage listeners accumulated by previous tests
   _storageListeners.length = 0
@@ -135,6 +153,15 @@ beforeEach(() => {
     (fn: StorageListener) => _storageListeners.push(fn),
   )
   ;(chromeMock.storage.onChanged.removeListener as ReturnType<typeof vi.fn>).mockImplementation(
+    (fn: StorageListener) => {
+      const i = _storageListeners.indexOf(fn)
+      if (i >= 0) _storageListeners.splice(i, 1)
+    },
+  )
+  ;(chromeMock.storage.local.onChanged.addListener as ReturnType<typeof vi.fn>).mockImplementation(
+    (fn: StorageListener) => _storageListeners.push(fn),
+  )
+  ;(chromeMock.storage.local.onChanged.removeListener as ReturnType<typeof vi.fn>).mockImplementation(
     (fn: StorageListener) => {
       const i = _storageListeners.indexOf(fn)
       if (i >= 0) _storageListeners.splice(i, 1)
