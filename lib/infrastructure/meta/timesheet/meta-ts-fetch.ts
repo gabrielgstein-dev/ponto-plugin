@@ -204,7 +204,9 @@ async function executeFetch(
           method: i.method ?? 'GET',
           headers: i.headers,
           body: i.body,
-          credentials: 'include',
+          // Sem credentials: 'include' — api.meta.com.br usa token Bearer;
+          // 'include' exigiria Access-Control-Allow-Credentials:true no CORS
+          // preflight, que o servidor não retorna (SPA usa withCredentials:false).
         });
         const text = await r.text();
         return { ok: r.ok, status: r.status, text };
@@ -225,6 +227,12 @@ export async function fetchViaMetaTab(
   if (!tab) return null;
 
   try {
+    let tabUrl = 'unknown';
+    try {
+      const tabInfo = await chrome.tabs.get(tab.tabId);
+      tabUrl = tabInfo?.url ?? 'unknown';
+    } catch (_) { /* apenas para log */ }
+    debugLog(`${config.name} fetchViaTab: executando fetch tabId=${tab.tabId} tabUrl=${tabUrl}`);
     const response = await executeFetch(tab.tabId, url, init);
     scheduleIdleClose();
     if (response && (!response.ok || response.status === 0)) {
