@@ -5,18 +5,22 @@
  * O usuário loga manualmente em plataforma.meta.com.br (callback direto pra
  * /modules/timesheet/create — só nessa rota o módulo do timesheet bootstrapa).
  *
+ * Limpa as chaves relevantes no início para garantir que estamos testando
+ * a captura DESTA execução, não cache de uma rodada anterior.
+ *
  * Em seguida abrimos o sidepanel da extensão na aba Timesheet, o que dispara
  * useTimesheetData → metaTimesheetProvider.getSummary() →
  * fetchViaMetaTab() (GET only) e o resultado deve cair em
  * `timesheetSummaryCache` no chrome.storage.local.
  *
- * Asserções: shape + status. Zero PATCH, zero POST.
+ * Asserções: read-only — Zero PATCH, zero POST.
  */
 import { test, expect } from '@playwright/test'
 import {
   launchRealExtension,
   waitForStorageValue,
   ensureLoggedInOnTab,
+  clearStorageKeys,
   type RealExtensionFixture,
 } from './helpers/extension-real'
 
@@ -38,6 +42,15 @@ let fixture: RealExtensionFixture
 test.beforeAll(async () => {
   test.setTimeout(360_000)
   fixture = await launchRealExtension()
+  // Garante que vamos observar a captura desta execução, não cache antigo.
+  await clearStorageKeys(fixture.serviceWorker, [
+    'metaTsToken',
+    'metaTsTokenTs',
+    'metaTsUserId',
+    'timesheetSummaryCache',
+    'timesheetSyncTs',
+    'tsAutoConnectTs',
+  ])
   // Cair na rota /modules/timesheet/create força o SPA a bootstrappar o
   // módulo do timesheet, que é o que dispara as chamadas autenticadas
   // capturáveis via webRequest interceptor da extensão.
@@ -52,17 +65,21 @@ test.afterAll(async () => {
   await fixture?.close()
 })
 
-test('REAL-EXT-TS: extensão sincroniza timesheetSummaryCache com dados reais da API', async () => {
-  // Espera o token ser capturado pelo webRequest interceptor.
+test('REAL-EXT-TS-1: webRequest interceptor captura Bearer token do Meta Timesheet', async () => {
+  // Como limpamos `metaTsToken` no beforeAll, qualquer valor aqui foi
+  // capturado nesta execução pelo interceptor de background.ts.
   const token = await waitForStorageValue<string>(
     fixture.serviceWorker,
     'metaTsToken',
     v => typeof v === 'string' && v.length > 20,
-    60_000,
+    90_000,
   )
   expect(token).toBeDefined()
+  expect(token!.length).toBeGreaterThan(20)
+})
 
-  // Abrir o sidepanel já dispara useTimesheetData → getSummary.
+test('REAL-EXT-TS-2: extensão sincroniza timesheetSummaryCache via fetchViaMetaTab', async () => {
+  // Abrir o sidepanel dispara useTimesheetData → getSummary.
   const sidepanel = await fixture.context.newPage()
   await sidepanel.goto(fixture.sidepanelUrl)
   await sidepanel.waitForLoadState('domcontentloaded')
@@ -79,7 +96,7 @@ test('REAL-EXT-TS: extensão sincroniza timesheetSummaryCache com dados reais da
     fixture.serviceWorker,
     'timesheetSummaryCache',
     v => !!v && Array.isArray(v.entries) && typeof v.period === 'string',
-    120_000,
+    180_000,
   )
 
   expect(cache).toBeDefined()
@@ -89,7 +106,6 @@ test('REAL-EXT-TS: extensão sincroniza timesheetSummaryCache com dados reais da
   expect(typeof cache!.totalReportedHours).toBe('number')
   expect(Array.isArray(cache!.entries)).toBe(true)
 
-  // Se houver entradas, valida a shape de uma delas
   if (cache!.entries.length > 0) {
     const entry = cache!.entries[0]
     expect(typeof entry.id).toBe('string')

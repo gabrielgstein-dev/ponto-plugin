@@ -85,6 +85,24 @@ export async function waitForStorageValue<T>(
 }
 
 /**
+ * Remove chaves do chrome.storage.local. Útil para forçar uma captura nova
+ * de token a cada teste (sem isso, valores cacheados de execuções anteriores
+ * fariam os testes passarem mesmo com bug de captura).
+ */
+export async function clearStorageKeys(
+  sw: ServiceWorker,
+  keys: string[],
+): Promise<void> {
+  await sw.evaluate(async (ks: string[]) => {
+    await (
+      globalThis as unknown as {
+        chrome: { storage: { local: { remove(keys: string[]): Promise<void> } } }
+      }
+    ).chrome.storage.local.remove(ks)
+  }, keys)
+}
+
+/**
  * Espera o usuário fazer login navegando manualmente. A função abre a URL
  * indicada e aguarda até a aba sair do path de login. Em rodadas subsequentes
  * (perfil persistente), o login costuma ser silencioso e completa em segundos.
