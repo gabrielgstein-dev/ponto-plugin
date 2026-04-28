@@ -4,6 +4,7 @@ import { extractTimesFromApiResponse } from './api-response-parser';
 import { SeniorCookieAuth } from './senior-cookie-auth';
 import { SeniorPageAuth } from './senior-page-auth';
 import { SeniorInterceptorAuth } from './senior-interceptor-auth';
+import { SENIOR_TOKEN_MAX_AGE_MS } from './constants';
 import { debugWarn } from '../../domain/debug';
 
 let _cachedEndpoint: { url: string; method: string; body: string | null } | null = null;
@@ -49,8 +50,8 @@ export class SeniorApiPunchProvider implements IPunchProvider {
     // 2. Intercepted Bearer salvo no background (seniorToken)
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
     if (stored.seniorToken) {
-      const ageMin = (Date.now() - (stored.seniorTokenTs || 0)) / 60000;
-      if (ageMin < 60) return stored.seniorToken;
+      const age = Date.now() - (stored.seniorTokenTs || 0);
+      if (age < SENIOR_TOKEN_MAX_AGE_MS) return stored.seniorToken;
     }
 
     // 3. Page scan: varre sessionStorage/localStorage da aba Senior

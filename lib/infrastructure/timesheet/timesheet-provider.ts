@@ -50,6 +50,17 @@ export function createTimesheetProvider(
     return token !== null;
   }
 
+  async function handleAuthFailure(reason: string): Promise<void> {
+    debugWarn(`${name}: 401/403 em ${reason} — limpando token e furando throttle do auto-connect`);
+    await auth.clearToken();
+    // Zera o throttle de tsAutoConnect pra próxima sync já abrir aba de SSO.
+    await chrome.storage.local.remove(['tsAutoConnectTs']);
+  }
+
+  function isAuthFailure(status: number | undefined): boolean {
+    return status === 401 || status === 403;
+  }
+
   async function getSummary(period: string): Promise<TimesheetSummary | null> {
     const token = await auth.getToken();
     if (!token) {
@@ -94,6 +105,7 @@ export function createTimesheetProvider(
     const r = await customFetch(url, { headers });
     if (!r || !r.ok) {
       debugWarn(`${name} hours-summary:`, r?.status ?? 'null');
+      if (isAuthFailure(r?.status)) await handleAuthFailure('hours-summary');
       return null;
     }
     return parseJsonSafe<HoursSummaryResponse>(r.text);
@@ -106,6 +118,7 @@ export function createTimesheetProvider(
       const r = await customFetch(url, { headers });
       if (!r || !r.ok) {
         debugLog(`${name} cost-centers não disponível:`, r?.status ?? 'null');
+        if (isAuthFailure(r?.status)) await handleAuthFailure('cost-centers');
         return [];
       }
       const json = parseJsonSafe<{ data?: Array<{ code: string; name: string }> }>(r.text);
@@ -125,6 +138,7 @@ export function createTimesheetProvider(
     const r = await customFetch(url, { headers });
     if (!r || !r.ok) {
       debugWarn(`${name} reported-hours:`, r?.status ?? 'null');
+      if (isAuthFailure(r?.status)) await handleAuthFailure('reported-hours');
       return [];
     }
     const json = parseJsonSafe<ReportedHoursResponse>(r.text);
@@ -161,6 +175,7 @@ export function createTimesheetProvider(
 
       if (!r || !r.ok) {
         debugWarn(`${name} updateEntry falhou:`, r?.status ?? 'null', r?.text ?? '');
+        if (isAuthFailure(r?.status)) await handleAuthFailure('updateEntry');
         return false;
       }
 

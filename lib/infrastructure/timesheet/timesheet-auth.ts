@@ -5,6 +5,7 @@ export interface TimesheetAuth {
   getToken(): Promise<string | null>;
   getUserId(): Promise<string | null>;
   saveToken(token: string): void;
+  clearToken(): Promise<void>;
 }
 
 export function createTimesheetAuth(config: TimesheetConfig): TimesheetAuth {
@@ -62,5 +63,10 @@ export function createTimesheetAuth(config: TimesheetConfig): TimesheetAuth {
     chrome.storage.local.set(save);
   }
 
-  return { getToken, getUserId, saveToken };
+  async function clearToken(): Promise<void> {
+    await chrome.storage.local.remove([KEY_TOKEN, KEY_TS]);
+    debugLog(`${config.name} auth: token invalidado no storage`);
+  }
+
+  return { getToken, getUserId, saveToken, clearToken };
 }

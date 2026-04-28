@@ -1,4 +1,5 @@
 import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
+import { SENIOR_TOKEN_MAX_AGE_MS } from '../../senior/constants';
 import { debugLog, debugWarn } from '../../../domain/debug';
 
 const AUTH_RETRY_INTERVAL_MS = 3000;
@@ -59,8 +60,6 @@ export async function waitForGpSession(tabId: number, maxWait: number): Promise<
   return false;
 }
 
-const TOKEN_MAX_AGE_MS = 60 * 60000;
-
 async function getAnyAccessToken(): Promise<string | null> {
   const cookieAuth = new SeniorCookieAuth();
   const fromCookie = await cookieAuth.getAccessToken();
@@ -68,7 +67,7 @@ async function getAnyAccessToken(): Promise<string | null> {
 
   try {
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
-    if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < TOKEN_MAX_AGE_MS) {
+    if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS) {
       debugLog('attemptGpAuth: usando seniorToken do storage');
       return stored.seniorToken;
     }

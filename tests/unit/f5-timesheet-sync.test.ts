@@ -53,7 +53,7 @@ vi.mock('../../lib/application/schedule-notifications', () => ({ scheduleNotific
 vi.mock('../../lib/application/schedule-ts-notifications', () => ({ scheduleTsNotifications: vi.fn() }))
 
 import { backgroundTimesheetSync } from '../../lib/application/background-detect'
-import { mockStorageGet, mockStorageSet, mockTabsCreate, mockTabsRemove, triggerStorageChange } from '../setup/chrome-mock'
+import { mockStorageGet, mockStorageSet, mockStorageRemove, mockTabsCreate, mockTabsRemove, triggerStorageChange } from '../setup/chrome-mock'
 import type { TimesheetSummary } from '../../lib/domain/types'
 
 const MOCK_SUMMARY: TimesheetSummary = {
@@ -92,6 +92,8 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue('valid-token'),
       getUserId: vi.fn().mockResolvedValue('user-123'),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = {
       apiUrl: 'https://api.example.com',
@@ -109,6 +111,8 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue(null),
       getUserId: vi.fn().mockResolvedValue(null),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = { apiUrl: 'https://api.example.com', timesheetsBase: '/ts', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
@@ -122,6 +126,8 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue(null),
       getUserId: vi.fn().mockResolvedValue(null),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = { apiUrl: 'https://api.example.com', timesheetsBase: '/ts', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
@@ -135,6 +141,8 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue('tok'),
       getUserId: vi.fn().mockResolvedValue('u1'),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = { apiUrl: 'https://ts.example.com', timesheetsBase: '/v1', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
@@ -177,6 +185,36 @@ describe('F5 — createTimesheetProvider', () => {
     vi.unstubAllGlobals()
   })
 
+  it('CV-5.5: getSummary com 401 limpa o token e fura o throttle do auto-connect', async () => {
+    const { createTimesheetProvider } = await import(
+      '../../lib/infrastructure/timesheet/timesheet-provider'
+    )
+    const clearToken = vi.fn().mockResolvedValue(undefined)
+    const auth = {
+      getToken: vi.fn().mockResolvedValue('stale-tok'),
+      getUserId: vi.fn().mockResolvedValue('u1'),
+      saveToken: vi.fn(),
+      clearToken,
+    }
+    const config = { apiUrl: 'https://ts.example.com', timesheetsBase: '/v1', name: 'test' }
+    const provider = createTimesheetProvider(config, auth)
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: vi.fn().mockResolvedValue(''),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const summary = await provider.getSummary('2026-03')
+
+    expect(summary).not.toBeNull()
+    expect(clearToken).toHaveBeenCalled()
+    expect(mockStorageRemove).toHaveBeenCalledWith(['tsAutoConnectTs'])
+
+    vi.unstubAllGlobals()
+  })
+
   it('CV-5.3: updateEntry faz PATCH no endpoint correto', async () => {
     const { createTimesheetProvider } = await import(
       '../../lib/infrastructure/timesheet/timesheet-provider'
@@ -184,6 +222,8 @@ describe('F5 — createTimesheetProvider', () => {
     const auth = {
       getToken: vi.fn().mockResolvedValue('tok'),
       getUserId: vi.fn().mockResolvedValue('u1'),
+      saveToken: vi.fn(),
+      clearToken: vi.fn().mockResolvedValue(undefined),
     }
     const config = { apiUrl: 'https://ts.example.com', timesheetsBase: '/v1', name: 'test' }
     const provider = createTimesheetProvider(config, auth)

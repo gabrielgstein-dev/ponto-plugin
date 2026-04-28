@@ -1,5 +1,6 @@
 import type { GpAuthData } from '../../../domain/types';
 import { GP_API_BASE, GP_CACHE_DURATION_MS } from './constants';
+import { SENIOR_TOKEN_MAX_AGE_MS } from '../../senior/constants';
 import { debugLog, debugWarn } from '../../../domain/debug';
 
 export async function getGpAssertion(force = false): Promise<GpAuthData | null> {
@@ -27,6 +28,9 @@ export async function getGpAssertion(force = false): Promise<GpAuthData | null> 
     });
     if (!r.ok) {
       debugWarn('GP auth/g7 falhou:', r.status);
+      if (r.status === 401 || r.status === 403) {
+        await invalidateSeniorTokenStorage();
+      }
       return null;
     }
     const json = await r.json();
@@ -49,8 +53,6 @@ export async function getGpAssertion(force = false): Promise<GpAuthData | null> 
   }
 }
 
-const TOKEN_MAX_AGE_MS = 60 * 60000;
-
 async function getSeniorAccessToken(): Promise<string | null> {
   try {
     const cookies = await chrome.cookies.getAll({ domain: '.senior.com.br', name: 'com.senior.token' });
@@ -69,11 +71,11 @@ async function getSeniorAccessToken(): Promise<string | null> {
 
   try {
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
-    if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < TOKEN_MAX_AGE_MS) {
+    if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS) {
       debugLog('getSeniorAccessToken: usando seniorToken do storage (age:', Math.round((Date.now() - stored.seniorTokenTs) / 1000), 's)');
       return stored.seniorToken;
     }
-    if (stored.seniorToken) debugLog('getSeniorAccessToken: seniorToken expirado');
+    if (stored.seniorToken) debugLog('getSeniorAccessToken: seniorToken expirado (>24h)');
   } catch (e) {
     debugWarn('Erro ao ler seniorToken do storage:', (e as Error).message);
   }
@@ -84,6 +86,11 @@ async function getSeniorAccessToken(): Promise<string | null> {
 
 export function invalidateGpCache(): void {
   chrome.storage.local.remove(['gpAssertion', 'gpAssertionTs']);
+}
+
+export async function invalidateSeniorTokenStorage(): Promise<void> {
+  await chrome.storage.local.remove(['seniorToken', 'seniorTokenTs']);
+  debugLog('seniorToken invalidado no storage (401/403 do Senior)');
 }
 
 function extractCodigoCalculo(json: Record<string, unknown>): string | null {

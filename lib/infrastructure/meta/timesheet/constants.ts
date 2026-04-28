@@ -13,7 +13,10 @@ export const META_TIMESHEET_CONFIG: TimesheetConfig = {
   bootstrapUrl: 'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create',
   sessionEndpoint: '/api/auth/session',
   timesheetsBase: '/timesheets/v1',
-  tokenMaxAgeMs: 4.5 * 60 * 1000,
+  // Rede de segurança contra tokens absurdamente velhos no storage. Se o
+  // token estiver inválido antes desse prazo, o handler de 401 do provider
+  // limpa o storage e a próxima sync dispara o auto-connect.
+  tokenMaxAgeMs: 24 * 60 * 60 * 1000,
   storagePrefix: 'metaTs',
   jwtUuidField: 'metaUUID',
 };
