@@ -12,7 +12,7 @@ import { SeniorScraperProvider } from '../infrastructure/senior/senior-scraper';
 import { ManualPunchProvider } from '../infrastructure/manual/manual-punch-provider';
 import { scheduleNotifications } from './schedule-notifications';
 import { scheduleTsNotifications } from './schedule-ts-notifications';
-import { applyPartialState, applySettings, state, settings, resetNotifScheduled } from './state';
+import { applyPartialState, applySettings, state, resetNotifScheduled } from './state';
 import { calcHorarios } from './calc-schedule';
 
 function buildProviders(): IPunchProvider[] {
@@ -82,39 +82,9 @@ export async function backgroundDetect(): Promise<boolean> {
   debugLog(`backgroundDetect: aplicando ${past.length} batimentos ao estado...`);
 
   state.entrada = past[0];
-  state.almoco = null;
-  state.volta = null;
-  state.saida = null;
-
-  if (past.length >= 2) {
-    const entradaMin = timeToMinutes(past[0])!;
-    let assigned = false;
-
-    for (let i = 1; i < past.length - 1; i++) {
-      const tMin = timeToMinutes(past[i])!;
-      const tNextMin = timeToMinutes(past[i + 1])!;
-      const gap = tNextMin - tMin;
-      const workBefore = tMin - entradaMin;
-
-      if (workBefore >= 120 && gap >= Math.min(settings.almocoDur, 30)) {
-        state.almoco = past[i];
-        state.volta = past[i + 1];
-        if (i + 2 < past.length) state.saida = past[past.length - 1];
-        assigned = true;
-        break;
-      }
-    }
-
-    if (!assigned) {
-      const lastPunch = past[past.length - 1];
-      const lastMin = timeToMinutes(lastPunch)!;
-      const totalSpan = lastMin - entradaMin;
-
-      if (totalSpan >= 120 && totalSpan < settings.jornada + settings.almocoDur) {
-        state.almoco = lastPunch;
-      }
-    }
-  }
+  state.almoco = past.length >= 2 ? past[1] : null;
+  state.volta = past.length >= 3 ? past[2] : null;
+  state.saida = past.length >= 4 ? past[3] : null;
 
   calcHorarios();
   debugLog(`backgroundDetect: estado calculado - entrada=${state.entrada}, almoco=${state.almoco}, volta=${state.volta}, saida=${state.saida}`);

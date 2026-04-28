@@ -1,5 +1,5 @@
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
-import { state, settings, resetNotifScheduled } from './state';
+import { state, resetNotifScheduled } from './state';
 import { calcHorarios } from './calc-schedule';
 import type { IStateRepository } from '../domain/interfaces';
 
@@ -59,36 +59,7 @@ export function applyTimes(
 }
 
 function assignLunchAndExit(past: string[]): void {
-  if (past.length < 2) return;
-
-  const entradaMin = timeToMinutes(past[0])!;
-
-  for (let i = 1; i < past.length - 1; i++) {
-    const tMin = timeToMinutes(past[i])!;
-    const tNextMin = timeToMinutes(past[i + 1])!;
-    const gap = tNextMin - tMin;
-    const workBefore = tMin - entradaMin;
-
-    if (workBefore >= 120 && gap >= Math.min(settings.almocoDur, 30)) {
-      state.almoco = past[i];
-      state.volta = past[i + 1];
-      if (i + 2 < past.length) state.saida = past[past.length - 1];
-      return;
-    }
-  }
-
-  const lastPunch = past[past.length - 1];
-  const lastMin = timeToMinutes(lastPunch)!;
-  const totalSpan = lastMin - entradaMin;
-
-  const almocoConfigMin = timeToMinutes(settings.almocoHorario) ?? 720;
-  const estimatedVoltaMin = almocoConfigMin + settings.almocoDur;
-
-  if (totalSpan >= Math.min(settings.almocoDur, 60)) {
-    if (lastMin >= estimatedVoltaMin) {
-      state.volta = lastPunch;
-    } else if (totalSpan < settings.jornada + settings.almocoDur) {
-      state.almoco = lastPunch;
-    }
-  }
+  if (past.length >= 2) state.almoco = past[1];
+  if (past.length >= 3) state.volta = past[2];
+  if (past.length >= 4) state.saida = past[3];
 }
