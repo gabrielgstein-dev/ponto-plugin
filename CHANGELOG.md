@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.2.0...senior-ponto-v0.3.0) (2026-04-28)
+
+
+### Novidades
+
+* **auth:** persist tokens 24h and re-login on 401 ([3918208](https://github.com/gabrielgstein-dev/ponto-plugin/commit/39182087e1747ba41313d2d2f93b7e1dc18779b0))
+* **auth:** persistir tokens 24h e re-logar em 401 ([98fc17e](https://github.com/gabrielgstein-dev/ponto-plugin/commit/98fc17e5fb6d15b60746266ece21b752ec7eb268))
+* **gp:** add manual punch adjustment with justification ([14a0a3f](https://github.com/gabrielgstein-dev/ponto-plugin/commit/14a0a3fbd8c212e22ea994bbfea7a4f64f49a891))
+* **login-link:** parametrize TokenStatus loginUrl per tenant ([b8cbede](https://github.com/gabrielgstein-dev/ponto-plugin/commit/b8cbede2e41eeadfc7b65fb70563c806dd4eff75))
+* **logs:** persistent ring buffer with export/clear UI ([900dcaa](https://github.com/gabrielgstein-dev/ponto-plugin/commit/900dcaa7f718baea108baf23e717c9feecaaf348))
+* **meta-timesheet:** bootstrap hidden tab through Senior SSO URL ([783e56c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/783e56caff2428864b74db2216a9da6ba6161505))
+* **notif:** aviso de 5min, lembrete de atraso e fix de saída ([25c8c9d](https://github.com/gabrielgstein-dev/ponto-plugin/commit/25c8c9d16ce7adc4b9a4e0d10732765944c35be8))
+
+
+### Correções
+
+* **application:** better lunch/return detection in punch flow ([972e7cb](https://github.com/gabrielgstein-dev/ponto-plugin/commit/972e7cbec9a8c8294cbd61cfb8212cf28a0a2e0d))
+* **meta-timesheet:** bootstrap on /modules/timesheet/create so SPA loads timesheet module ([a82e3f9](https://github.com/gabrielgstein-dev/ponto-plugin/commit/a82e3f9d74a5981eefb2248b19df754b7e38af6b))
+* **meta-timesheet:** cache tab across getSummary and detect SSO redirect ([3588768](https://github.com/gabrielgstein-dev/ponto-plugin/commit/3588768f6da7db87e24ac3d5bef7030daf005104))
+* **meta-timesheet:** route API fetch through plataforma.meta.com.br tab ([7cfeafb](https://github.com/gabrielgstein-dev/ponto-plugin/commit/7cfeafb28e2401263d426c1410e6dacdbb1a0c2c))
+* **slots:** atribuir por índice puro + avisos 5min/atraso/saída ([76e3182](https://github.com/gabrielgstein-dev/ponto-plugin/commit/76e31827af91b6c5324f2ed65d6756137234759c))
+* **slots:** atribuir slots por índice puro, sem heurística de horário ([cbb57db](https://github.com/gabrielgstein-dev/ponto-plugin/commit/cbb57dba073b21ec1031db65c33c1269f1926a66))
+* **ui:** debounce, cooldown and focus reuse for timesheet popup ([3f87f3f](https://github.com/gabrielgstein-dev/ponto-plugin/commit/3f87f3f3884b902d3952db0c081196e49358f0e8))
+
 ## [0.2.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.1.0...senior-ponto-v0.2.0) (2026-04-27)
 
 
