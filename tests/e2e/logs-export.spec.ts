@@ -92,30 +92,38 @@ test('LOG-3: console.error wrap captura mensagens manuais', async () => {
   await page.close()
 })
 
-test('LOG-4: botão "Limpar logs" remove o ring buffer', async () => {
+test('LOG-4: botão "Limpar logs" remove os marcadores pré-existentes', async () => {
   const page = await ctx.newPage()
   await page.goto(popupUrl)
   await page.waitForLoadState('domcontentloaded')
 
-  // Pré-popula com algumas entradas
-  await page.evaluate(async () => {
-    await chrome.storage.local.set({
-      appLogs: [
-        { ts: 1, level: 'log', ctx: 'popup', msg: 'old-1' },
-        { ts: 2, level: 'warn', ctx: 'popup', msg: 'old-2' },
-      ],
-    })
-  })
+  // Pré-popula com marcadores únicos para conseguir distinguir do que o
+  // background SW segue gravando enquanto o teste roda.
+  const markerA = `clear-test-A-${Date.now()}`
+  const markerB = `clear-test-B-${Date.now()}`
+  await page.evaluate(
+    async ({ a, b }) => {
+      await chrome.storage.local.set({
+        appLogs: [
+          { ts: 1, level: 'log', ctx: 'popup', msg: a },
+          { ts: 2, level: 'warn', ctx: 'popup', msg: b },
+        ],
+      })
+    },
+    { a: markerA, b: markerB },
+  )
 
   await page.locator('.settings-toggle').click()
   await page.locator('button.logs-clear-btn').click()
   await expect(page.locator('.logs-feedback')).toHaveText('Logs limpos.')
 
-  const cleared = await page.evaluate(async () => {
+  // Pode haver entradas novas do SW após o clear, mas as nossas tem que sumir.
+  const remaining = await page.evaluate(async () => {
     const data = await chrome.storage.local.get('appLogs')
-    return data.appLogs
+    return (data.appLogs ?? []) as Array<{ msg: string }>
   })
-  expect(cleared).toBeUndefined()
+  expect(remaining.some(l => l.msg === markerA)).toBe(false)
+  expect(remaining.some(l => l.msg === markerB)).toBe(false)
   await page.close()
 })
 
