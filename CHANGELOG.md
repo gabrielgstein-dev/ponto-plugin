@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.3.0...senior-ponto-v0.3.1) (2026-04-28)
+
+
+### Correções
+
+* **timesheet:** remove credentials:include do fetchViaMetaTab ([42716ed](https://github.com/gabrielgstein-dev/ponto-plugin/commit/42716ed9e01cfc86d6606cff83e89e7d57cfef65))
+* **timesheet:** remove credentials:include que causava Failed to fetch ([c9b0814](https://github.com/gabrielgstein-dev/ponto-plugin/commit/c9b08144a277db514e13f9fd25790f6c615b5438))
+* **timesheet:** remove credentials:include que causava Failed to fetch ([c9b0814](https://github.com/gabrielgstein-dev/ponto-plugin/commit/c9b08144a277db514e13f9fd25790f6c615b5438))
+* **timesheet:** usar competência fiscal Meta (corte dia 26) ao montar period ([08f7a5c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/08f7a5c067020968556a72ead0c55c301b901890))
+* **timesheet:** usar competência fiscal Meta (corte dia 26) ao montar period ([08f7a5c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/08f7a5c067020968556a72ead0c55c301b901890))
+* **timesheet:** usar competência fiscal Meta (corte dia 26) ao montar period ([57c6fe8](https://github.com/gabrielgstein-dev/ponto-plugin/commit/57c6fe87cede80be4da4b5382a4bf4bd51b209a1))
+
 ## [0.3.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.2.0...senior-ponto-v0.3.0) (2026-04-28)
 
 
