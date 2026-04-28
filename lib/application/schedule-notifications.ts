@@ -1,5 +1,6 @@
 import { timeToMinutes, minutesToTime, getNowMinutes } from '../domain/time-utils';
 import { settings, notifScheduled } from './state';
+import type { PunchReminderSlot } from '../domain/types';
 
 interface NotifEntry {
   key: string;
@@ -8,11 +9,53 @@ interface NotifEntry {
   expectedTime?: string;
 }
 
+// 2º aviso de antecipação fixo em 5min — complementa o configurável `notifAntecip`
+// (default 10min). Se o usuário configurar `notifAntecip=5`, o aviso de 5min é
+// suprimido pra evitar duplicata.
+const SECOND_ANTECIP_MIN = 5;
+
+const SLOT_MESSAGES: Record<PunchReminderSlot, { antecip: (min: number) => string; atraso: (min: number) => string }> = {
+  almoco: {
+    antecip: m => `Hora do almoço em ${m} minutos!`,
+    atraso: m => `Você ainda não bateu o almoço! (${m} min em atraso)`,
+  },
+  volta: {
+    antecip: m => `Hora de voltar do almoço em ${m} minutos!`,
+    atraso: m => `Você ainda não bateu a volta do almoço! (${m} min em atraso)`,
+  },
+  saida: {
+    antecip: m => `Saída em ${m} minutos! Prepare-se.`,
+    atraso: m => `Você ainda não bateu a saída! (${m} min em atraso)`,
+  },
+};
+
+function pushSlotEntries(
+  entries: NotifEntry[],
+  slot: PunchReminderSlot,
+  slotMin: number,
+  slotTime: string,
+  antecip: number,
+  atraso: number,
+): void {
+  const { antecip: antecipMsg, atraso: atrasoMsg } = SLOT_MESSAGES[slot];
+
+  if (antecip > 0) {
+    entries.push({ key: `notif_${slot}`, time: slotMin - antecip, msg: antecipMsg(antecip) });
+  }
+  if (SECOND_ANTECIP_MIN > 0 && SECOND_ANTECIP_MIN !== antecip) {
+    entries.push({ key: `notif_${slot}_5`, time: slotMin - SECOND_ANTECIP_MIN, msg: antecipMsg(SECOND_ANTECIP_MIN) });
+  }
+  entries.push({ key: `punch_popup_${slot}`, time: slotMin, msg: '', expectedTime: slotTime });
+  if (atraso > 0) {
+    entries.push({ key: `reminder_${slot}`, time: slotMin + atraso, msg: atrasoMsg(atraso) });
+  }
+}
+
 export function scheduleNotifications(
   entMin: number | null,
   almocoMin: number | null,
   voltaMin: number | null,
-  saidaMin: number | null,
+  saidaEstMin: number | null,
 ): void {
   const antecip = settings.notifAntecip;
   const atraso = settings.lembreteAtraso;
@@ -21,21 +64,18 @@ export function scheduleNotifications(
   if (entMin && !almocoMin) {
     const almocoHorarioMin = timeToMinutes(settings.almocoHorario) || 720;
     const almocoTime = minutesToTime(almocoHorarioMin) || settings.almocoHorario;
-    entries.push({ key: 'notif_almoco', time: almocoHorarioMin - antecip, msg: `Hora do almoço em ${antecip} minutos!` });
-    entries.push({ key: 'punch_popup_almoco', time: almocoHorarioMin, msg: '', expectedTime: almocoTime });
+    pushSlotEntries(entries, 'almoco', almocoHorarioMin, almocoTime, antecip, atraso);
   }
 
   if (almocoMin && !voltaMin) {
     const voltaSug = almocoMin + settings.almocoDur;
     const voltaTime = minutesToTime(voltaSug) || '';
-    entries.push({ key: 'notif_volta', time: voltaSug - antecip, msg: `Hora de voltar do almoço em ${antecip} minutos!` });
-    entries.push({ key: 'punch_popup_volta', time: voltaSug, msg: '', expectedTime: voltaTime });
+    pushSlotEntries(entries, 'volta', voltaSug, voltaTime, antecip, atraso);
   }
 
-  if (saidaMin) {
-    const saidaTime = minutesToTime(saidaMin) || '';
-    entries.push({ key: 'notif_saida', time: saidaMin - antecip, msg: `Saída em ${antecip} minutos! Prepare-se.` });
-    entries.push({ key: 'punch_popup_saida', time: saidaMin, msg: '', expectedTime: saidaTime });
+  if (saidaEstMin) {
+    const saidaTime = minutesToTime(saidaEstMin) || '';
+    pushSlotEntries(entries, 'saida', saidaEstMin, saidaTime, antecip, atraso);
   }
 
   const nowMin = getNowMinutes();
