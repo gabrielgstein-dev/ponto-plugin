@@ -3,7 +3,7 @@ import { debugLog } from '../lib/domain/debug';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
 import { recheckReminder, resolveReminder } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
-import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync } from '../lib/application/background-detect';
+import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
 import { addPendingPunch, loadPendingPunches } from '../lib/application/detect-punches';
 import { resetGpPunchCache } from '#company/providers';
@@ -98,6 +98,8 @@ export default defineBackground(() => {
       return true;
     }
     if (message.type === 'TEST_TS_NOTIFICATION') {
+      // Bypass do debounce: o gatilho de teste deve sempre rodar imediatamente
+      resetTsNotifDebounce();
       notifyPendingTimesheet().catch(() => {});
       sendResponse({ ok: true });
       return true;

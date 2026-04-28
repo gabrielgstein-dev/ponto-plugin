@@ -35,19 +35,23 @@ test.afterAll(async () => {
 
 test('F6-CV-1: barra de progresso para em 100% quando jornada completa', async () => {
   const page = await ctx.newPage()
+  // Trava o relógio às 18:00 hoje — entrada às 09:00 + almoço de 1h = 8h trabalhadas
+  const fixedNow = new Date()
+  fixedNow.setHours(18, 0, 0, 0)
+  await page.clock.install({ time: fixedNow })
   await page.goto(popupUrl)
   await page.waitForLoadState('domcontentloaded')
 
-  await page.evaluate(() => {
+  await page.evaluate((entradaTs) => {
     chrome.storage.local.set({
-      punchState: {
+      pontoState: {
         entrada: '09:00',
         almoco: '12:00',
         volta: '13:00',
         saida: null,
-        _entradaTimestamp: new Date().setHours(9, 0, 0, 0),
+        _entradaTimestamp: entradaTs,
       },
-      settings: {
+      pontoSettings: {
         jornada: 480,
         almocoHorario: '12:00',
         almocoDur: 60,
@@ -56,19 +60,12 @@ test('F6-CV-1: barra de progresso para em 100% quando jornada completa', async (
         closingDay: 28,
       },
     })
-  })
-
-  await page.evaluate(() => {
-    const now = new Date()
-    now.setHours(18, 0, 0, 0)
-    return now
-  })
+  }, new Date(fixedNow.getFullYear(), fixedNow.getMonth(), fixedNow.getDate(), 9, 0, 0, 0).getTime())
 
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
 
-  const progressPct = await page.locator('.progress-pct').textContent()
-  expect(progressPct).toBe('100%')
+  await expect(page.locator('.progress-pct')).toHaveText('100%')
 
   const progressFill = await page.locator('.progress-fill').evaluate(el => {
     return window.getComputedStyle(el).width
@@ -93,14 +90,14 @@ test('F6-CV-2: seção de hora extra aparece quando workedMinutes > totalMinutes
   await page.evaluate(
     ({ entradaTs }) => {
       chrome.storage.local.set({
-        punchState: {
+        pontoState: {
           entrada: '09:00',
           almoco: '12:00',
           volta: '13:00',
           saida: null,
           _entradaTimestamp: entradaTs,
         },
-        settings: {
+        pontoSettings: {
           jornada: 480,
           almocoHorario: '12:00',
           almocoDur: 60,
@@ -147,14 +144,14 @@ test('F6-CV-3: hora extra não aparece se já bateu saída', async () => {
 
   await page.evaluate(() => {
     chrome.storage.local.set({
-      punchState: {
+      pontoState: {
         entrada: '09:00',
         almoco: '12:00',
         volta: '13:00',
         saida: '19:00',
         _entradaTimestamp: new Date().setHours(9, 0, 0, 0),
       },
-      settings: {
+      pontoSettings: {
         jornada: 480,
         almocoHorario: '12:00',
         almocoDur: 60,
@@ -188,14 +185,14 @@ test('F6-CV-4: contador reseta à meia-noite (virada de dia)', async () => {
   await page.evaluate(
     ({ entradaTs }) => {
       chrome.storage.local.set({
-        punchState: {
+        pontoState: {
           entrada: '09:00',
           almoco: '12:00',
           volta: '13:00',
           saida: null,
           _entradaTimestamp: entradaTs,
         },
-        settings: {
+        pontoSettings: {
           jornada: 480,
           almocoHorario: '12:00',
           almocoDur: 60,
@@ -232,14 +229,14 @@ test('F6-CV-5: formato do contador de hora extra está correto', async () => {
   await page.evaluate(
     ({ entradaTs }) => {
       chrome.storage.local.set({
-        punchState: {
+        pontoState: {
           entrada: '09:00',
           almoco: '12:00',
           volta: '13:00',
           saida: null,
           _entradaTimestamp: entradaTs,
         },
-        settings: {
+        pontoSettings: {
           jornada: 480,
           almocoHorario: '12:00',
           almocoDur: 60,
@@ -289,14 +286,14 @@ test('F6-CV-6: estilos CSS da seção de hora extra estão aplicados', async () 
   await page.evaluate(
     ({ entradaTs }) => {
       chrome.storage.local.set({
-        punchState: {
+        pontoState: {
           entrada: '09:00',
           almoco: '12:00',
           volta: '13:00',
           saida: null,
           _entradaTimestamp: entradaTs,
         },
-        settings: {
+        pontoSettings: {
           jornada: 480,
           almocoHorario: '12:00',
           almocoDur: 60,
@@ -362,14 +359,14 @@ test('F6-CV-7: jornada em andamento não mostra hora extra', async () => {
   await page.evaluate(
     ({ entradaTs }) => {
       chrome.storage.local.set({
-        punchState: {
+        pontoState: {
           entrada: '09:00',
           almoco: '12:00',
           volta: '13:00',
           saida: null,
           _entradaTimestamp: entradaTs,
         },
-        settings: {
+        pontoSettings: {
           jornada: 480,
           almocoHorario: '12:00',
           almocoDur: 60,
@@ -409,14 +406,14 @@ test('F6-CV-8: virada de dia não reseta se já bateu saída', async () => {
   await page.evaluate(
     ({ entradaTs }) => {
       chrome.storage.local.set({
-        punchState: {
+        pontoState: {
           entrada: '09:00',
           almoco: '12:00',
           volta: '13:00',
           saida: '19:00',
           _entradaTimestamp: entradaTs,
         },
-        settings: {
+        pontoSettings: {
           jornada: 480,
           almocoHorario: '12:00',
           almocoDur: 60,

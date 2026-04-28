@@ -47,14 +47,17 @@ export async function launchExtension(profileDir = ''): Promise<ExtensionFixture
   return {
     context,
     extensionId,
-    popupUrl: `chrome-extension://${extensionId}/popup/index.html`,
-    sidepanelUrl: `chrome-extension://${extensionId}/sidepanel/index.html`,
+    popupUrl: `chrome-extension://${extensionId}/popup.html`,
+    sidepanelUrl: `chrome-extension://${extensionId}/sidepanel.html`,
   }
 }
 
 /**
  * Cria uma página que intercepta chamadas às APIs Senior e Meta.
  * Útil para simular respostas sem depender de servidores reais.
+ *
+ * Sempre adiciona um catch-all que retorna HTML vazio para a URL principal
+ * de navegação, garantindo que o `page.goto()` não falhe por DNS.
  */
 export async function openPageWithApiMocks(
   context: BrowserContext,
@@ -72,6 +75,21 @@ export async function openPageWithApiMocks(
       }),
     )
   }
+
+  // Catch-all para qualquer request restante (HTML, assets, APIs sem mock)
+  // do mesmo origin do targetUrl. Retorna 200 com corpo vazio para evitar
+  // falhas de DNS ou network ao subir páginas externas.
+  const origin = new URL(targetUrl).origin
+  await page.route(`${origin}/**`, route => {
+    if (route.request().resourceType() === 'document') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<!doctype html><html><body></body></html>',
+      })
+    }
+    return route.fulfill({ status: 200, contentType: 'text/plain', body: '' })
+  })
 
   await page.goto(targetUrl)
   return page
