@@ -155,12 +155,13 @@ export function resetBackgroundHash(): void {
 
 const TS_AUTO_CONNECT_THROTTLE_MS = 30 * 60 * 1000;
 const TS_AUTO_CONNECT_TIMEOUT_MS = 20000;
-// Usa a URL de bootstrap (login Senior + tenant + redirect → plataforma) ao
-// invés de plataforma.meta.com.br direto. Em uma aba escondida sem gesto
-// do usuário, esse caminho dispara o SSO completo automaticamente quando
-// existem cookies do Senior e termina no origin que a API aceita.
+// URL de login da plataforma com callback direto pra rota do timesheet.
+// Cair em /modules/timesheet/create faz o SPA bootstrapar o módulo do
+// timesheet (necessário para que a captura via webRequest pegue o Bearer
+// das chamadas reais ao api.meta.com.br). O SSO via Senior é encadeado
+// pela própria plataforma.
 const META_TS_BOOTSTRAP_URL =
-  'https://platform.senior.com.br/login/?redirectTo=https%3A%2F%2Fplataforma.meta.com.br&tenant=meta.com.br';
+  'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create';
 
 async function tsAutoConnect(): Promise<boolean> {
   try {

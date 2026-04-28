@@ -52,11 +52,32 @@ async function mergeFromStorage(): Promise<void> {
   }
 }
 
+function dedupe(entries: LogEntry[]): LogEntry[] {
+  const seen = new Set<string>()
+  const out: LogEntry[] = []
+  for (const e of entries) {
+    const key = `${e.ts}|${e.ctx}|${e.level}|${e.msg}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(e)
+  }
+  return out.sort((a, b) => a.ts - b.ts).slice(-MAX_ENTRIES)
+}
+
 function scheduleFlush(): void {
   if (flushTimer) return
-  flushTimer = setTimeout(() => {
+  flushTimer = setTimeout(async () => {
     flushTimer = null
-    chrome.storage.local.set({ [STORAGE_KEY]: buffer }).catch(() => {})
+    try {
+      // popup, sidepanel e background SW compartilham o mesmo storage key.
+      // Pra não sobrescrever o que outro contexto acabou de gravar, lemos
+      // o que está lá agora e mergiamos com o nosso buffer antes de salvar.
+      const data = await chrome.storage.local.get(STORAGE_KEY)
+      const remote = Array.isArray(data[STORAGE_KEY]) ? (data[STORAGE_KEY] as LogEntry[]) : []
+      const merged = dedupe([...remote, ...buffer])
+      buffer = merged
+      await chrome.storage.local.set({ [STORAGE_KEY]: merged })
+    } catch (_) { /* ignora */ }
   }, FLUSH_DEBOUNCE_MS)
 }
 

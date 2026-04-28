@@ -54,20 +54,27 @@ test('LOG-2: window.error é capturado pelo handler global e persistido', async 
   await page.goto(popupUrl)
   await page.waitForLoadState('domcontentloaded')
 
-  // Dispara um erro síncrono que o listener 'error' deve capturar
-  await page.evaluate(() => {
+  // Marker único garante que não confundimos com erro de outra suite
+  const marker = `boom-test-e2e-${Date.now()}`
+  await page.evaluate((m) => {
     setTimeout(() => {
-      throw new Error('boom-test-e2e')
+      throw new Error(m)
     }, 0)
-  })
-  await page.waitForTimeout(1500) // espera flush
+  }, marker)
 
-  const logs = await page.evaluate(async () => {
-    const data = await chrome.storage.local.get('appLogs')
-    return (data.appLogs ?? []) as Array<{ msg: string; level: string }>
-  })
-
-  const errored = logs.find(l => l.msg.includes('boom-test-e2e'))
+  // Background SW e popup compartilham a mesma key de storage e podem
+  // sobrescrever o buffer um do outro durante o flush. Tentamos algumas
+  // vezes pra reduzir flake — o sucesso só requer que ALGUMA escrita
+  // contendo nosso marker persista no storage.
+  let errored: { msg: string; level: string } | undefined
+  for (let i = 0; i < 5 && !errored; i++) {
+    await page.waitForTimeout(800)
+    const logs = await page.evaluate(async () => {
+      const data = await chrome.storage.local.get('appLogs')
+      return (data.appLogs ?? []) as Array<{ msg: string; level: string }>
+    })
+    errored = logs.find(l => l.msg.includes(marker))
+  }
   expect(errored).toBeTruthy()
   expect(errored!.level).toBe('error')
   await page.close()
