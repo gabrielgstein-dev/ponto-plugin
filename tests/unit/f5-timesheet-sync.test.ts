@@ -139,30 +139,31 @@ describe('F5 — createTimesheetProvider', () => {
     const config = { apiUrl: 'https://ts.example.com', timesheetsBase: '/v1', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
 
-    // Mock fetch global
+    // Mock fetch global — agora retorna text() porque o defaultFetcher
+    // serializa para { ok, status, text }
     const mockFetch = vi.fn()
     vi.stubGlobal('fetch', mockFetch)
 
-    // hours-summary
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: vi.fn().mockResolvedValue({ pendingHours: 8, approvedHours: 16, repprovedHours: 0, totalReportedHours: 24, countReportedHours: 3 }),
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify({ pendingHours: 8, approvedHours: 16, repprovedHours: 0, totalReportedHours: 24, countReportedHours: 3 })),
     })
-    // cost-centers
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: vi.fn().mockResolvedValue({ data: [{ code: '1001', name: 'Dev' }] }),
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify({ data: [{ code: '1001', name: 'Dev' }] })),
     })
-    // reported-hours with mix of PENDING and APPROVED
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: vi.fn().mockResolvedValue({
+      status: 200,
+      text: vi.fn().mockResolvedValue(JSON.stringify({
         data: [
           { id: 'e1', date: '2026-03-25', hourQuantity: 8, status: { title: 'PENDING', date: '', justify: null }, costCenter: null, task: null, hourType: null, observation: null, isAutomaticAppointment: false },
           { id: 'e2', date: '2026-03-24', hourQuantity: 8, status: { title: 'APPROVED', date: '', justify: null }, costCenter: null, task: null, hourType: null, observation: 'ok', isAutomaticAppointment: false },
         ],
         total: 2,
-      }),
+      })),
     })
 
     const summary = await provider.getSummary('2026-03')
@@ -187,7 +188,7 @@ describe('F5 — createTimesheetProvider', () => {
     const config = { apiUrl: 'https://ts.example.com', timesheetsBase: '/v1', name: 'test' }
     const provider = createTimesheetProvider(config, auth)
 
-    const mockFetch = vi.fn().mockResolvedValue({ ok: true, text: vi.fn().mockResolvedValue('') })
+    const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, text: vi.fn().mockResolvedValue('') })
     vi.stubGlobal('fetch', mockFetch)
 
     const entry = MOCK_SUMMARY.entries[0]
