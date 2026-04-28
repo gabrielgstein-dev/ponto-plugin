@@ -252,4 +252,62 @@ describe('fetchViaMetaTab', () => {
     expect(r?.status).toBe(0)
     expect(r?.text).toContain('fetch_error')
   })
+
+  it('com bootstrapUrl, abre a aba pela URL de SSO e espera o redirect terminar no origin', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const CONFIG_BOOT: TimesheetConfig = {
+      ...CONFIG,
+      bootstrapUrl:
+        'https://platform.senior.com.br/login/?redirectTo=https%3A%2F%2Fplataforma.meta.com.br&tenant=meta.com.br',
+    }
+    mockTabsQuery.mockResolvedValue([])
+    mockTabsCreate.mockResolvedValue({ id: 200 })
+
+    // Simula redirect chain: Senior login → senior-x → plataforma
+    let urlIndex = 0
+    const urls = [
+      'https://platform.senior.com.br/login/?tenant=meta.com.br',
+      'https://platform.senior.com.br/senior-x/',
+      'https://plataforma.meta.com.br/timesheets',
+    ]
+    ;(globalThis.chrome.tabs.get as any) = vi.fn().mockImplementation(() => {
+      const url = urls[Math.min(urlIndex++, urls.length - 1)]
+      return Promise.resolve({ id: 200, status: 'complete', url })
+    })
+    mockScriptingExecuteScript.mockResolvedValue([
+      { result: { ok: true, status: 200, text: 'ok' } },
+    ])
+
+    const r = await fetchViaMetaTab(CONFIG_BOOT, 'https://api.meta.com.br/x')
+    expect(r?.ok).toBe(true)
+    expect(mockTabsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ url: CONFIG_BOOT.bootstrapUrl, active: false }),
+    )
+    vi.useRealTimers()
+  })
+
+  it('com bootstrapUrl, retorna null e fecha aba se SSO não termina no origin esperado', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const CONFIG_BOOT: TimesheetConfig = {
+      ...CONFIG,
+      bootstrapUrl: 'https://platform.senior.com.br/login/?tenant=meta.com.br',
+    }
+    mockTabsQuery.mockResolvedValue([])
+    mockTabsCreate.mockResolvedValue({ id: 201 })
+    // Aba fica presa no login do Senior (sem cookies SSO ativas)
+    ;(globalThis.chrome.tabs.get as any) = vi.fn().mockResolvedValue({
+      id: 201,
+      status: 'complete',
+      url: 'https://platform.senior.com.br/login/',
+    })
+
+    const promise = fetchViaMetaTab(CONFIG_BOOT, 'https://api.meta.com.br/x')
+    await vi.advanceTimersByTimeAsync(16_000)
+    const r = await promise
+    vi.useRealTimers()
+
+    expect(r).toBeNull()
+    expect(mockTabsRemove).toHaveBeenCalledWith(201)
+    expect(mockScriptingExecuteScript).not.toHaveBeenCalled()
+  })
 })

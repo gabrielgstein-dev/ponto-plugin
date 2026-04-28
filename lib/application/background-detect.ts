@@ -155,7 +155,12 @@ export function resetBackgroundHash(): void {
 
 const TS_AUTO_CONNECT_THROTTLE_MS = 30 * 60 * 1000;
 const TS_AUTO_CONNECT_TIMEOUT_MS = 20000;
-const META_PLATFORM_URL = 'https://plataforma.meta.com.br';
+// Usa a URL de bootstrap (login Senior + tenant + redirect → plataforma) ao
+// invés de plataforma.meta.com.br direto. Em uma aba escondida sem gesto
+// do usuário, esse caminho dispara o SSO completo automaticamente quando
+// existem cookies do Senior e termina no origin que a API aceita.
+const META_TS_BOOTSTRAP_URL =
+  'https://platform.senior.com.br/login/?redirectTo=https%3A%2F%2Fplataforma.meta.com.br&tenant=meta.com.br';
 
 async function tsAutoConnect(): Promise<boolean> {
   try {
@@ -166,9 +171,9 @@ async function tsAutoConnect(): Promise<boolean> {
       return false;
     }
     chrome.storage.local.set({ tsAutoConnectTs: Date.now() });
-    debugLog('TS auto-connect: abrindo aba plataforma.meta.com.br...');
+    debugLog('TS auto-connect: abrindo aba via SSO Senior (tenant=meta.com.br)...');
 
-    const tab = await chrome.tabs.create({ url: META_PLATFORM_URL, active: false });
+    const tab = await chrome.tabs.create({ url: META_TS_BOOTSTRAP_URL, active: false });
     const tabId = tab.id;
     const captured = await new Promise<boolean>((resolve) => {
       const timeout = setTimeout(() => {

@@ -94,6 +94,30 @@ async function isTabOnPlatform(tabId: number, platformUrl: string): Promise<bool
   }
 }
 
+/**
+ * Acompanha o redirect chain do SSO (ex.: Senior login → senior-x →
+ * plataforma) e resolve quando a aba chega no origin alvo com a página
+ * carregada. Espera no máximo `timeoutMs` no total.
+ */
+async function waitForRedirectToOrigin(
+  tabId: number,
+  platformUrl: string,
+  timeoutMs = 15_000,
+): Promise<boolean> {
+  const origin = new URL(platformUrl).origin;
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab.url?.startsWith(origin) && tab.status === 'complete') return true;
+    } catch (_) {
+      return false;
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  return false;
+}
+
 async function getOrCreateTab(
   config: TimesheetConfig,
 ): Promise<CachedTab | null> {
@@ -112,11 +136,14 @@ async function getOrCreateTab(
     return cachedTab;
   }
 
-  // 3. Cria uma nova aba inativa.
+  // 3. Cria uma nova aba inativa. Se houver bootstrapUrl, abrimos por ela
+  //    pra disparar o SSO completo; o redirect chain deve terminar em
+  //    `platformUrl` (que é o origin que a API aceita).
+  const startUrl = config.bootstrapUrl ?? config.platformUrl;
   try {
-    const tab = await chrome.tabs.create({ url: config.platformUrl, active: false });
+    const tab = await chrome.tabs.create({ url: startUrl, active: false });
     if (tab.id == null) return null;
-    debugLog(`${config.name} fetchViaTab: aba criada (id=${tab.id})`);
+    debugLog(`${config.name} fetchViaTab: aba criada (id=${tab.id}, url=${startUrl})`);
 
     const ready = await waitForTabComplete(tab.id);
     if (!ready) {
@@ -125,15 +152,29 @@ async function getOrCreateTab(
       return null;
     }
 
-    // SPA / service worker da plataforma costuma demorar um pouco extra
-    // para se registrar antes que fetches autenticados funcionem.
+    // Quando passamos por bootstrapUrl, esperamos o redirect chain terminar
+    // no origin alvo. Caso contrário, basta uma pausa pro SPA bootstrap.
+    if (config.bootstrapUrl) {
+      const landed = await waitForRedirectToOrigin(tab.id, config.platformUrl);
+      if (!landed) {
+        const finalTab = await chrome.tabs.get(tab.id).catch(() => null);
+        debugWarn(
+          `${config.name} fetchViaTab: SSO não terminou em ${new URL(config.platformUrl).origin}`,
+          'url=' + (finalTab?.url ?? 'unknown'),
+        );
+        try { await chrome.tabs.remove(tab.id); } catch (_) { /* ignore */ }
+        return null;
+      }
+    }
+
+    // Pausa extra pro SPA / service worker da plataforma se registrar
+    // antes do primeiro fetch autenticado.
     await new Promise(resolve => setTimeout(resolve, POST_COMPLETE_DELAY_MS));
 
-    // Confere se não foi redirecionado pra fora do origin (login SSO p.ex.)
     if (!(await isTabOnPlatform(tab.id, config.platformUrl))) {
       const finalTab = await chrome.tabs.get(tab.id).catch(() => null);
       debugWarn(
-        `${config.name} fetchViaTab: aba redirecionada para fora do origin esperado`,
+        `${config.name} fetchViaTab: aba não está no origin esperado`,
         'url=' + (finalTab?.url ?? 'unknown'),
       );
       try { await chrome.tabs.remove(tab.id); } catch (_) { /* ignore */ }
