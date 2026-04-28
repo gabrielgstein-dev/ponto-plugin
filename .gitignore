@@ -3,3 +3,11 @@ node_modules/
 .wxt/
 dist/
 *.log
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# macOS
+.DS_Store

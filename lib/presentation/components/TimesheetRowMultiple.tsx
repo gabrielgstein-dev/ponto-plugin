@@ -61,6 +61,7 @@ export function TimesheetRowMultiple({ entry, expanded, onToggle, onSave, onFetc
       }
     });
 
+    /* v8 ignore next 4 -- defensive guard; UI disables save button when total is zero */
     if (totalAllocatedHours === 0) {
       setErrors({ _global: 'Aloque horas em pelo menos um centro de custo' });
       return;

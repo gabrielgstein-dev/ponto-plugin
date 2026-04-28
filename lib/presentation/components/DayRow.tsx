@@ -113,6 +113,7 @@ function AjustePanel({ date, onSubmit, onClose }: AjustePanelProps) {
   const isValid = time !== '' && justificativa !== '';
 
   const handleSubmit = async () => {
+    /* v8 ignore next -- defensive guard; button is disabled when invalid */
     if (!isValid) return;
     setLoading(true);
     setError('');
