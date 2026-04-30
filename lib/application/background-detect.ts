@@ -7,6 +7,9 @@ import { debugLog, debugWarn } from '../domain/debug';
 import { getCurrentTimesheetPeriod } from '../domain/timesheet-period';
 import { PunchDetector } from './detect-punches';
 import { getCompanyPunchProviders, getTimesheetProvider } from '#company/providers';
+import { getMetaTsTokenSilently } from '../infrastructure/meta/timesheet/meta-ts-session';
+import { metaTsAuth } from '../infrastructure/meta/timesheet/meta-ts-auth';
+import { META_TIMESHEET_CONFIG } from '../infrastructure/meta/timesheet/constants';
 import { SeniorStoragePunchProvider } from '../infrastructure/senior/senior-storage-provider';
 import { SeniorApiPunchProvider } from '../infrastructure/senior/senior-api-provider';
 import { SeniorScraperProvider } from '../infrastructure/senior/senior-scraper';
@@ -180,10 +183,19 @@ export async function backgroundTimesheetSync(): Promise<void> {
     const provider = getTimesheetProvider();
     let isOk = await provider.isAvailable();
     if (!isOk) {
-      debugLog('TS sync: sem token, tentando auto-connect...');
-      const connected = await tsAutoConnect();
-      if (connected) {
+      // Tenta renovar via /api/auth/session sem abrir nova aba
+      debugLog('TS sync: sem token, tentando refresh silencioso...');
+      const silentToken = await getMetaTsTokenSilently(META_TIMESHEET_CONFIG, metaTsAuth);
+      if (silentToken) {
         isOk = await provider.isAvailable();
+        debugLog('TS sync: refresh silencioso', isOk ? 'OK' : 'falhou (token inválido?)');
+      }
+      if (!isOk) {
+        // Refresh silencioso não funcionou: libera tsAutoConnect e tenta SSO
+        debugLog('TS sync: refresh silencioso falhou, tentando auto-connect...');
+        await chrome.storage.local.remove(['tsAutoConnectTs']);
+        const connected = await tsAutoConnect();
+        if (connected) isOk = await provider.isAvailable();
       }
       if (!isOk) return;
     }

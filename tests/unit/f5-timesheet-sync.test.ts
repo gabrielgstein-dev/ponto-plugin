@@ -51,6 +51,9 @@ vi.mock('../../lib/application/detect-punches', () => ({
 vi.mock('../../lib/application/calc-schedule', () => ({ calcHorarios: vi.fn() }))
 vi.mock('../../lib/application/schedule-notifications', () => ({ scheduleNotifications: vi.fn() }))
 vi.mock('../../lib/application/schedule-ts-notifications', () => ({ scheduleTsNotifications: vi.fn() }))
+vi.mock('../../lib/infrastructure/meta/timesheet/meta-ts-session', () => ({
+  getMetaTsTokenSilently: vi.fn().mockResolvedValue(null),
+}))
 
 import { backgroundTimesheetSync } from '../../lib/application/background-detect'
 import { mockStorageGet, mockStorageSet, mockStorageRemove, mockTabsCreate, mockTabsRemove, triggerStorageChange } from '../setup/chrome-mock'
@@ -134,7 +137,7 @@ describe('F5 — createTimesheetProvider', () => {
     expect(await provider.getSummary('2026-03')).toBeNull()
   })
 
-  it('CV-5.3: getSummary chama os 3 endpoints e retorna apenas entradas PENDING', async () => {
+  it('CV-5.3: getSummary chama os 3 endpoints e retorna todas as entradas (filtragem por status fica na UI)', async () => {
     const { createTimesheetProvider } = await import(
       '../../lib/infrastructure/timesheet/timesheet-provider'
     )
@@ -178,14 +181,16 @@ describe('F5 — createTimesheetProvider', () => {
 
     expect(summary).not.toBeNull()
     expect(summary!.pendingHours).toBe(8)
-    expect(summary!.entries).toHaveLength(1) // apenas PENDING
-    expect(summary!.entries[0].id).toBe('e1')
-    expect(summary!.entries[0].status).toBe('PENDING')
+    expect(summary!.entries).toHaveLength(2) // todas as entries; UI filtra
+    expect(summary!.entries.map(e => e.status).sort()).toEqual(['APPROVED', 'PENDING'])
 
     vi.unstubAllGlobals()
   })
 
-  it('CV-5.5: getSummary com 401 limpa o token e fura o throttle do auto-connect', async () => {
+  it('CV-5.5: getSummary com 401 limpa o token mas mantém throttle do auto-connect', async () => {
+    // O tsAutoConnectTs não é mais limpo em handleAuthFailure — backgroundTimesheetSync
+    // libera o throttle somente se o refresh silencioso (/api/auth/session) também falhar.
+    // Isso evita o loop onde 401 repetidos acionam tsAutoConnect indefinidamente.
     const { createTimesheetProvider } = await import(
       '../../lib/infrastructure/timesheet/timesheet-provider'
     )
@@ -210,7 +215,7 @@ describe('F5 — createTimesheetProvider', () => {
 
     expect(summary).not.toBeNull()
     expect(clearToken).toHaveBeenCalled()
-    expect(mockStorageRemove).toHaveBeenCalledWith(['tsAutoConnectTs'])
+    expect(mockStorageRemove).not.toHaveBeenCalledWith(['tsAutoConnectTs'])
 
     vi.unstubAllGlobals()
   })

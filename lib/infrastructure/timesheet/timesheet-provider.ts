@@ -51,10 +51,12 @@ export function createTimesheetProvider(
   }
 
   async function handleAuthFailure(reason: string): Promise<void> {
-    debugWarn(`${name}: 401/403 em ${reason} — limpando token e furando throttle do auto-connect`);
+    debugWarn(`${name}: 401/403 em ${reason} — limpando token`);
     await auth.clearToken();
-    // Zera o throttle de tsAutoConnect pra próxima sync já abrir aba de SSO.
-    await chrome.storage.local.remove(['tsAutoConnectTs']);
+    // Não limpa tsAutoConnectTs aqui: backgroundTimesheetSync() tenta primeiro
+    // o refresh silencioso via /api/auth/session; só se falhar libera tsAutoConnect.
+    // Limpar o throttle neste ponto causava loop de auth quando a API retornava
+    // 401 repetidamente (tsAutoConnect → novo token → 401 → loop).
   }
 
   function isAuthFailure(status: number | undefined): boolean {
@@ -83,7 +85,6 @@ export function createTimesheetProvider(
       const summaryData = await fetchHoursSummary(headers, period);
       const userCostCenters = await fetchUserCostCenters(headers, userId);
       const entries = await fetchReportedHours(headers, userId, period, userCostCenters);
-      const pendingEntries = entries.filter(e => e.status === 'PENDING');
 
       return {
         period,
@@ -91,7 +92,7 @@ export function createTimesheetProvider(
         approvedHours: summaryData?.approvedHours ?? 0,
         reprovedHours: summaryData?.repprovedHours ?? 0,
         totalReportedHours: summaryData?.totalReportedHours ?? 0,
-        entries: pendingEntries,
+        entries,
       };
     } catch (e) {
       debugWarn(`${name} getSummary erro:`, (e as Error).message);

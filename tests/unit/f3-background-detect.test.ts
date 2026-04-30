@@ -46,6 +46,9 @@ vi.mock('../../lib/application/schedule-notifications', () => ({
 vi.mock('../../lib/application/schedule-ts-notifications', () => ({
   scheduleTsNotifications: vi.fn(),
 }))
+vi.mock('../../lib/infrastructure/meta/timesheet/meta-ts-session', () => ({
+  getMetaTsTokenSilently: vi.fn().mockResolvedValue(null),
+}))
 
 // ── Imports após mocks ────────────────────────────────────────────────────────
 import {

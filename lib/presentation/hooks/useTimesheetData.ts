@@ -74,7 +74,16 @@ export function useTimesheetData() {
 
   useEffect(() => {
     const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
-      if (changes.metaTsToken || changes.metaTsUserId) loadData();
+      if (changes.metaTsToken) {
+        // Só recarrega quando o token aparece (era ausente) ou some (era presente).
+        // Renovações silenciosas (presente → presente diferente) não exigem reload —
+        // evita o loop onde fetchViaMetaTab captura novo JWT via webRequest e
+        // dispara loadData() repetidamente.
+        const hadToken = !!changes.metaTsToken.oldValue;
+        const hasToken = !!changes.metaTsToken.newValue;
+        if (hadToken !== hasToken) loadData();
+      }
+      if (changes.metaTsUserId) loadData();
       if (changes.timesheetSummaryCache?.newValue) {
         const cached = changes.timesheetSummaryCache.newValue as TimesheetSummary;
         if (cached.period === period) {

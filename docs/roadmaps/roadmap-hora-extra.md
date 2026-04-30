@@ -54,6 +54,7 @@ JORNADA                    --
 **Arquivo:** `lib/presentation/components/ProgressBar.tsx`
 
 **Mudanças:**
+{% raw %}
 ```typescript
 interface ProgressBarProps {
   workedMinutes: number;
@@ -96,6 +97,7 @@ export function ProgressBar({ workedMinutes, totalMinutes, showOvertime = true }
   );
 }
 ```
+{% endraw %}
 
 ### 2. Adicionar Lógica de Reset à Meia-Noite
 

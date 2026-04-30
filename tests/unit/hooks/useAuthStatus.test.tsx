@@ -37,10 +37,10 @@ describe('useAuthStatus', () => {
     await waitFor(() => expect(result.current).toBe(true))
   })
 
-  it('returns false when seniorToken is stale (older than 24h)', async () => {
-    const TWENTY_FIVE_HOURS_MS = 25 * 60 * 60 * 1000
+  it('returns false when seniorToken is stale (older than 6.5 days)', async () => {
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
     mockStorageGet.mockImplementation((keys: any, cb?: any) => {
-      const data = { seniorToken: 'tok', seniorTokenTs: Date.now() - TWENTY_FIVE_HOURS_MS }
+      const data = { seniorToken: 'tok', seniorTokenTs: Date.now() - SEVEN_DAYS_MS }
       if (cb) cb(data)
       return Promise.resolve(data)
     })

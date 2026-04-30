@@ -45,7 +45,7 @@ Quando publicar a genérica:
 1. Cadastre a extensão na Chrome Web Store → anote o `extension_id`.
 2. Adicione o secret `CHROME_GENERIC_EXTENSION_ID` (os 3 de OAuth são reaproveitados).
 3. Adicione um script `zip:generic:ci` em `package.json` (espelho de `zip:meta:ci` com as flags da genérica).
-4. Adicione um job `publish-chrome-generic` em `.github/workflows/release-please.yml`, em paralelo ao `publish-chrome`, mapeando `CHROME_EXTENSION_ID: ${{ secrets.CHROME_GENERIC_EXTENSION_ID }}`.
+4. Adicione um job `publish-chrome-generic` em `.github/workflows/release-please.yml`, em paralelo ao `publish-chrome`, mapeando {% raw %}`CHROME_EXTENSION_ID: ${{ secrets.CHROME_GENERIC_EXTENSION_ID }}`{% endraw %}.
 
 Ambas as variantes vão compartilhar versão e changelog — o que mudar para uma vai aparecer no release da outra também. Se as variantes divergirem ao ponto de fazer sentido changelog separado, migrar para o modo monorepo do `release-please` (cada variante como package).
 

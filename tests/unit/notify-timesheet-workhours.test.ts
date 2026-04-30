@@ -49,6 +49,9 @@ vi.mock('../../lib/application/schedule-ts-notifications', () => ({
   scheduleTsNotifications: vi.fn(),
   resetTsScheduled: vi.fn(),
 }))
+vi.mock('../../lib/infrastructure/meta/timesheet/meta-ts-session', () => ({
+  getMetaTsTokenSilently: vi.fn().mockResolvedValue(null),
+}))
 
 import { notifyPendingTimesheet, resetTsNotifDebounce } from '../../lib/application/background-detect'
 import { mockStorageGet, mockWindowsCreate } from '../setup/chrome-mock'
