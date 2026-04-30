@@ -22,18 +22,11 @@ export function TimesheetPanel() {
     );
   }
 
-  const entries = summary?.entries ?? [];
+  const entries = (summary?.entries ?? []).filter(e => e.status === 'PENDING');
 
   return (
     <div className="ts-container">
       <h2 className="ts-title">Timesheet — Pendentes</h2>
-      <button
-        className="ts-test-notif-btn"
-        onClick={() => {
-          chrome.storage.local.remove('tsNotifShownDate');
-          chrome.runtime.sendMessage({ type: 'TEST_TS_NOTIFICATION' });
-        }}
-      >Testar Notificação</button>
 
       {summary && (
         <div className="ts-summary">

@@ -16,5 +16,12 @@ document.getElementById('msg').innerHTML =
   `${config.msg}${time ? ` Horário previsto: <strong>${time}</strong>.` : ''}`;
 
 document.getElementById('btnOk').addEventListener('click', () => {
-  window.close();
+  try {
+    chrome.runtime.sendMessage({ type: 'OPEN_PUNCH_PAGE' }, () => {
+      void chrome.runtime.lastError;
+      window.close();
+    });
+  } catch {
+    window.close();
+  }
 });

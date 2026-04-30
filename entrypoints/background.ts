@@ -11,6 +11,7 @@ import { resetGpPunchCache } from '#company/providers';
 import { resetSeniorApiCache } from '../lib/infrastructure/senior/senior-api-provider';
 import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-storage-provider';
 import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
+import { COMPANY_PUNCH_URL } from '#company/providers';
 
 export default defineBackground(() => {
   installErrorHandlers();
@@ -106,6 +107,19 @@ export default defineBackground(() => {
       sendResponse({ ok: true });
       return true;
     }
+    if (message.type === 'OPEN_PUNCH_PAGE') {
+      openPunchPage().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'TEST_PUNCH_REMINDER') {
+      const slot = message.slot || 'almoco';
+      const time = message.time || '12:00';
+      const url = `${chrome.runtime.getURL('punch-reminder.html')}?slot=${slot}&time=${encodeURIComponent(time)}`;
+      chrome.windows.create({ url, type: 'popup', width: 420, height: 220, focused: true })
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'SHOW_NOTIFICATION') {
       chrome.notifications.create(message.id || '', {
         type: 'basic',
@@ -164,6 +178,19 @@ export default defineBackground(() => {
   });
 
   chrome.alarms.create('bgDetect', { periodInMinutes: 10 });
+
+  async function openPunchPage() {
+    const tabs = await chrome.tabs.query({ url: 'https://platform.senior.com.br/*' });
+    const existing = tabs.find(t => t.url?.includes('clockingEvent') || t.url?.includes('clocking-event'));
+    if (existing?.id != null) {
+      await chrome.tabs.update(existing.id, { active: true });
+      if (existing.windowId != null) {
+        await chrome.windows.update(existing.windowId, { focused: true });
+      }
+      return;
+    }
+    await chrome.tabs.create({ url: COMPANY_PUNCH_URL, active: true });
+  }
 
   function resetAllCaches() {
     resetGpPunchCache();

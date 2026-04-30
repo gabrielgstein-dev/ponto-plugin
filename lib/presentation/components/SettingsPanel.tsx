@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Settings } from '../../domain/types';
-import { ENABLE_SENIOR_INTEGRATION } from '../../domain/build-flags';
+import { DEBUG, ENABLE_SENIOR_INTEGRATION } from '../../domain/build-flags';
 import { exportLogs } from '../export-logs';
 import { clearLogs } from '../../domain/log-store';
 
@@ -28,8 +28,28 @@ export function SettingsPanel({ open, settings, onToggle, onChange, onClear }: S
           {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
           <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
           <LogsActions />
+          {DEBUG && <DebugReminderTest />}
         </div>
       )}
+    </div>
+  );
+}
+
+function DebugReminderTest() {
+  const [slot, setSlot] = useState<'almoco' | 'volta' | 'saida'>('almoco');
+  const handleClick = () => {
+    chrome.runtime.sendMessage({ type: 'TEST_PUNCH_REMINDER', slot, time: '12:00' });
+  };
+  return (
+    <div className="logs-actions">
+      <select value={slot} onChange={e => setSlot(e.target.value as 'almoco' | 'volta' | 'saida')}>
+        <option value="almoco">almoço</option>
+        <option value="volta">volta</option>
+        <option value="saida">saída</option>
+      </select>
+      <button className="logs-export-btn" onClick={handleClick}>
+        Testar lembrete
+      </button>
     </div>
   );
 }
