@@ -111,6 +111,15 @@ export default defineBackground(() => {
       openPunchPage().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
+    if (message.type === 'TEST_PUNCH_REMINDER') {
+      const slot = message.slot || 'almoco';
+      const time = message.time || '12:00';
+      const url = `${chrome.runtime.getURL('punch-reminder.html')}?slot=${slot}&time=${encodeURIComponent(time)}`;
+      chrome.windows.create({ url, type: 'popup', width: 420, height: 220, focused: true })
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'SHOW_NOTIFICATION') {
       chrome.notifications.create(message.id || '', {
         type: 'basic',
