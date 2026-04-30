@@ -1,6 +1,9 @@
 import type { GpAuthData } from '../../../domain/types';
 import { GP_API_BASE, GP_CACHE_DURATION_MS } from './constants';
 import { SENIOR_TOKEN_MAX_AGE_MS } from '../../senior/constants';
+import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
+import { SeniorPageAuth } from '../../senior/senior-page-auth';
+import { refreshSeniorTokenSilently } from '../../senior/senior-token-refresh';
 import { debugLog, debugWarn } from '../../../domain/debug';
 
 export async function getGpAssertion(force = false): Promise<GpAuthData | null> {
@@ -54,30 +57,30 @@ export async function getGpAssertion(force = false): Promise<GpAuthData | null> 
 }
 
 async function getSeniorAccessToken(): Promise<string | null> {
-  try {
-    const cookies = await chrome.cookies.getAll({ domain: '.senior.com.br', name: 'com.senior.token' });
-    if (cookies.length) {
-      const tokenObj = JSON.parse(decodeURIComponent(cookies[0].value));
-      const token = tokenObj.access_token || null;
-      if (token) {
-        debugLog('Cookie com.senior.token: access_token encontrado');
-        return token;
-      }
-    }
-    debugLog('Cookie com.senior.token NAO encontrado, tentando storage...');
-  } catch (e) {
-    debugWarn('Erro ao ler cookie:', (e as Error).message);
+  const fromCookie = await new SeniorCookieAuth().getAccessToken();
+  if (fromCookie) return fromCookie;
+
+  const fromPage = await new SeniorPageAuth().getAccessToken();
+  if (fromPage) {
+    debugLog('getSeniorAccessToken: token obtido via aba Senior aberta');
+    return fromPage;
   }
 
+  debugLog('getSeniorAccessToken: cookie não encontrado, tentando storage...');
   try {
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
     if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS) {
-      debugLog('getSeniorAccessToken: usando seniorToken do storage (age:', Math.round((Date.now() - stored.seniorTokenTs) / 1000), 's)');
+      debugLog('getSeniorAccessToken: usando seniorToken do storage (age:', Math.round((Date.now() - stored.seniorTokenTs) / 3600000), 'h)');
       return stored.seniorToken;
     }
-    if (stored.seniorToken) debugLog('getSeniorAccessToken: seniorToken expirado (>24h)');
+    if (stored.seniorToken) {
+      // Token expirado — tenta refresh silencioso antes de desistir
+      debugLog('getSeniorAccessToken: seniorToken expirado, tentando refresh silencioso...');
+      const refreshed = await refreshSeniorTokenSilently();
+      if (refreshed) return refreshed;
+    }
   } catch (e) {
-    debugWarn('Erro ao ler seniorToken do storage:', (e as Error).message);
+    debugWarn('getSeniorAccessToken: erro ao ler storage:', (e as Error).message);
   }
 
   debugLog('getSeniorAccessToken: nenhuma fonte de token disponível');
