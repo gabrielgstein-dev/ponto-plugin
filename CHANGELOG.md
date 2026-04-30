@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.4.0...senior-ponto-v0.5.0) (2026-04-30)
+
+
+### Novidades
+
+* **auth:** refresh silencioso de tokens Senior e Meta TS ([7187e58](https://github.com/gabrielgstein-dev/ponto-plugin/commit/7187e58a1762a971705aff803f04765eef69efae))
+* **detect:** integra refresh silencioso e skip de aba GP sem sessão ([f3633db](https://github.com/gabrielgstein-dev/ponto-plugin/commit/f3633db31416b3aa0b674b54435a0ef3d281fda4))
+* refresh silencioso de tokens, skip de aba GP sem sessão e fixes de testes ([0bfeb92](https://github.com/gabrielgstein-dev/ponto-plugin/commit/0bfeb920c3c1bddf9ce4b69d0343b6d3b16875ca))
+
+
+### Correções
+
+* **hooks:** evita reload em loop em renovação silenciosa do token ([6ebb4f1](https://github.com/gabrielgstein-dev/ponto-plugin/commit/6ebb4f151209ef4b678507b173deaf3194449c67))
+* **tests:** atualiza mocks e expectativas após refactor ([e15b8c1](https://github.com/gabrielgstein-dev/ponto-plugin/commit/e15b8c19388ed9483187d4c7b14abe5a7adeaaaf))
+
 ## [0.4.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.3.1...senior-ponto-v0.4.0) (2026-04-30)
 
 
