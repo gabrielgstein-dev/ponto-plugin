@@ -31,6 +31,7 @@ Refatorar gestão de estado para:
 ### Passo 1.1: Criar Context API para UI
 **Arquivo:** `lib/presentation/contexts/PunchStateContext.tsx`
 
+{% raw %}
 ```typescript
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import type { PunchState, Settings } from '../../domain/types';
@@ -106,6 +107,7 @@ export function usePunchStateContext() {
   return ctx;
 }
 ```
+{% endraw %}
 
 **Checklist:**
 - [ ] Criar arquivo `PunchStateContext.tsx`
