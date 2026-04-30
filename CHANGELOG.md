@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.3.1...senior-ponto-v0.4.0) (2026-04-30)
+
+
+### Novidades
+
+* **debug:** botão de teste do popup de lembrete ([740b951](https://github.com/gabrielgstein-dev/ponto-plugin/commit/740b95164e931b4c1c811ac19dba5bfec799365e))
+* redirect ao bater ponto e UX de observação no timesheet ([d874450](https://github.com/gabrielgstein-dev/ponto-plugin/commit/d874450790fcd33e570aa069a5bc053f1ff440a8))
+* **reminder:** abre tela de ponto ao clicar "Entendido" no popup ([4d5cb09](https://github.com/gabrielgstein-dev/ponto-plugin/commit/4d5cb095bef9a32042dcd973b6e8496e746b7431))
+* **timesheet:** modo readonly e flash ao salvar observação ([2bc10a3](https://github.com/gabrielgstein-dev/ponto-plugin/commit/2bc10a3d669bf94cd1389a18d69470ed64ae6606))
+
+
+### Correções
+
+* **timesheet:** filtra apenas lançamentos pendentes em qualquer período ([df53a77](https://github.com/gabrielgstein-dev/ponto-plugin/commit/df53a77b4edb3e83eb81a4f28291ea1da22596aa))
+
 ## [0.3.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.3.0...senior-ponto-v0.3.1) (2026-04-28)
 
 
