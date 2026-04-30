@@ -24,14 +24,36 @@ export function createTimesheetAuth(config: TimesheetConfig): TimesheetAuth {
     }
   }
 
+  function extractExpFromJwt(jwt: string): number | null {
+    try {
+      const parts = jwt.split('.');
+      if (parts.length < 2) return null;
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return typeof payload.exp === 'number' ? payload.exp : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   async function getToken(): Promise<string | null> {
     const stored = await chrome.storage.local.get([KEY_TOKEN, KEY_TS]);
     if (!stored[KEY_TOKEN]) return null;
 
-    const age = Date.now() - (stored[KEY_TS] || 0);
-    if (age >= config.tokenMaxAgeMs) {
-      debugLog(`${config.name} auth: token expirado (${Math.round(age / 1000)}s)`);
-      return null;
+    // Preferência: checar o exp real do JWT (evita usar token expirado no servidor)
+    const exp = extractExpFromJwt(stored[KEY_TOKEN]);
+    if (exp !== null) {
+      // Buffer de 30s: renova antes de expirar para evitar 401
+      if (Date.now() >= (exp - 30) * 1000) {
+        debugLog(`${config.name} auth: JWT expira em <30s (exp=${exp}), renovação necessária`);
+        return null;
+      }
+    } else {
+      // Fallback para tokens sem exp: usa tempo de armazenamento
+      const age = Date.now() - (stored[KEY_TS] || 0);
+      if (age >= config.tokenMaxAgeMs) {
+        debugLog(`${config.name} auth: token expirado (${Math.round(age / 1000)}s)`);
+        return null;
+      }
     }
 
     return stored[KEY_TOKEN];
