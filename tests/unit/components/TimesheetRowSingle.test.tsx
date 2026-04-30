@@ -177,7 +177,7 @@ describe('TimesheetRowSingle', () => {
     expect(container.querySelectorAll('.ts-detail-value')[0]).toHaveTextContent('—')
   })
 
-  it('shows saving state and "Salvo" badge after success', async () => {
+  it('switches to readonly mode with "Editar" button after successful save', async () => {
     const onSave = vi.fn().mockResolvedValue({ ok: true, gpHours: 8 })
     render(
       <TimesheetRowSingle
@@ -193,11 +193,13 @@ describe('TimesheetRowSingle', () => {
     await act(async () => {
       fireEvent.click(screen.getByText('Salvar'))
     })
-    expect(await screen.findByText('✓ Salvo')).toBeInTheDocument()
-    await waitFor(() => expect(screen.queryByText('✓ Salvo')).toBeNull(), { timeout: 3000 })
+    expect(await screen.findByText('Editar')).toBeInTheDocument()
+    expect(textarea.readOnly).toBe(true)
+    expect(textarea.className).toContain('ts-obs-input--flash')
+    await waitFor(() => expect(textarea.className).not.toContain('ts-obs-input--flash'), { timeout: 2000 })
   })
 
-  it('does not show saved badge when save fails', async () => {
+  it('keeps Salvar button visible when save fails', async () => {
     const onSave = vi.fn().mockResolvedValue({ ok: false, gpHours: null })
     render(
       <TimesheetRowSingle
@@ -213,7 +215,8 @@ describe('TimesheetRowSingle', () => {
     await act(async () => {
       fireEvent.click(screen.getByText('Salvar'))
     })
-    expect(screen.queryByText('✓ Salvo')).toBeNull()
+    expect(screen.queryByText('Editar')).toBeNull()
+    expect(screen.getByText('Salvar')).toBeInTheDocument()
   })
 
   it('clicking textarea does not trigger row toggle', () => {

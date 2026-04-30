@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('../../../lib/domain/build-flags', () => ({
   ENABLE_SENIOR_INTEGRATION: false,
+  DEBUG: false,
 }))
 
 const exportLogsSpy = vi.fn()
@@ -157,6 +158,7 @@ describe('SettingsPanel', () => {
     vi.resetModules()
     vi.doMock('../../../lib/domain/build-flags', () => ({
       ENABLE_SENIOR_INTEGRATION: true,
+      DEBUG: false,
     }))
     const { SettingsPanel: PanelWithSenior } = await import(
       '../../../lib/presentation/components/SettingsPanel'
