@@ -10,6 +10,8 @@ import { metaTimesheetProvider } from './timesheet/meta-ts-provider';
 // capturar o Bearer via webRequest.
 export const COMPANY_LOGIN_URL = 'https://plataforma.meta.com.br/login';
 
+export const COMPANY_PUNCH_URL = 'https://platform.senior.com.br/senior-x/#/Favoritos/1/res:%2F%2Fsenior.com.br%2Fhcm%2Fpontomobile%2FclockingEvent?category=frame&link=https:%2F%2Fplatform.senior.com.br%2Fhcm-pontomobile%2Fhcm%2Fpontomobile%2F%23%2Fclocking-event&withCredentials=true&r=0';
+
 export function getCompanyPunchProviders(): IPunchProvider[] {
   return [new GpPunchProvider()];
 }
