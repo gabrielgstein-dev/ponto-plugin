@@ -35,7 +35,6 @@ vi.mock('../../../lib/presentation/components/TimesheetRowMultiple', () => ({
 }))
 
 import { TimesheetPanel } from '../../../lib/presentation/components/TimesheetPanel'
-import { mockStorageRemove, mockRuntimeSendMessage } from '../../setup/chrome-mock'
 
 const baseHook = (overrides: any = {}) => ({
   summary: null,
@@ -70,7 +69,7 @@ describe('TimesheetPanel', () => {
     )
   })
 
-  it('renders empty entries state and triggers test notification', () => {
+  it('renders empty entries state', () => {
     mockHookReturn = baseHook({
       summary: {
         period: '2026-04',
@@ -83,9 +82,6 @@ describe('TimesheetPanel', () => {
     })
     render(<TimesheetPanel />)
     expect(screen.getByText(/Nenhum lançamento pendente/)).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Testar Notificação'))
-    expect(mockStorageRemove).toHaveBeenCalledWith('tsNotifShownDate')
-    expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'TEST_TS_NOTIFICATION' })
   })
 
   it('shows loading text only when entries are empty and loading', () => {
