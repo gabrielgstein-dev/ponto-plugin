@@ -647,6 +647,52 @@ body {
   margin-left: 6px;
 }
 
+.ts-obs-input--flash {
+  animation: ts-obs-flash 1200ms ease-out;
+}
+@keyframes ts-obs-flash {
+  0% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 0 var(--accent), inset 0 0 0 0 var(--accent);
+  }
+  30% {
+    border-color: var(--accent);
+    box-shadow: 0 0 24px 6px var(--accent), inset 0 0 14px 0 var(--accent);
+  }
+  100% {
+    border-color: var(--border);
+    box-shadow: 0 0 0 0 transparent, inset 0 0 0 0 transparent;
+  }
+}
+
+.ts-obs-input--readonly {
+  background: transparent;
+  border-color: transparent;
+  resize: none;
+  cursor: default;
+  padding-left: 0;
+  padding-right: 0;
+}
+.ts-obs-input--readonly:focus {
+  border-color: transparent;
+  outline: none;
+}
+
+.ts-obs-edit-btn {
+  background: transparent;
+  color: var(--accent2);
+  border: 1px solid var(--accent2);
+  border-radius: 4px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ts-obs-edit-btn:hover {
+  background: var(--accent2);
+  color: #fff;
+}
+
 .ts-empty {
   padding: 24px;
   text-align: center;

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, type MouseEvent } from 'react';
 import type { TimesheetEntry } from '../../domain/types';
 
 interface TimesheetRowSingleProps {
@@ -12,7 +12,8 @@ interface TimesheetRowSingleProps {
 export function TimesheetRowSingle({ entry, expanded, onToggle, onSave, onFetchGpHours }: TimesheetRowSingleProps) {
   const [obsValue, setObsValue] = useState(entry.observation || '');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [editing, setEditing] = useState(!entry.observation);
   const [gpHours, setGpHours] = useState<number | null>(null);
   const [gpLoading, setGpLoading] = useState(false);
 
@@ -30,10 +31,16 @@ export function TimesheetRowSingle({ entry, expanded, onToggle, onSave, onFetchG
     const { ok } = await onSave(entry, obsValue.trim());
     setSaving(false);
     if (ok) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      setEditing(false);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 1200);
     }
   }, [obsValue, entry, onSave]);
+
+  const handleEdit = useCallback((e: MouseEvent) => {
+    e.stopPropagation();
+    setEditing(true);
+  }, []);
 
   const missingObs = !entry.observation && entry.status === 'PENDING';
 
@@ -77,25 +84,35 @@ export function TimesheetRowSingle({ entry, expanded, onToggle, onSave, onFetchG
             {!gpLoading && gpHours === null && <span className="ts-detail-value ts-gp-unavail">Indisponível</span>}
           </div>
           <div className="ts-detail-field">
-            <span className="ts-detail-label">Observação {saved && <span className="ts-saved-badge">✓ Salvo</span>}</span>
+            <span className="ts-detail-label">Observação</span>
             <textarea
-              className="ts-obs-input"
+              className={`ts-obs-input${editing ? '' : ' ts-obs-input--readonly'}${justSaved ? ' ts-obs-input--flash' : ''}`}
               rows={3}
               maxLength={1000}
               placeholder="Adicionar observação..."
               value={obsValue}
               onChange={e => setObsValue(e.target.value)}
               onClick={e => e.stopPropagation()}
+              readOnly={!editing}
             />
             <div className="ts-obs-footer">
               <span className="ts-obs-counter">{obsValue.length}/1000</span>
-              <button
-                className="ts-obs-save-btn"
-                disabled={!dirty || saving}
-                onClick={e => { e.stopPropagation(); handleSave(); }}
-              >
-                {saving ? 'Salvando...' : 'Salvar'}
-              </button>
+              {editing ? (
+                <button
+                  className="ts-obs-save-btn"
+                  disabled={!dirty || saving}
+                  onClick={e => { e.stopPropagation(); handleSave(); }}
+                >
+                  {saving ? 'Salvando...' : 'Salvar'}
+                </button>
+              ) : (
+                <button
+                  className="ts-obs-edit-btn"
+                  onClick={handleEdit}
+                >
+                  Editar
+                </button>
+              )}
             </div>
           </div>
         </div>
