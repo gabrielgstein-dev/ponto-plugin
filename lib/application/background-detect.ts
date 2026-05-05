@@ -55,7 +55,10 @@ export async function backgroundDetect(): Promise<boolean> {
   const hadEntrada = !!savedState.entrada;
   const hadVolta = !!savedState.volta;
 
-  const result = await detector.detect(new Date(), true);
+  // BUG 1: aggressive=false em ciclo automático — providers NÃO devem abrir abas
+  // sem ação explícita do usuário. Tab-spam no master era causado por
+  // GpPunchProvider chamando fetchGpViaTabs(true) e abrindo gestaoponto sozinho.
+  const result = await detector.detect(new Date(), false);
   if (!result || result.times.length === 0) {
     debugLog('backgroundDetect: detector não retornou batimentos');
     return false;
@@ -177,7 +180,21 @@ async function tsAutoConnect(): Promise<boolean> {
   }
 }
 
-export async function backgroundTimesheetSync(): Promise<void> {
+/**
+ * Sync silencioso do timesheet — só atualiza o cache se já houver auth válida.
+ *
+ * BUG 1: NÃO abre abas em background. Se token expirou/morreu:
+ *   1. Tenta refresh silencioso via cookie da plataforma Senior
+ *   2. Se falhar, desiste em silêncio — cache fica stale e a notificação
+ *      de pendentes ainda dispara em cima do último estado conhecido.
+ *
+ * O re-login via tsAutoConnect() só roda quando o usuário pede explicitamente
+ * (botão "Reconectar" no sidepanel — ver BUG 2).
+ *
+ * Aceita allowInteractive (default false) para permitir que o sidepanel
+ * peça uma renovação completa via SSO em ações explícitas.
+ */
+export async function backgroundTimesheetSync(allowInteractive = false): Promise<void> {
   if (!ENABLE_META_TIMESHEET) return;
   try {
     const provider = getTimesheetProvider();
@@ -190,14 +207,17 @@ export async function backgroundTimesheetSync(): Promise<void> {
         isOk = await provider.isAvailable();
         debugLog('TS sync: refresh silencioso', isOk ? 'OK' : 'falhou (token inválido?)');
       }
-      if (!isOk) {
-        // Refresh silencioso não funcionou: libera tsAutoConnect e tenta SSO
-        debugLog('TS sync: refresh silencioso falhou, tentando auto-connect...');
+      if (!isOk && allowInteractive) {
+        // Só abre aba via SSO se foi explicitamente pedido (sidepanel).
+        debugLog('TS sync: interactive=true, tentando auto-connect via SSO...');
         await chrome.storage.local.remove(['tsAutoConnectTs']);
         const connected = await tsAutoConnect();
         if (connected) isOk = await provider.isAvailable();
       }
-      if (!isOk) return;
+      if (!isOk) {
+        debugLog('TS sync: sem auth — cache stale, mas notificação de pendentes segue lendo o último estado');
+        return;
+      }
     }
     const period = getCurrentTimesheetPeriod();
     const summary = await provider.getSummary(period);
@@ -228,7 +248,10 @@ export async function notifyPendingTimesheet(): Promise<void> {
   _tsNotifLastCall = now;
 
   try {
-    await backgroundTimesheetSync();
+    // BUG 1: notificação NÃO depende de auth válida — usa só o cache.
+    // Se o token expirou, o cache fica stale mas o aviso continua avisando
+    // sobre o último estado conhecido. O sync acontece em outros gatilhos
+    // (webRequest captura novo token, sidepanel onMount, edição manual).
     const stored = await chrome.storage.local.get([
       'timesheetSummaryCache', 'tsNotifWindowId', 'pontoState', 'tsNotifDismissedTs',
     ]);

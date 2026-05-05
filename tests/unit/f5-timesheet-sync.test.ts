@@ -287,7 +287,7 @@ describe('F5 — backgroundTimesheetSync()', () => {
     expect(mockTabsCreate).not.toHaveBeenCalled()
   })
 
-  it('CV-5.4c: tsAutoConnect tenta abrir aba quando throttle expirou', async () => {
+  it('CV-5.4c: tsAutoConnect tenta abrir aba quando explicitInteractive=true (sidepanel)', async () => {
     mockTsIsAvailable.mockResolvedValueOnce(false) // primeiro check: sem token
     mockStorageGet.mockResolvedValue({ tsAutoConnectTs: 0 }) // sem throttle
 
@@ -304,8 +304,20 @@ describe('F5 — backgroundTimesheetSync()', () => {
     mockTsIsAvailable.mockResolvedValue(true)
     mockTsGetSummary.mockResolvedValue(MOCK_SUMMARY)
 
-    await backgroundTimesheetSync()
+    // BUG 1: precisa allowInteractive=true (chamada vinda do sidepanel) pra abrir aba
+    await backgroundTimesheetSync(true)
 
     expect(mockTabsCreate).toHaveBeenCalled()
+  })
+
+  it('CV-5.4d — BUG 1 — backgroundTimesheetSync() default NÃO abre aba (background silencioso)', async () => {
+    mockTsIsAvailable.mockResolvedValueOnce(false) // sem token
+    mockStorageGet.mockResolvedValue({ tsAutoConnectTs: 0 }) // sem throttle
+
+    await backgroundTimesheetSync() // default = allowInteractive false
+
+    // Mesmo com throttle expirado e token ausente, NÃO deve abrir aba.
+    // O cache fica stale e fim — sync acontece em outros gatilhos.
+    expect(mockTabsCreate).not.toHaveBeenCalled()
   })
 })

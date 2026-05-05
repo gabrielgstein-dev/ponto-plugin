@@ -97,7 +97,9 @@ export default defineBackground(() => {
       return true;
     }
     if (message.type === 'REQUEST_TS_SYNC') {
-      backgroundTimesheetSync().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      // Vem do sidepanel quando o usuário abriu o painel e o token está
+      // expirado — único momento em que abrir aba via SSO faz sentido (BUG 1+2).
+      backgroundTimesheetSync(true).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
     if (message.type === 'TEST_TS_NOTIFICATION') {
@@ -147,7 +149,23 @@ export default defineBackground(() => {
 
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'dailyReset') { handleDailyReset(); return; }
-    if (alarm.name === 'bgDetect') { backgroundDetect().catch(() => {}); backgroundTimesheetSync().catch(() => {}); return; }
+    if (alarm.name === 'bgDetect') {
+      // BUG 1: sequencial, não paralelo. backgroundDetect e backgroundTimesheetSync
+      // não devem disputar a abertura de abas — ambos rodam em modo silencioso
+      // (sem aggressive=true / sem tsAutoConnect automático).
+      (async () => {
+        try { await backgroundDetect(); } catch (_) { /* ignore */ }
+        try { await backgroundTimesheetSync(); } catch (_) { /* ignore */ }
+      })();
+      return;
+    }
+    if (alarm.name === 'tsNotifCheck') {
+      // BUG 1: alarm dedicado pra checar timesheet pendente — lê só o cache,
+      // independente de sync/token. Se o usuário tem entries pendentes,
+      // ele vai ser avisado dentro do horário de trabalho mesmo se o token expirou.
+      notifyPendingTimesheet().catch(() => {});
+      return;
+    }
     if (alarm.name === 'punch_recheck') { recheckReminder().catch(() => {}); return; }
     if (alarm.name.startsWith('punch_popup_')) { handlePunchPopupAlarm(alarm.name).catch(() => {}); return; }
     if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name); return; }
@@ -178,6 +196,10 @@ export default defineBackground(() => {
   });
 
   chrome.alarms.create('bgDetect', { periodInMinutes: 10 });
+
+  // BUG 1: alarm separado pra checar pendentes do cache (sem depender de sync).
+  // 30 min é suficiente — o popup tem cooldown próprio de 2h após dismiss.
+  chrome.alarms.create('tsNotifCheck', { periodInMinutes: 30 });
 
   async function openPunchPage() {
     const tabs = await chrome.tabs.query({ url: 'https://platform.senior.com.br/*' });
@@ -244,8 +266,12 @@ export default defineBackground(() => {
       }).catch(() => {});
     }
     if (changes.metaTsToken && changes.metaTsToken.newValue) {
-      debugLog('Background: metaTsToken capturado, verificando timesheet pendente...');
-      notifyPendingTimesheet().catch(() => {});
+      // Token capturado naturalmente via webRequest (usuário navegou na plataforma).
+      // Atualiza cache de timesheet e em seguida verifica pendentes.
+      debugLog('Background: metaTsToken capturado, sincronizando timesheet + verificando pendentes...');
+      backgroundTimesheetSync()
+        .then(() => notifyPendingTimesheet())
+        .catch(() => {});
     }
     if (changes.tsMutationTs) {
       debugLog('Background: edição manual de timesheet detectada, re-sincronizando...');
@@ -263,8 +289,11 @@ export default defineBackground(() => {
     }
   });
 
+  // BUG 1: NÃO chamar backgroundTimesheetSync no startup — o service worker
+  // do MV3 reinicia com frequência e cada wake-up disparava sync, que podia
+  // abrir aba pra renovar token. Agora o sync só acontece pelo alarm bgDetect
+  // (a cada 10min, em modo silencioso) ou por trigger explícito.
   loadPendingPunches().then(() => {
     backgroundDetect().catch(() => {});
-    backgroundTimesheetSync().catch(() => {});
   }).catch(() => {});
 });
