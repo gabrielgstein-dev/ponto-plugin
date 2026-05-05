@@ -700,6 +700,48 @@ body {
   font-size: 13px;
 }
 
+.ts-reconnect {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+.ts-reconnect-msg {
+  margin: 0;
+  text-align: center;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ts-reconnect-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.ts-reconnect-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.05s;
+}
+.ts-reconnect-btn:hover {
+  opacity: 0.9;
+}
+.ts-reconnect-btn:active {
+  transform: scale(0.98);
+}
+.ts-reconnect-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .ts-cc-list {
   display: flex;
   flex-direction: column;

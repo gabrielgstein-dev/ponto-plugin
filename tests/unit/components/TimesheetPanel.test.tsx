@@ -59,14 +59,26 @@ describe('TimesheetPanel', () => {
     expect(screen.getByText('Conectando ao Timesheet...')).toBeInTheDocument()
   })
 
-  it('renders unavailable state with link', () => {
+  it('renders ReconnectCard when unavailable (BUG 2)', () => {
     mockHookReturn = baseHook({ available: false })
     render(<TimesheetPanel />)
-    expect(screen.getByText(/Não foi possível conectar/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Abrir plataforma' })).toHaveAttribute(
+    expect(screen.getByText(/sessão Senior expirou/i)).toBeInTheDocument()
+    expect(screen.getByTestId('ts-reconnect-btn')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /abrir Senior manualmente/i })).toHaveAttribute(
       'href',
-      'https://plataforma.meta.com.br',
+      'https://platform.senior.com.br',
     )
+  })
+
+  it('ReconnectCard dispara REQUEST_TS_SYNC ao clicar (BUG 2)', async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ ok: true })
+    ;(globalThis as { chrome: { runtime: { sendMessage: typeof sendMessage } } })
+      .chrome.runtime.sendMessage = sendMessage
+
+    mockHookReturn = baseHook({ available: false })
+    render(<TimesheetPanel />)
+    fireEvent.click(screen.getByTestId('ts-reconnect-btn'))
+    expect(sendMessage).toHaveBeenCalledWith({ type: 'REQUEST_TS_SYNC' })
   })
 
   it('renders empty entries state for current period', () => {

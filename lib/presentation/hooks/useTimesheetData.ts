@@ -50,7 +50,18 @@ export function useTimesheetData() {
         if (!syncRequestedRef.current) {
           syncRequestedRef.current = true;
           if (!hasCacheRef.current) setConnecting(true);
-          chrome.runtime.sendMessage({ type: 'REQUEST_TS_SYNC' }).catch(() => {});
+          // BUG 2: dá no máximo 3s pra connecting silencioso. Se o sync não
+          // resolver nesse tempo, mostra o ReconnectCard pra ação explícita.
+          // Se o sync funcionar antes disso, o storage listener (timesheetSummaryCache
+          // ou metaTsToken) vai disparar loadData() de novo e vir tudo OK.
+          const timeoutId = setTimeout(() => setConnecting(false), 3_000);
+          chrome.runtime
+            .sendMessage({ type: 'REQUEST_TS_SYNC' })
+            .catch(() => {})
+            .finally(() => {
+              clearTimeout(timeoutId);
+              setConnecting(false);
+            });
         }
         return;
       }

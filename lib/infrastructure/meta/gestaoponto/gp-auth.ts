@@ -23,6 +23,33 @@ export async function getGpAssertion(force = false): Promise<GpAuthData | null> 
   }
   debugLog('GP auth: access_token obtido, autenticando com GP...');
 
+  // 1ª tentativa com o token corrente
+  const first = await callGpAuthG7(accessToken);
+  if (first.ok) return first.data;
+
+  // BUG 2: ao receber 401/403, NÃO invalida seniorToken do storage. O storage
+  // é fallback do cookie — se o cookie expirou, deletar storage só piora.
+  // Em vez disso, tenta refresh silencioso (sem threshold de 12h) e re-faz a
+  // chamada uma única vez. Se ainda assim falhar, devolve null em silêncio
+  // — o sidepanel vai detectar e mostrar UI de "Reconectar" pro usuário.
+  if (first.shouldRefresh) {
+    debugLog('GP auth: 401/403 — tentando refresh silencioso forçado...');
+    const refreshed = await refreshSeniorTokenSilently({ force: true });
+    if (refreshed) {
+      const second = await callGpAuthG7(refreshed);
+      if (second.ok) return second.data;
+    }
+  }
+  return null;
+}
+
+interface CallGpAuthResult {
+  ok: boolean;
+  data: GpAuthData | null;
+  shouldRefresh: boolean;
+}
+
+async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
   try {
     const r = await fetch(`${GP_API_BASE}senior/auth/g7`, {
       method: 'POST',
@@ -31,15 +58,13 @@ export async function getGpAssertion(force = false): Promise<GpAuthData | null> 
     });
     if (!r.ok) {
       debugWarn('GP auth/g7 falhou:', r.status);
-      if (r.status === 401 || r.status === 403) {
-        await invalidateSeniorTokenStorage();
-      }
-      return null;
+      const shouldRefresh = r.status === 401 || r.status === 403;
+      return { ok: false, data: null, shouldRefresh };
     }
     const json = await r.json();
     if (!json.token) {
       debugWarn('GP auth/g7: resposta sem token');
-      return null;
+      return { ok: false, data: null, shouldRefresh: false };
     }
 
     const colaboradorId = json.colaborador?.id ?? null;
@@ -49,10 +74,10 @@ export async function getGpAssertion(force = false): Promise<GpAuthData | null> 
     if (codigoCalculo) save.gestaoPontoCodigoCalculo = codigoCalculo;
     chrome.storage.local.set(save);
     debugLog('GP auth/g7 OK, colaboradorId:', colaboradorId, 'codigoCalculo:', codigoCalculo, 'userRange:', JSON.stringify(json.userRange)?.substring(0, 200));
-    return { assertion: json.token, colaboradorId, codigoCalculo };
+    return { ok: true, data: { assertion: json.token, colaboradorId, codigoCalculo }, shouldRefresh: false };
   } catch (e) {
     debugWarn('GP auth/g7 erro:', (e as Error).message);
-    return null;
+    return { ok: false, data: null, shouldRefresh: false };
   }
 }
 
