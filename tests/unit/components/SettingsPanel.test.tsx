@@ -49,11 +49,29 @@ describe('SettingsPanel', () => {
     fireEvent.click(screen.getByText('▲ Fechar Configurações'))
     expect(onToggle).toHaveBeenCalled()
     expect(screen.getByText('Jornada (horas)')).toBeInTheDocument()
+    expect(screen.getByText('Horário Entrada')).toBeInTheDocument()
     expect(screen.getByText('Horário Almoço')).toBeInTheDocument()
     expect(screen.getByText('Duração Almoço (min)')).toBeInTheDocument()
     expect(screen.getByText('Antecipação Notif. (min)')).toBeInTheDocument()
     expect(screen.getByText('Lembrete Atraso (min)')).toBeInTheDocument()
     expect(screen.getByText('Dia Fechamento')).toBeInTheDocument()
+  })
+
+  it('emits onChange for entradaHorario (BUG 3 — campo novo)', () => {
+    const onChange = vi.fn()
+    render(
+      <SettingsPanel
+        open
+        settings={settings}
+        onToggle={() => {}}
+        onChange={onChange}
+        onClear={() => {}}
+      />,
+    )
+    // settings.entradaHorario default = '08:00'
+    const entradaInput = screen.getByDisplayValue('08:00') as HTMLInputElement
+    fireEvent.change(entradaInput, { target: { value: '09:30' } })
+    expect(onChange).toHaveBeenCalledWith({ entradaHorario: '09:30' })
   })
 
   it('emits onChange for jornada (rounded to minutes)', () => {
@@ -264,6 +282,66 @@ describe('SettingsPanel', () => {
       expect(clearBtn).toBeDisabled()
       resolve()
       await waitFor(() => expect(screen.getByText('Logs exportados.')).toBeInTheDocument())
+    })
+  })
+
+  describe('DebugReminderTest (com DEBUG=true)', () => {
+    it('renderiza select com 4 slots incluindo entrada (BUG 3)', async () => {
+      vi.resetModules()
+      vi.doMock('../../../lib/domain/build-flags', () => ({
+        ENABLE_SENIOR_INTEGRATION: false,
+        DEBUG: true,
+      }))
+      const { SettingsPanel: PanelDebug } = await import(
+        '../../../lib/presentation/components/SettingsPanel'
+      )
+      render(
+        <PanelDebug
+          open
+          settings={settings}
+          onToggle={() => {}}
+          onChange={() => {}}
+          onClear={() => {}}
+        />,
+      )
+      const select = screen.getByText('Testar lembrete').previousSibling as HTMLSelectElement
+      expect(select.tagName).toBe('SELECT')
+      const options = Array.from(select.querySelectorAll('option')).map(o => o.value)
+      expect(options).toEqual(['entrada', 'almoco', 'volta', 'saida'])
+      vi.doUnmock('../../../lib/domain/build-flags')
+    })
+
+    it('envia mensagem com slot selecionado ao clicar em Testar lembrete', async () => {
+      vi.resetModules()
+      vi.doMock('../../../lib/domain/build-flags', () => ({
+        ENABLE_SENIOR_INTEGRATION: false,
+        DEBUG: true,
+      }))
+      const sendMessageSpy = vi.fn()
+      ;(globalThis as { chrome: { runtime: { sendMessage: typeof sendMessageSpy } } })
+        .chrome.runtime.sendMessage = sendMessageSpy
+
+      const { SettingsPanel: PanelDebug } = await import(
+        '../../../lib/presentation/components/SettingsPanel'
+      )
+      render(
+        <PanelDebug
+          open
+          settings={settings}
+          onToggle={() => {}}
+          onChange={() => {}}
+          onClear={() => {}}
+        />,
+      )
+      const select = screen.getByText('Testar lembrete').previousSibling as HTMLSelectElement
+      fireEvent.change(select, { target: { value: 'entrada' } })
+      fireEvent.click(screen.getByText('Testar lembrete'))
+      expect(sendMessageSpy).toHaveBeenCalledWith({
+        type: 'TEST_PUNCH_REMINDER',
+        slot: 'entrada',
+        time: '12:00',
+      })
+      vi.doUnmock('../../../lib/domain/build-flags')
     })
   })
 })

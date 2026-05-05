@@ -35,6 +35,31 @@ function reminderUrl(slot: string, time: string) {
 
 // ── P1.2: HTML exibe nome do slot e horário ───────────────────────────────────
 
+test('P1.2-entrada — BUG 3 — popup entrada exibe "Hora da Entrada!" e horário', async () => {
+  const page = await ctx.newPage()
+  await page.goto(reminderUrl('entrada', '08:00'))
+  await page.waitForLoadState('domcontentloaded')
+
+  await expect(page.locator('#title')).toHaveText('Hora da Entrada!')
+  await expect(page.locator('#msg')).toContainText('iniciar a jornada')
+  await expect(page.locator('#msg')).toContainText('08:00')
+  await expect(page.locator('#icon')).toHaveText('🌅')
+  await page.close()
+})
+
+test('P1.2-entrada-visual — BUG 3 — snapshot visual do popup de entrada', async () => {
+  const page = await ctx.newPage()
+  await page.setViewportSize({ width: 420, height: 220 })
+  await page.goto(reminderUrl('entrada', '08:00'))
+  await page.waitForLoadState('domcontentloaded')
+  // Aguarda CSS aplicar e fontes carregarem
+  await page.waitForTimeout(200)
+  await expect(page).toHaveScreenshot('punch-reminder-entrada.png', {
+    maxDiffPixelRatio: 0.02,
+  })
+  await page.close()
+})
+
 test('P1.2a — popup almoco exibe "Hora do Almoço!" e horário', async () => {
   const page = await ctx.newPage()
   await page.goto(reminderUrl('almoco', '12:00'))

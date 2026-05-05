@@ -15,6 +15,10 @@ interface NotifEntry {
 const SECOND_ANTECIP_MIN = 5;
 
 const SLOT_MESSAGES: Record<PunchReminderSlot, { antecip: (min: number) => string; atraso: (min: number) => string }> = {
+  entrada: {
+    antecip: m => `Hora de bater entrada em ${m} minutos!`,
+    atraso: m => `Você ainda não bateu a entrada! (${m} min em atraso)`,
+  },
   almoco: {
     antecip: m => `Hora do almoço em ${m} minutos!`,
     atraso: m => `Você ainda não bateu o almoço! (${m} min em atraso)`,
@@ -60,6 +64,12 @@ export function scheduleNotifications(
   const antecip = settings.notifAntecip;
   const atraso = settings.lembreteAtraso;
   const entries: NotifEntry[] = [];
+
+  if (!entMin) {
+    const entradaHorarioMin = timeToMinutes(settings.entradaHorario) ?? 480;
+    const entradaTime = minutesToTime(entradaHorarioMin) || settings.entradaHorario;
+    pushSlotEntries(entries, 'entrada', entradaHorarioMin, entradaTime, antecip, atraso);
+  }
 
   if (entMin && !almocoMin) {
     const almocoHorarioMin = timeToMinutes(settings.almocoHorario) || 720;

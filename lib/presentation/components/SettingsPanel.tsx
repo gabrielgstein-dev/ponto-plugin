@@ -21,6 +21,7 @@ export function SettingsPanel({ open, settings, onToggle, onChange, onClear }: S
       {open && (
         <div className="settings-body">
           <SettingRow label="Jornada (horas)" value={settings.jornada / 60} onChange={v => onChange({ jornada: Math.round(v * 60) })} step={0.5} />
+          <TimeSettingRow label="Horário Entrada" value={settings.entradaHorario} onChange={v => onChange({ entradaHorario: v })} />
           <TimeSettingRow label="Horário Almoço" value={settings.almocoHorario} onChange={v => onChange({ almocoHorario: v })} />
           <SettingRow label="Duração Almoço (min)" value={settings.almocoDur} onChange={v => onChange({ almocoDur: v })} />
           <SettingRow label="Antecipação Notif. (min)" value={settings.notifAntecip} onChange={v => onChange({ notifAntecip: v })} />
@@ -36,13 +37,14 @@ export function SettingsPanel({ open, settings, onToggle, onChange, onClear }: S
 }
 
 function DebugReminderTest() {
-  const [slot, setSlot] = useState<'almoco' | 'volta' | 'saida'>('almoco');
+  const [slot, setSlot] = useState<'entrada' | 'almoco' | 'volta' | 'saida'>('almoco');
   const handleClick = () => {
     chrome.runtime.sendMessage({ type: 'TEST_PUNCH_REMINDER', slot, time: '12:00' });
   };
   return (
     <div className="logs-actions">
-      <select value={slot} onChange={e => setSlot(e.target.value as 'almoco' | 'volta' | 'saida')}>
+      <select value={slot} onChange={e => setSlot(e.target.value as 'entrada' | 'almoco' | 'volta' | 'saida')}>
+        <option value="entrada">entrada</option>
         <option value="almoco">almoço</option>
         <option value="volta">volta</option>
         <option value="saida">saída</option>

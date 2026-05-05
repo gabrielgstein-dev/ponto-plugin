@@ -3,13 +3,15 @@ import { resetTsScheduled } from './schedule-ts-notifications';
 import { startReminder, resolveReminder } from './punch-reminder-manager';
 import type { PunchReminderSlot } from '../domain/types';
 
-const REMINDER_SLOT_MAP: Record<string, string> = {
+const REMINDER_SLOT_MAP: Record<string, PunchReminderSlot> = {
+  reminder_entrada: 'entrada',
   reminder_almoco: 'almoco',
   reminder_volta: 'volta',
   reminder_saida: 'saida',
 };
 
 const PUNCH_POPUP_SLOT_MAP: Record<string, PunchReminderSlot> = {
+  punch_popup_entrada: 'entrada',
   punch_popup_almoco: 'almoco',
   punch_popup_volta: 'volta',
   punch_popup_saida: 'saida',
