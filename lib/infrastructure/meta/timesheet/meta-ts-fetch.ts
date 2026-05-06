@@ -39,6 +39,9 @@ interface CachedTab {
 
 let cachedTab: CachedTab | null = null;
 let closeTimer: ReturnType<typeof setTimeout> | null = null;
+// Mutex contra race: chamadas paralelas a fetchViaMetaTab compartilham a
+// mesma Promise de criação em vez de cada uma abrir sua própria aba.
+let inflightCreation: Promise<CachedTab | null> | null = null;
 
 function scheduleIdleClose(): void {
   if (closeTimer) clearTimeout(closeTimer);
@@ -55,9 +58,10 @@ function scheduleIdleClose(): void {
   }, TAB_IDLE_CLOSE_MS);
 }
 
-/* v8 ignore next 8 -- helper apenas para testes; não roda em produção */
+/* v8 ignore next 9 -- helper apenas para testes; não roda em produção */
 export function _resetCacheForTests(): void {
   cachedTab = null;
+  inflightCreation = null;
   if (closeTimer) {
     clearTimeout(closeTimer);
     closeTimer = null;
@@ -136,9 +140,20 @@ async function getOrCreateTab(
     return cachedTab;
   }
 
-  // 3. Cria uma nova aba inativa. Se houver bootstrapUrl, abrimos por ela
-  //    pra disparar o SSO completo; o redirect chain deve terminar em
-  //    `platformUrl` (que é o origin que a API aceita).
+  // 3. Mutex contra race: se já existe uma criação em curso, todos os
+  //    chamadores aguardam a mesma Promise. Sem isso, alarme bgDetect e
+  //    sidepanel chamando fetchViaMetaTab em paralelo abriam 2 abas — uma
+  //    cacheada, outra órfã (nunca fechada).
+  if (inflightCreation) return inflightCreation;
+  inflightCreation = createNewTab(config).finally(() => {
+    inflightCreation = null;
+  });
+  return inflightCreation;
+}
+
+async function createNewTab(config: TimesheetConfig): Promise<CachedTab | null> {
+  // Se houver bootstrapUrl, abrimos por ela pra disparar o SSO completo; o
+  // redirect chain deve terminar em `platformUrl` (origin que a API aceita).
   const startUrl = config.bootstrapUrl ?? config.platformUrl;
   try {
     const tab = await chrome.tabs.create({ url: startUrl, active: false });
@@ -152,8 +167,6 @@ async function getOrCreateTab(
       return null;
     }
 
-    // Quando passamos por bootstrapUrl, esperamos o redirect chain terminar
-    // no origin alvo. Caso contrário, basta uma pausa pro SPA bootstrap.
     if (config.bootstrapUrl) {
       const landed = await waitForRedirectToOrigin(tab.id, config.platformUrl);
       if (!landed) {

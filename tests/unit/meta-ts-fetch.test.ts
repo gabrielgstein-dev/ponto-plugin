@@ -83,6 +83,30 @@ describe('fetchViaMetaTab', () => {
     vi.useRealTimers()
   })
 
+  it('chamadas paralelas compartilham a criação da aba (sem abrir aba órfã)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockTabsQuery.mockResolvedValue([])
+    mockTabsCreate.mockResolvedValue({ id: 123 })
+    ;(globalThis.chrome.tabs.get as any) = vi
+      .fn()
+      .mockResolvedValue({ id: 123, status: 'complete', url: 'https://plataforma.meta.com.br/' })
+    mockScriptingExecuteScript.mockResolvedValue([
+      { result: { ok: true, status: 200, text: 'ok' } },
+    ])
+
+    // Dispara duas chamadas simultâneas — antes do mutex isso criava 2 abas.
+    const [r1, r2] = await Promise.all([
+      fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/a'),
+      fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/b'),
+    ])
+
+    expect(mockTabsCreate).toHaveBeenCalledTimes(1)
+    expect(r1?.ok).toBe(true)
+    expect(r2?.ok).toBe(true)
+    expect(mockTabsRemove).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
   it('fecha a aba criada após período de inatividade', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     mockTabsQuery.mockResolvedValue([])
