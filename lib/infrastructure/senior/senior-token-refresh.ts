@@ -1,4 +1,4 @@
-import { SENIOR_API_BASE } from './constants';
+import { SENIOR_API_BASE, SENIOR_TOKEN_MAX_AGE_MS } from './constants';
 import { debugLog, debugWarn } from '../../domain/debug';
 
 const REFRESH_ENDPOINT = `${SENIOR_API_BASE}/platform/authentication/actions/refreshToken`;
@@ -20,73 +20,55 @@ export async function persistSeniorTokens(tokens: SeniorTokenSet): Promise<void>
   debugLog('Senior: tokens persistidos no storage');
 }
 
-/**
- * Renova o access_token do Senior via endpoint proprietário /refreshToken.
- *
- * Contrato real validado em produção (POC):
- *   POST .../platform/authentication/actions/refreshToken
- *   Body:  { "refreshToken": "<opaque>" }   ← parâmetro é "refreshToken", não "token"
- *   200:   { "jsonToken": "<string JSON escapada>" }
- *          jsonToken contém { access_token, refresh_token, expires_in, ... }
- *
- * O refresh_token é rotacionado a cada chamada — sempre persistir o novo.
- */
-export async function refreshSeniorTokenSilently(_opts: { force?: boolean } = {}): Promise<string | null> {
+export async function refreshSeniorTokenSilently(opts: { force?: boolean } = {}): Promise<string | null> {
   try {
-    const stored = await chrome.storage.local.get(['seniorRefreshToken']);
+    const stored = await chrome.storage.local.get(['seniorRefreshToken', 'seniorTokenTs']);
     const refreshToken = stored.seniorRefreshToken as string | undefined;
     if (!refreshToken) {
       debugLog('Senior refresh: sem refresh_token no storage');
       return null;
     }
 
+    // BUG 2: por padrão, refresh roda só se o token está perto de expirar
+    // (preventivo). Mas com `force: true` (ex: ao receber 401), pulamos esse
+    // gate — quem nos chamou já sabe que o token foi rejeitado, então não
+    // adianta esperar a idade local achar que está válido.
+    if (!opts.force) {
+      const tokenTs = (stored.seniorTokenTs as number) || 0;
+      const age = Date.now() - tokenTs;
+      const remaining = SENIOR_TOKEN_MAX_AGE_MS - age;
+      if (remaining > 12 * 60 * 60 * 1000) {
+        debugLog(`Senior refresh: token ainda válido por ${Math.round(remaining / 3600000)}h, pulando refresh`);
+        return null;
+      }
+    } else {
+      debugLog('Senior refresh: force=true, ignorando threshold de 12h');
+    }
+
     debugLog('Senior refresh: tentando renovar via refresh_token...');
     const r = await fetch(REFRESH_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ token: refreshToken }),
     });
 
     if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      debugWarn('Senior refresh: endpoint retornou', r.status, body.substring(0, 200));
+      debugWarn('Senior refresh: endpoint retornou', r.status);
       return null;
     }
 
     const json = await r.json();
-    const inner = parseJsonToken(json);
-    if (!inner?.access_token) {
-      debugWarn('Senior refresh: resposta sem access_token', JSON.stringify(json).substring(0, 200));
+    const newToken = json.access_token;
+    if (!newToken) {
+      debugWarn('Senior refresh: resposta sem access_token', JSON.stringify(json).substring(0, 100));
       return null;
     }
 
-    await persistSeniorTokens({
-      access_token: inner.access_token,
-      refresh_token: inner.refresh_token,
-      expires_in: inner.expires_in,
-    });
+    await persistSeniorTokens({ access_token: newToken, refresh_token: json.refresh_token });
     debugLog('Senior refresh: token renovado com sucesso');
-    return inner.access_token;
+    return newToken;
   } catch (e) {
     debugWarn('Senior refresh erro:', (e as Error).message);
     return null;
   }
-}
-
-interface JsonTokenInner {
-  access_token?: string;
-  refresh_token?: string;
-  expires_in?: number;
-}
-
-function parseJsonToken(json: unknown): JsonTokenInner | null {
-  if (!json || typeof json !== 'object') return null;
-  const wrap = json as { jsonToken?: unknown };
-  if (typeof wrap.jsonToken === 'string') {
-    try { return JSON.parse(wrap.jsonToken) as JsonTokenInner; } catch { return null; }
-  }
-  if (typeof wrap.jsonToken === 'object' && wrap.jsonToken !== null) {
-    return wrap.jsonToken as JsonTokenInner;
-  }
-  return null;
 }
