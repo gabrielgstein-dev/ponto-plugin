@@ -2,100 +2,51 @@
  * Renovação silenciosa do token Meta Timesheet via NextAuth.
  *
  * A plataforma Meta usa NextAuth.js com Keycloak (iamp.meta.com.br).
- * O JWT emitido dura 5 minutos, mas o endpoint /api/auth/session retorna
- * um accessToken fresco usando apenas o cookie de sessão — sem redirect SSO,
- * sem abrir nova aba.
+ * O JWT emitido dura 5 minutos, mas /api/auth/session retorna um
+ * accessToken fresco usando o cookie de sessão NextAuth — sem redirect
+ * SSO, sem abrir nova aba.
  *
- * Estratégia:
- * 1. Se houver uma aba de plataforma.meta.com.br aberta, executa o fetch
- *    de /api/auth/session dentro dessa aba (same-origin, cookies automáticos).
- * 2. Fallback: tenta fetch direto do background com credentials:'include'
- *    (funciona quando a extensão tem host_permissions para o domínio).
+ * Implementação: fetch direto do background com `credentials: 'include'`.
+ * Validado em produção: o servidor NextAuth aceita extension origin e
+ * envia o cookie HttpOnly de sessão automaticamente. Não dependemos de
+ * aba aberta (versão antiga injetava script via chrome.scripting numa
+ * aba da plataforma — caminho desnecessariamente complexo).
+ *
+ * Pré-requisito: manifest precisa ter `host_permissions` pra
+ * plataforma.meta.com.br (já existe).
  */
 import type { TimesheetConfig } from '../../timesheet/timesheet-config';
 import type { TimesheetAuth } from '../../timesheet/timesheet-auth';
 import { debugLog, debugWarn } from '../../../domain/debug';
 
-async function findExistingPlatformTab(platformUrl: string): Promise<number | null> {
-  try {
-    const origin = new URL(platformUrl).origin;
-    const tabs = await chrome.tabs.query({ status: 'complete' });
-    const tab = tabs.find(t => t.url?.startsWith(origin) && t.id != null);
-    return tab?.id ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchSessionViaTab(tabId: number): Promise<string | null> {
-  try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId },
-      world: 'MAIN',
-      func: async (): Promise<string | null> => {
-        try {
-          const r = await fetch('/api/auth/session');
-          if (!r.ok) return null;
-          const data = await r.json() as { accessToken?: string };
-          return data?.accessToken ?? null;
-        } catch {
-          return null;
-        }
-      },
-    });
-    const token = results?.[0]?.result;
-    return (typeof token === 'string' && token.length > 20) ? token : null;
-  } catch (e) {
-    debugWarn('meta-ts-session: erro no scripting via aba:', (e as Error).message);
-    return null;
-  }
-}
-
-async function fetchSessionViaBackground(platformUrl: string): Promise<string | null> {
-  try {
-    const r = await fetch(`${platformUrl}/api/auth/session`, {
-      credentials: 'include',
-    });
-    if (!r.ok) return null;
-    const data = await r.json() as { accessToken?: string };
-    return data?.accessToken ?? null;
-  } catch (e) {
-    debugWarn('meta-ts-session: fetch direto do background falhou:', (e as Error).message);
-    return null;
-  }
-}
-
 /**
- * Tenta renovar o token silenciosamente sem abrir nova aba.
- * Salva o token no storage se bem-sucedido.
- * Retorna o token renovado, ou null se não foi possível.
+ * Tenta renovar o token silenciosamente via /api/auth/session.
+ * Persiste no storage (via auth.saveToken) se bem-sucedido.
+ * Retorna o accessToken renovado, ou null se não foi possível
+ * (cookie de sessão expirado, sem rede, etc).
  */
 export async function getMetaTsTokenSilently(
   config: TimesheetConfig,
   auth: TimesheetAuth,
 ): Promise<string | null> {
-  // Estratégia 1: aba existente da plataforma (same-origin, zero CORS)
-  const tabId = await findExistingPlatformTab(config.platformUrl);
-  if (tabId != null) {
-    debugLog('meta-ts-session: aba existente encontrada (tabId=' + tabId + '), tentando /api/auth/session...');
-    const token = await fetchSessionViaTab(tabId);
-    if (token) {
-      auth.saveToken(token);
-      debugLog('meta-ts-session: token renovado via aba existente');
-      return token;
+  const url = `${config.platformUrl}${config.sessionEndpoint}`;
+  try {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) {
+      debugWarn(`meta-ts-session: ${url} retornou ${r.status}`);
+      return null;
     }
-    debugLog('meta-ts-session: /api/auth/session falhou na aba existente');
-  }
-
-  // Estratégia 2: fetch direto do background (requer host_permissions)
-  debugLog('meta-ts-session: tentando fetch direto do background...');
-  const token = await fetchSessionViaBackground(config.platformUrl);
-  if (token) {
+    const data = await r.json() as { accessToken?: string };
+    const token = data?.accessToken;
+    if (typeof token !== 'string' || token.length < 20) {
+      debugLog('meta-ts-session: resposta sem accessToken (sessão expirada?)');
+      return null;
+    }
     auth.saveToken(token);
-    debugLog('meta-ts-session: token renovado via background fetch');
+    debugLog('meta-ts-session: token renovado via /api/auth/session');
     return token;
+  } catch (e) {
+    debugWarn('meta-ts-session: fetch falhou:', (e as Error).message);
+    return null;
   }
-
-  debugLog('meta-ts-session: refresh silencioso falhou (sem aba e background bloqueado por CORS ou sem sessão)');
-  return null;
 }
