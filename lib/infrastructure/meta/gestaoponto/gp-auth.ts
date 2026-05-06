@@ -97,16 +97,9 @@ async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
 }
 
 async function getSeniorAccessToken(): Promise<string | null> {
-  const fromCookie = await new SeniorCookieAuth().getAccessToken();
-  if (fromCookie) return fromCookie;
-
-  const fromPage = await new SeniorPageAuth().getAccessToken();
-  if (fromPage) {
-    debugLog('getSeniorAccessToken: token obtido via aba Senior aberta');
-    return fromPage;
-  }
-
-  debugLog('getSeniorAccessToken: cookie não encontrado, tentando storage...');
+  // Storage é fonte canônica: refresh atualiza só o storage (cookie cross-context
+  // não rotaciona de forma confiável). Cookie só é fallback inicial pra primeira
+  // captura — depois disso, storage manda.
   try {
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
     if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS) {
@@ -114,7 +107,7 @@ async function getSeniorAccessToken(): Promise<string | null> {
       return stored.seniorToken;
     }
     if (stored.seniorToken) {
-      // Token expirado — tenta refresh silencioso antes de desistir
+      // Token expirado — tenta refresh silencioso antes de cair pro cookie
       debugLog('getSeniorAccessToken: seniorToken expirado, tentando refresh silencioso...');
       const refreshed = await refreshSeniorTokenSilently();
       if (refreshed) return refreshed;
@@ -125,6 +118,19 @@ async function getSeniorAccessToken(): Promise<string | null> {
       severity: 'medium',
       operation: 'getSeniorAccessToken.readStorage',
     });
+  }
+
+  // Fallback: cookie (primeira captura, ou storage vazio)
+  const fromCookie = await new SeniorCookieAuth().getAccessToken();
+  if (fromCookie) {
+    debugLog('getSeniorAccessToken: storage sem token válido, usando cookie');
+    return fromCookie;
+  }
+
+  const fromPage = await new SeniorPageAuth().getAccessToken();
+  if (fromPage) {
+    debugLog('getSeniorAccessToken: token obtido via aba Senior aberta');
+    return fromPage;
   }
 
   debugLog('getSeniorAccessToken: nenhuma fonte de token disponível');

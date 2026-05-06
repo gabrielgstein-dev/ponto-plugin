@@ -9,5 +9,6 @@
   "ENABLE_YESTERDAY": false,
   "ENABLE_NOTIFICATIONS": true,
   "ENABLE_META_TIMESHEET": true,
+  "ENABLE_SILENT_REFRESH": false,
   "THEME": "meta"
 }
