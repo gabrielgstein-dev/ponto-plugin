@@ -41,33 +41,45 @@ export function useAutoDetect(
   const [detecting, setDetecting] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval>>();
   const ctxRef = useRef<ApplyTimesContext>({ stateRepo, onRender, onToast });
+  // Mutex: chamadas concorrentes (polling 15s, storage listeners, eventos)
+  // compartilham a mesma Promise em vez de empilhar detects em paralelo.
+  const inflightRef = useRef<Promise<void> | null>(null);
   ctxRef.current = { stateRepo, onRender, onToast };
 
-  const detect = useCallback(async (silent = true, aggressive = false) => {
+  const detect = useCallback(async (silent = true, aggressive = false): Promise<void> => {
+    if (inflightRef.current) return inflightRef.current;
     setDetecting(true);
-    try {
-      const result = await detector.detect(new Date(), aggressive);
-      if (result) {
-        const hash = result.times.join(',');
-        if (hash !== lastPunchHash || !silent) {
-          lastPunchHash = hash;
-          const changed = applyTimes(result.times, result.source, silent, ctxRef.current);
-          if (changed && ENABLE_NOTIFICATIONS) {
-            scheduleNotifications(
-              timeToMinutes(state.entrada),
-              timeToMinutes(state.almoco),
-              timeToMinutes(state.volta),
-              timeToMinutes(state._saidaEstimada),
-            );
+    const run = (async () => {
+      try {
+        const result = await detector.detect(new Date(), aggressive);
+        if (result) {
+          const hash = result.times.join(',');
+          if (hash !== lastPunchHash || !silent) {
+            lastPunchHash = hash;
+            const changed = applyTimes(result.times, result.source, silent, ctxRef.current);
+            if (changed && ENABLE_NOTIFICATIONS) {
+              scheduleNotifications(
+                timeToMinutes(state.entrada),
+                timeToMinutes(state.almoco),
+                timeToMinutes(state.volta),
+                timeToMinutes(state._saidaEstimada),
+              );
+            }
           }
+        } else if (!silent) {
+          ctxRef.current.onToast('Nenhum batimento encontrado');
         }
-      } else if (!silent) {
-        ctxRef.current.onToast('Nenhum batimento encontrado');
+      } catch (_) {
+        if (!silent) ctxRef.current.onToast('Erro ao detectar batimentos');
+      } finally {
+        // finally garante que detecting volta a false mesmo se algo no
+        // try/catch lançar inesperadamente (proteção contra UI presa).
+        setDetecting(false);
+        inflightRef.current = null;
       }
-    } catch (e) {
-      if (!silent) ctxRef.current.onToast('Erro ao detectar batimentos');
-    }
-    setDetecting(false);
+    })();
+    inflightRef.current = run;
+    return run;
   }, []);
 
   useEffect(() => {

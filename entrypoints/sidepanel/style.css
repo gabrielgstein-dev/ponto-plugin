@@ -36,6 +36,41 @@ body {
   opacity: 1;
   background: var(--surface2);
 }
+
+.resync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.resync-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.resync-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.resync-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+.resync-btn.syncing .resync-icon {
+  animation: resync-spin 800ms linear infinite;
+}
+@keyframes resync-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 .sp-title {
   font-size: 16px;
   font-weight: 600;

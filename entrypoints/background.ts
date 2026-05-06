@@ -113,6 +113,17 @@ export default defineBackground(() => {
       openPunchPage().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
+    if (message.type === 'FORCE_REDETECT') {
+      // Override manual quando UI estiver presa ou cache stale: reseta
+      // todos caches (gp/api/storage + lastHash) e força detecção agressiva.
+      // Sidepanel chama via botão "↻ Sincronizar" — substitui o anti-padrão
+      // "abrir aba do Senior pra destravar".
+      resetAllCaches();
+      backgroundDetect()
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'TEST_PUNCH_REMINDER') {
       const slot = message.slot || 'almoco';
       const time = message.time || '12:00';

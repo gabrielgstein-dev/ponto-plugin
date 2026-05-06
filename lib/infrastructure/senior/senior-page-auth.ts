@@ -1,6 +1,7 @@
 import type { IAuthProvider } from '../../domain/interfaces';
 import { findSeniorTab } from './tab-utils';
-import { debugWarn } from '../../domain/debug';
+import { logError } from '../../domain/error-logger';
+import { executeScriptWithTimeout } from '../../domain/script-utils';
 
 export class SeniorPageAuth implements IAuthProvider {
   readonly name = 'pageContext';
@@ -10,7 +11,7 @@ export class SeniorPageAuth implements IAuthProvider {
     if (!tab) return null;
 
     try {
-      const results = await chrome.scripting.executeScript({
+      const results = await executeScriptWithTimeout<Record<string, string>>({
         target: { tabId: tab.id! },
         world: 'MAIN',
         func: () => {
@@ -33,7 +34,15 @@ export class SeniorPageAuth implements IAuthProvider {
 
       return this.extractToken(results?.[0]?.result);
     } catch (e) {
-      debugWarn('Page auth erro:', (e as Error).message);
+      logError(e, {
+        category: 'auth',
+        severity: 'medium',
+        operation: 'SeniorPageAuth.getAccessToken',
+        metadata: {
+          tabId: tab.id,
+          isTimeout: (e as { name?: string })?.name === 'ScriptTimeoutError',
+        },
+      });
     }
     return null;
   }

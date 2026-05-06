@@ -74,6 +74,57 @@ body {
   cursor: pointer;
 }
 
+.token-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+.token-status-row .token-status {
+  border-bottom: none;
+  padding: 4px 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.resync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.resync-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.resync-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.resync-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+.resync-btn.syncing .resync-icon {
+  animation: resync-spin 800ms linear infinite;
+}
+@keyframes resync-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .cards-grid {
   padding: 8px 16px;
   display: grid;

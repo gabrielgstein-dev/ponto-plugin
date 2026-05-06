@@ -4,6 +4,7 @@ import { useSidePanelData } from './hooks/useSidePanelData';
 import { DayRow } from './components/DayRow';
 import { TimesheetPanel } from './components/TimesheetPanel';
 import { ThemeToggle } from './components/ThemeToggle';
+import { ResyncButton } from './components/ResyncButton';
 import { ENABLE_META_TIMESHEET } from '../domain/build-flags';
 
 type SidePanelTab = 'ponto' | 'timesheet';
@@ -36,7 +37,10 @@ export function SidePanelApp() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h1 className="sp-title">Histórico de Ponto</h1>
-            <ThemeToggle />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ResyncButton />
+              <ThemeToggle />
+            </div>
           </div>
 
           {balance && (
