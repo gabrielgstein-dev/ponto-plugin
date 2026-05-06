@@ -11,6 +11,10 @@ export class SeniorCookieAuth implements IAuthProvider {
       debugLog('SeniorCookieAuth: buscando cookie com.senior.token...');
       const cookies = await chrome.cookies.getAll({ domain: '.senior.com.br', name: 'com.senior.token' });
       if (!cookies.length) {
+        // DIAG: investigando hipótese de cookies Partitioned (CHIPS).
+        // Senior X serve em frames (?category=frame), Chrome 118+ particiona
+        // cookies third-party por embedder. Sem partitionKey, getAll não vê.
+        await this.diagnoseCookieAccess();
         debugLog('SeniorCookieAuth: cookie não encontrado');
         return null;
       }
@@ -41,6 +45,37 @@ export class SeniorCookieAuth implements IAuthProvider {
       });
     }
     return null;
+  }
+
+  // DIAG (temporário): tenta diferentes filtros de getAll pra ver qual
+  // forma encontra o cookie. Resultado vai pro log e ajuda a confirmar
+  // se é cookies Partitioned (CHIPS) ou outra causa.
+  private async diagnoseCookieAccess(): Promise<void> {
+    const attempts: Array<{ label: string; details: chrome.cookies.GetAllDetails }> = [
+      { label: 'name only', details: { name: 'com.senior.token' } },
+      { label: 'domain platform.senior', details: { domain: 'platform.senior.com.br', name: 'com.senior.token' } },
+      { label: 'url platform.senior', details: { url: 'https://platform.senior.com.br/', name: 'com.senior.token' } },
+      { label: 'partitionKey platform.senior', details: {
+        url: 'https://platform.senior.com.br/',
+        name: 'com.senior.token',
+        partitionKey: { topLevelSite: 'https://platform.senior.com.br' },
+      } as chrome.cookies.GetAllDetails },
+    ];
+    const results: Array<Record<string, unknown>> = [];
+    for (const { label, details } of attempts) {
+      try {
+        const found = await chrome.cookies.getAll(details);
+        results.push({
+          label,
+          count: found.length,
+          partitionKeys: found.map(c => (c as { partitionKey?: unknown }).partitionKey ?? null),
+          domains: found.map(c => c.domain),
+        });
+      } catch (e) {
+        results.push({ label, error: (e as Error).message });
+      }
+    }
+    debugLog('[diag] SeniorCookieAuth getAll attempts:', JSON.stringify(results));
   }
 
   private extractToken(obj: Record<string, unknown>): string | null {

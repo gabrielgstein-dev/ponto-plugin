@@ -35,6 +35,18 @@ export default defineBackground(() => {
           const token = authHeader.value.split(/\s+/)[1];
           if (token && token.length > 20) {
             chrome.storage.local.set({ seniorToken: token, seniorTokenTs: Date.now() });
+            // DIAG: registra de onde veio cada token capturado. Hipótese investigativa:
+            // o webRequest pode estar pegando Bearer de OUTROS apps dentro do
+            // Senior X (Favoritos, frames de outros módulos), e cada app tem
+            // escopo de token diferente — explicaria por que tokens "frescos"
+            // levam 401 no GP/pontomobile.
+            debugLog('[diag] Senior Bearer captured', JSON.stringify({
+              url: details.url,
+              tokenPrefix: token.substring(0, 8),
+              tokenLength: token.length,
+              method: details.method,
+              tabId: details.tabId,
+            }));
           }
         }
       },
