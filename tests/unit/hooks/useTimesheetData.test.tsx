@@ -91,30 +91,32 @@ describe('useTimesheetData', () => {
     })
     isAvailableSpy.mockResolvedValue(false)
     const { result } = renderHook(() => useTimesheetData())
-    await waitFor(() => expect(result.current.connecting).toBe(true))
+    // BUG 2: connecting agora é transient — testamos via REQUEST_TS_SYNC enviado
+    await waitFor(() => expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'REQUEST_TS_SYNC' }))
     expect(result.current.summary).toBeNull()
+    expect(result.current.available).toBe(false)
   })
 
   it('handles storage rejection silently', async () => {
     mockStorageGet.mockRejectedValueOnce(new Error('boom'))
     isAvailableSpy.mockResolvedValue(false)
     const { result } = renderHook(() => useTimesheetData())
-    await waitFor(() => expect(result.current.connecting).toBe(true))
+    await waitFor(() => expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'REQUEST_TS_SYNC' }))
+    expect(result.current.available).toBe(false)
   })
 
-  it('sets connecting and requests sync when not available and no cache', async () => {
+  it('requests sync when not available and no cache (BUG 2 — UI ReconnectCard depois)', async () => {
     mockStorageGet.mockResolvedValue({})
     isAvailableSpy.mockResolvedValue(false)
-    const { result } = renderHook(() => useTimesheetData())
-    await waitFor(() => expect(result.current.connecting).toBe(true))
-    expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'REQUEST_TS_SYNC' })
+    renderHook(() => useTimesheetData())
+    await waitFor(() => expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'REQUEST_TS_SYNC' }))
   })
 
   it('only requests sync once', async () => {
     mockStorageGet.mockResolvedValue({})
     isAvailableSpy.mockResolvedValue(false)
     const { result } = renderHook(() => useTimesheetData())
-    await waitFor(() => expect(result.current.connecting).toBe(true))
+    await waitFor(() => expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'REQUEST_TS_SYNC' }))
     mockRuntimeSendMessage.mockClear()
     await act(async () => {
       await result.current.refresh()
@@ -206,7 +208,7 @@ describe('useTimesheetData', () => {
     isAvailableSpy.mockResolvedValue(false)
     mockStorageGet.mockResolvedValue({})
     const { result } = renderHook(() => useTimesheetData())
-    await waitFor(() => expect(result.current.connecting).toBe(true))
+    await waitFor(() => expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'REQUEST_TS_SYNC' }))
     act(() => result.current.goToPrev())
     expect(result.current.isCurrentPeriod).toBe(false)
     act(() => result.current.goToNext())

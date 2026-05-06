@@ -11,6 +11,7 @@ export interface PunchState {
 
 export interface Settings {
   jornada: number;
+  entradaHorario: string;
   almocoHorario: string;
   almocoDur: number;
   notifAntecip: number;
@@ -37,7 +38,7 @@ export interface PunchResult {
 
 export type PunchSlot = 'entrada' | 'almoco' | 'volta' | 'saida';
 
-export type PunchReminderSlot = 'almoco' | 'volta' | 'saida';
+export type PunchReminderSlot = 'entrada' | 'almoco' | 'volta' | 'saida';
 
 export interface PunchReminderStorage {
   punchPopupSlot: PunchReminderSlot | null;
@@ -56,6 +57,7 @@ export const DEFAULT_STATE: PunchState = {
 
 export const DEFAULT_SETTINGS: Settings = {
   jornada: 480,
+  entradaHorario: '08:00',
   almocoHorario: '12:00',
   almocoDur: 60,
   notifAntecip: 10,

@@ -249,3 +249,49 @@ describe('U14 — saida registrada enquanto popup de volta aberto → fecha popu
     expect(mockAlarmsClear).toHaveBeenCalledWith('punch_recheck')
   })
 })
+
+// ── U15: slot 'entrada' — bypass do guard P6 (BUG 3) ──────────────────────────
+
+describe("U15 — slot 'entrada' bypassa guard P6 (BUG 3 — sem isso, popup nunca aparece)", () => {
+  it('startReminder ABRE popup para entrada quando entrada=null', async () => {
+    storageWith({ pontoState: { entrada: null, almoco: null, volta: null, saida: null } })
+    await startReminder('entrada', '08:00')
+    expect(mockWindowsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringContaining('slot=entrada'),
+        type: 'popup',
+      }),
+    )
+  })
+
+  it('startReminder ABRE popup para entrada quando pontoState=null (primeira instalação)', async () => {
+    storageWith({ pontoState: null })
+    await startReminder('entrada', '08:00')
+    expect(mockWindowsCreate).toHaveBeenCalled()
+  })
+
+  it('recheckReminder reabre popup de entrada quando entrada ainda não foi batida', async () => {
+    storageWith({
+      pontoState: { entrada: null, almoco: null, volta: null, saida: null },
+      punchPopupSlot: 'entrada',
+      punchPopupWindowId: undefined,
+      punchPopupExpectedTime: '08:00',
+    })
+    await recheckReminder()
+    expect(mockWindowsCreate).toHaveBeenCalled()
+    expect(mockAlarmsCreate).toHaveBeenCalledWith('punch_recheck', expect.any(Object))
+  })
+
+  it('startReminder NÃO abre popup de entrada se entrada já foi batida (P3)', async () => {
+    storageWith({ pontoState: { entrada: '07:55', almoco: null, volta: null, saida: null } })
+    await startReminder('entrada', '08:00')
+    expect(mockWindowsCreate).not.toHaveBeenCalled()
+  })
+
+  it('resolveReminder fecha popup de entrada quando entrada é batida', async () => {
+    storageWith({ punchPopupSlot: 'entrada', punchPopupWindowId: 77 })
+    await resolveReminder('entrada')
+    expect(mockWindowsRemove).toHaveBeenCalledWith(77)
+    expect(mockAlarmsClear).toHaveBeenCalledWith('punch_recheck')
+  })
+})

@@ -177,4 +177,13 @@ describe('F3 — backgroundDetect()', () => {
     mockDetect.mockResolvedValue({ times: ['18:06'], source: 'test' })
     expect(await backgroundDetect()).toBe(false)
   })
+
+  it('BUG 1 — backgroundDetect chama detector com aggressive=false (não abre abas em background)', async () => {
+    mockDetect.mockResolvedValue({ times: ['08:00'], source: 'test' })
+    await backgroundDetect()
+    expect(mockDetect).toHaveBeenCalled()
+    const call = mockDetect.mock.calls[mockDetect.mock.calls.length - 1]
+    // detect(date, aggressive)
+    expect(call[1]).toBe(false)
+  })
 })

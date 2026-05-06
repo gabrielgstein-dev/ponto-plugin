@@ -3,9 +3,10 @@ const slot = params.get('slot');
 const time = params.get('time') || '';
 
 const SLOT_CONFIG = {
-  almoco: { icon: '🍽️', title: 'Hora do Almoço!', msg: 'Está na hora de bater o ponto de almoço.' },
-  volta:  { icon: '💼', title: 'Hora de Voltar!',  msg: 'Está na hora de bater o ponto de volta do almoço.' },
-  saida:  { icon: '🏠', title: 'Hora de Sair!',    msg: 'Está na hora de bater o ponto de saída.' },
+  entrada: { icon: '🌅', title: 'Hora da Entrada!', msg: 'Está na hora de bater o ponto de entrada e iniciar a jornada.' },
+  almoco:  { icon: '🍽️', title: 'Hora do Almoço!', msg: 'Está na hora de bater o ponto de almoço.' },
+  volta:   { icon: '💼', title: 'Hora de Voltar!',  msg: 'Está na hora de bater o ponto de volta do almoço.' },
+  saida:   { icon: '🏠', title: 'Hora de Sair!',    msg: 'Está na hora de bater o ponto de saída.' },
 };
 
 const config = SLOT_CONFIG[slot] || { icon: '⏰', title: 'Lembrete de Ponto', msg: 'Está na hora de bater o ponto.' };

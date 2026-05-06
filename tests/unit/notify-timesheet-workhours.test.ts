@@ -85,18 +85,17 @@ const MOCK_SUMMARY = {
 }
 
 /**
- * Configura os dois calls ao chrome.storage.local.get que ocorrem dentro de
- * notifyPendingTimesheet():
- *
- *   1ª chamada — tsAutoConnect (dentro de backgroundTimesheetSync) lê tsAutoConnectTs.
- *                Com timestamp recente, o throttle bloqueia e backgroundTimesheetSync retorna
- *                sem modificar o cache.
- *   2ª chamada — notifyPendingTimesheet lê timesheetSummaryCache + tsNotifWindowId + pontoState.
+ * BUG 1: notifyPendingTimesheet NÃO chama mais backgroundTimesheetSync.
+ * Lê só o cache em uma única chamada ao storage. Independente do estado
+ * do token, o aviso de pendentes dispara baseado no último estado conhecido.
  */
 function setupStorage(pontoState: unknown, summary: unknown = MOCK_SUMMARY): void {
-  mockStorageGet
-    .mockResolvedValueOnce({ tsAutoConnectTs: Date.now() })
-    .mockResolvedValueOnce({ timesheetSummaryCache: summary, tsNotifWindowId: null, pontoState })
+  mockStorageGet.mockResolvedValueOnce({
+    timesheetSummaryCache: summary,
+    tsNotifWindowId: null,
+    pontoState,
+    tsNotifDismissedTs: 0,
+  })
 }
 
 // ── TS-W1: pontoState null ────────────────────────────────────────────────────

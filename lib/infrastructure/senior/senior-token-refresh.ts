@@ -20,7 +20,7 @@ export async function persistSeniorTokens(tokens: SeniorTokenSet): Promise<void>
   debugLog('Senior: tokens persistidos no storage');
 }
 
-export async function refreshSeniorTokenSilently(): Promise<string | null> {
+export async function refreshSeniorTokenSilently(opts: { force?: boolean } = {}): Promise<string | null> {
   try {
     const stored = await chrome.storage.local.get(['seniorRefreshToken', 'seniorTokenTs']);
     const refreshToken = stored.seniorRefreshToken as string | undefined;
@@ -29,13 +29,20 @@ export async function refreshSeniorTokenSilently(): Promise<string | null> {
       return null;
     }
 
-    // Só tenta refresh se o token estiver próximo de expirar (< 12h restantes)
-    const tokenTs = (stored.seniorTokenTs as number) || 0;
-    const age = Date.now() - tokenTs;
-    const remaining = SENIOR_TOKEN_MAX_AGE_MS - age;
-    if (remaining > 12 * 60 * 60 * 1000) {
-      debugLog(`Senior refresh: token ainda válido por ${Math.round(remaining / 3600000)}h, pulando refresh`);
-      return null;
+    // BUG 2: por padrão, refresh roda só se o token está perto de expirar
+    // (preventivo). Mas com `force: true` (ex: ao receber 401), pulamos esse
+    // gate — quem nos chamou já sabe que o token foi rejeitado, então não
+    // adianta esperar a idade local achar que está válido.
+    if (!opts.force) {
+      const tokenTs = (stored.seniorTokenTs as number) || 0;
+      const age = Date.now() - tokenTs;
+      const remaining = SENIOR_TOKEN_MAX_AGE_MS - age;
+      if (remaining > 12 * 60 * 60 * 1000) {
+        debugLog(`Senior refresh: token ainda válido por ${Math.round(remaining / 3600000)}h, pulando refresh`);
+        return null;
+      }
+    } else {
+      debugLog('Senior refresh: force=true, ignorando threshold de 12h');
     }
 
     debugLog('Senior refresh: tentando renovar via refresh_token...');

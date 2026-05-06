@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { TimesheetEntry } from '../../domain/types';
 import { useTimesheetData } from '../hooks/useTimesheetData';
 import { TimesheetRowSingle } from './TimesheetRowSingle';
 import { TimesheetRowMultiple } from './TimesheetRowMultiple';
@@ -13,10 +12,11 @@ export function TimesheetPanel() {
       <div className="ts-container">
         <h2 className="ts-title">Timesheet</h2>
         <div className="ts-empty">
-          {connecting
-            ? <p>Conectando ao Timesheet...</p>
-            : <p>Não foi possível conectar. <a href="https://plataforma.meta.com.br" target="_blank" rel="noreferrer" className="token-login-link">Abrir plataforma</a></p>
-          }
+          {connecting ? (
+            <p>Conectando ao Timesheet...</p>
+          ) : (
+            <ReconnectCard />
+          )}
         </div>
       </div>
     );
@@ -113,4 +113,47 @@ function formatHours(h: number): string {
   const hrs = Math.floor(h);
   const mins = Math.round((h - hrs) * 60);
   return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+/**
+ * BUG 2: card de reconexão exibido no SidePanel quando o cookie/token Senior
+ * expirou. Background nunca pede login automaticamente — só aqui, em ação
+ * explícita do usuário (que abriu o painel).
+ */
+function ReconnectCard() {
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const handleReconnect = () => {
+    setReconnecting(true);
+    chrome.runtime
+      .sendMessage({ type: 'REQUEST_TS_SYNC' })
+      .catch(() => {})
+      .finally(() => setReconnecting(false));
+  };
+
+  return (
+    <div className="ts-reconnect" data-testid="ts-reconnect-card">
+      <p className="ts-reconnect-msg">
+        Sua sessão Senior expirou. Reconecte para sincronizar seus lançamentos pendentes.
+      </p>
+      <div className="ts-reconnect-actions">
+        <button
+          className="ts-reconnect-btn"
+          onClick={handleReconnect}
+          disabled={reconnecting}
+          data-testid="ts-reconnect-btn"
+        >
+          {reconnecting ? 'Reconectando...' : 'Reconectar'}
+        </button>
+        <a
+          href="https://platform.senior.com.br"
+          target="_blank"
+          rel="noreferrer"
+          className="token-login-link"
+        >
+          ou abrir Senior manualmente
+        </a>
+      </div>
+    </div>
+  );
 }

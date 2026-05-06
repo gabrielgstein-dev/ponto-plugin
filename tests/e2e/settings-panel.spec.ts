@@ -39,10 +39,31 @@ test('S-1: painel abre ao clicar e mostra os campos esperados', async () => {
   await page.locator('.settings-toggle').click()
 
   await expect(page.locator('text=Jornada (horas)')).toBeVisible()
+  await expect(page.locator('text=Horário Entrada')).toBeVisible()
   await expect(page.locator('text=Horário Almoço')).toBeVisible()
   await expect(page.locator('text=Duração Almoço (min)')).toBeVisible()
   await expect(page.locator('text=Antecipação Notif. (min)')).toBeVisible()
   await expect(page.locator('text=Lembrete Atraso (min)')).toBeVisible()
+  await page.close()
+})
+
+test('S-1b — BUG 3 — editar Horário Entrada persiste em settings', async () => {
+  const page = await ctx.newPage()
+  await page.goto(popupUrl)
+  await page.waitForLoadState('domcontentloaded')
+  await page.locator('.settings-toggle').click()
+
+  const row = page.locator('.setting-row', { hasText: 'Horário Entrada' })
+  const input = row.locator('input[type="time"]')
+  await input.fill('07:30')
+  await input.blur()
+  await page.waitForTimeout(300)
+
+  const stored = await page.evaluate(async () => {
+    const data = await chrome.storage.local.get('pontoSettings')
+    return data.pontoSettings
+  })
+  expect(stored.entradaHorario).toBe('07:30')
   await page.close()
 })
 

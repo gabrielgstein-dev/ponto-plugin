@@ -47,6 +47,51 @@ function timeOf(name: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+describe('scheduleNotifications() — entrada (jornada não iniciada)', () => {
+  beforeEach(() => {
+    // Volta o relógio para 07:00 para que entrada=08:00 ainda esteja no futuro
+    vi.setSystemTime(new Date(2026, 3, 28, 7, 0, 0))
+  })
+
+  it('agenda 4 alarmes para entrada usando settings.entradaHorario (default 08:00)', () => {
+    // entrada=null → entradaHorario=08:00 → notifs em 07:50, 07:55, 08:00, 08:30
+    scheduleNotifications(null, null, null, null)
+    const keys = alarmKeys()
+    expect(keys).toContain('notif_entrada')
+    expect(keys).toContain('notif_entrada_5')
+    expect(keys).toContain('punch_popup_entrada')
+    expect(keys).toContain('reminder_entrada')
+    expect(timeOf('notif_entrada')).toBe('07:50')
+    expect(timeOf('notif_entrada_5')).toBe('07:55')
+    expect(timeOf('punch_popup_entrada')).toBe('08:00')
+    expect(timeOf('reminder_entrada')).toBe('08:30')
+  })
+
+  it('grava mensagens no storage para entrada (BUG 3 — usuários não recebiam essa)', () => {
+    scheduleNotifications(null, null, null, null)
+    const sets = mockStorageSet.mock.calls.map(c => c[0] as Record<string, unknown>)
+    expect(sets).toContainEqual({ alarm_msg_notif_entrada: 'Hora de bater entrada em 10 minutos!' })
+    expect(sets).toContainEqual({ alarm_msg_notif_entrada_5: 'Hora de bater entrada em 5 minutos!' })
+    expect(sets).toContainEqual({ alarm_time_punch_popup_entrada: '08:00' })
+    expect(sets).toContainEqual({ alarm_msg_reminder_entrada: 'Você ainda não bateu a entrada! (30 min em atraso)' })
+  })
+
+  it('respeita settings.entradaHorario customizado (07:30)', () => {
+    applySettings({ ...DEFAULT_SETTINGS, entradaHorario: '07:30' })
+    vi.setSystemTime(new Date(2026, 3, 28, 6, 0, 0))
+    scheduleNotifications(null, null, null, null)
+    expect(timeOf('punch_popup_entrada')).toBe('07:30')
+    expect(timeOf('notif_entrada')).toBe('07:20')
+  })
+
+  it('NÃO agenda entrada quando entrada já foi batida (entMin truthy)', () => {
+    vi.setSystemTime(new Date(2026, 3, 28, 9, 0, 0))
+    scheduleNotifications(480, null, null, null)
+    const keys = alarmKeys()
+    expect(keys.some(k => k.includes('entrada'))).toBe(false)
+  })
+})
+
 describe('scheduleNotifications() — almoço (1 ponto: entrada)', () => {
   it('agenda 4 alarmes (10min, 5min, popup, atraso) com defaults', () => {
     // entrada=08:00, almoco=null → almocoHorario=12:00 → notifs em 11:50, 11:55, 12:00, 12:30
@@ -71,9 +116,13 @@ describe('scheduleNotifications() — almoço (1 ponto: entrada)', () => {
     expect(sets).toContainEqual({ alarm_msg_reminder_almoco: 'Você ainda não bateu o almoço! (30 min em atraso)' })
   })
 
-  it('NÃO agenda quando entrada não foi batida', () => {
+  it('com entrada=null, agenda entrada (não almoço) — almoço só vem após entrada batida', () => {
+    // BUG 3 regression — antes, com entrada=null, NADA era agendado.
+    // Agora, com entrada=null, agenda APENAS entrada (almoço aparece depois).
     scheduleNotifications(null, null, null, null)
-    expect(mockAlarmsCreate).not.toHaveBeenCalled()
+    const keys = alarmKeys()
+    expect(keys.some(k => k.startsWith('notif_almoco'))).toBe(false)
+    expect(keys.some(k => k.startsWith('punch_popup_almoco'))).toBe(false)
   })
 })
 
@@ -160,6 +209,17 @@ describe('scheduleNotifications() — janela de tempo', () => {
     scheduleNotifications(480, null, null, 8 * 60 + 30)
     const keys = alarmKeys()
     expect(keys.some(k => k.includes('saida'))).toBe(false)
+  })
+
+  it('quando entradaHorario já passou (FAKE_NOW=09:00 > 08:00), entrada não é agendada', () => {
+    // FAKE_NOW=09:00 e entradaHorario=08:00 → todos os alarmes de entrada já passaram.
+    // O slot tem que ser "silencioso" depois do horário, não acumular alarms ruidosos.
+    scheduleNotifications(null, null, null, null)
+    const keys = alarmKeys()
+    expect(keys.some(k => k.startsWith('notif_entrada'))).toBe(false)
+    expect(keys.some(k => k.startsWith('punch_popup_entrada'))).toBe(false)
+    // reminder_entrada (08:30) também já passou
+    expect(keys).not.toContain('reminder_entrada')
   })
 
   it('chamadas repetidas com mesmos slots não duplicam alarmes (notifScheduled)', () => {

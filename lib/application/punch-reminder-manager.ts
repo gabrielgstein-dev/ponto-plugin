@@ -7,8 +7,9 @@ export async function startReminder(slot: PunchReminderSlot, expectedTime: strin
   const data = await chrome.storage.local.get(['pontoState', 'punchPopupWindowId']);
   const ps = data.pontoState as PunchState | null;
 
-  // Guard P6: jornada não iniciada
-  if (!ps?.entrada) return;
+  // Guard P6: jornada não iniciada (não se aplica ao slot 'entrada' — o popup
+  // de entrada serve justamente para lembrar de iniciar a jornada)
+  if (slot !== 'entrada' && !ps?.entrada) return;
 
   // Guard P7: jornada encerrada
   if (ps?.saida) {
@@ -18,7 +19,7 @@ export async function startReminder(slot: PunchReminderSlot, expectedTime: strin
   }
 
   // Guard P3: slot já batido
-  if (ps[slot]) return;
+  if (ps?.[slot]) return;
 
   // Salva keys ANTES de abrir janela (P1.4, P1.5)
   await chrome.storage.local.set({ punchPopupSlot: slot, punchPopupExpectedTime: expectedTime });
@@ -53,8 +54,8 @@ export async function recheckReminder(): Promise<void> {
 
   if (!slot) return;
 
-  // Guard P6: sem entrada registrada
-  if (!ps?.entrada) {
+  // Guard P6: sem entrada registrada (não se aplica ao slot 'entrada')
+  if (slot !== 'entrada' && !ps?.entrada) {
     await resolveReminder(slot);
     return;
   }
@@ -66,7 +67,7 @@ export async function recheckReminder(): Promise<void> {
   }
 
   // Slot já batido?
-  if (ps[slot]) {
+  if (ps?.[slot]) {
     await resolveReminder(slot);
     return;
   }
