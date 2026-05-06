@@ -14,6 +14,7 @@
  */
 import type { TimesheetConfig } from '../../timesheet/timesheet-config';
 import { debugLog, debugWarn } from '../../../domain/debug';
+import { waitForNavigation } from '../../../domain/web-nav-utils';
 
 export interface TabFetchInit {
   method?: string;
@@ -70,60 +71,28 @@ async function findPlatformTab(platformUrl: string): Promise<chrome.tabs.Tab | n
   return tabs.find(t => t.url?.startsWith(origin)) ?? null;
 }
 
-async function waitForTabComplete(tabId: number, timeoutMs = 30_000): Promise<boolean> {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const tab = await chrome.tabs.get(tabId);
-      if (tab.status === 'complete') return true;
-    } catch (_) {
-      return false;
-    }
-    await new Promise(resolve => setTimeout(resolve, 250));
-  }
-  return false;
-}
-
-async function isTabOnPlatform(tabId: number, platformUrl: string): Promise<boolean> {
+async function isTabOnPlatform(tabId: number, platformUrl: string, expectedPath?: string): Promise<boolean> {
   try {
     const tab = await chrome.tabs.get(tabId);
     const origin = new URL(platformUrl).origin;
-    return tab.url?.startsWith(origin) ?? false;
+    if (!tab.url?.startsWith(origin)) return false;
+    // Quando temos um path esperado (ex.: /modules/timesheet/create), validamos
+    // pra não reusar abas paradas em /login (frame instável → executeScript falha).
+    if (expectedPath && !tab.url.includes(expectedPath)) return false;
+    return true;
   } catch {
     return false;
   }
 }
 
-/**
- * Acompanha o redirect chain do SSO (ex.: Senior login → senior-x →
- * plataforma) e resolve quando a aba chega no origin alvo com a página
- * carregada. Espera no máximo `timeoutMs` no total.
- */
-async function waitForRedirectToOrigin(
-  tabId: number,
-  platformUrl: string,
-  timeoutMs = 15_000,
-): Promise<boolean> {
-  const origin = new URL(platformUrl).origin;
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const tab = await chrome.tabs.get(tabId);
-      if (tab.url?.startsWith(origin) && tab.status === 'complete') return true;
-    } catch (_) {
-      return false;
-    }
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
-  return false;
-}
-
 async function getOrCreateTab(
   config: TimesheetConfig,
 ): Promise<CachedTab | null> {
+  const expected = config.expectedPathContains ?? new URL(config.platformUrl).pathname;
+
   // 1. Cache hit: usa a aba que abrimos antes (se ainda existe e está no domínio certo).
   if (cachedTab) {
-    if (await isTabOnPlatform(cachedTab.tabId, config.platformUrl)) {
+    if (await isTabOnPlatform(cachedTab.tabId, config.platformUrl, expected)) {
       return cachedTab;
     }
     cachedTab = null;
@@ -132,54 +101,50 @@ async function getOrCreateTab(
   // 2. Existing tab: o usuário pode já estar com plataforma.meta.com.br aberta.
   const existing = await findPlatformTab(config.platformUrl);
   if (existing?.id != null) {
-    cachedTab = { tabId: existing.id, ownership: 'reused' };
-    return cachedTab;
+    // Aba do usuário pode estar em rota qualquer da plataforma. Se já está
+    // na rota esperada, reusa; senão aguarda navegação até lá (sem
+    // intervenção, alguns SPAs recolocam ?callbackUrl no histórico).
+    if (existing.url?.includes(expected)) {
+      cachedTab = { tabId: existing.id, ownership: 'reused' };
+      return cachedTab;
+    }
+    const landed = await waitForNavigation(existing.id, { urlContains: expected, timeoutMs: 5_000 });
+    if (landed) {
+      cachedTab = { tabId: existing.id, ownership: 'reused' };
+      return cachedTab;
+    }
+    // Aba existente não navegou pra rota esperada — segue pra criar nova
+    // (background fica responsável; sidepanel pede via mensagem).
   }
 
-  // 3. Cria uma nova aba inativa. Se houver bootstrapUrl, abrimos por ela
-  //    pra disparar o SSO completo; o redirect chain deve terminar em
-  //    `platformUrl` (que é o origin que a API aceita).
+  // 3. Cria uma nova aba inativa. bootstrapUrl deve dispar SSO + landing
+  //    na rota esperada (ex.: /modules/timesheet/create).
   const startUrl = config.bootstrapUrl ?? config.platformUrl;
   try {
     const tab = await chrome.tabs.create({ url: startUrl, active: false });
     if (tab.id == null) return null;
     debugLog(`${config.name} fetchViaTab: aba criada (id=${tab.id}, url=${startUrl})`);
 
-    const ready = await waitForTabComplete(tab.id);
-    if (!ready) {
-      debugWarn(`${config.name} fetchViaTab: aba não ficou pronta`);
-      try { await chrome.tabs.remove(tab.id); } catch (_) { /* ignore */ }
-      return null;
-    }
-
-    // Quando passamos por bootstrapUrl, esperamos o redirect chain terminar
-    // no origin alvo. Caso contrário, basta uma pausa pro SPA bootstrap.
-    if (config.bootstrapUrl) {
-      const landed = await waitForRedirectToOrigin(tab.id, config.platformUrl);
-      if (!landed) {
-        const finalTab = await chrome.tabs.get(tab.id).catch(() => null);
-        debugWarn(
-          `${config.name} fetchViaTab: SSO não terminou em ${new URL(config.platformUrl).origin}`,
-          'url=' + (finalTab?.url ?? 'unknown'),
-        );
-        try { await chrome.tabs.remove(tab.id); } catch (_) { /* ignore */ }
-        return null;
-      }
-    }
-
-    // Pausa extra pro SPA / service worker da plataforma se registrar
-    // antes do primeiro fetch autenticado.
-    await new Promise(resolve => setTimeout(resolve, POST_COMPLETE_DELAY_MS));
-
-    if (!(await isTabOnPlatform(tab.id, config.platformUrl))) {
+    // webNavigation.onCompleted é a forma confiável de saber que a SPA
+    // terminou o redirect chain do SSO. Aguarda URL conter a rota
+    // esperada — só então o frame está estável pra executeScript.
+    const landed = await waitForNavigation(tab.id, {
+      urlContains: expected,
+      timeoutMs: 30_000,
+    });
+    if (!landed) {
       const finalTab = await chrome.tabs.get(tab.id).catch(() => null);
       debugWarn(
-        `${config.name} fetchViaTab: aba não está no origin esperado`,
+        `${config.name} fetchViaTab: navegação não chegou em ${expected}`,
         'url=' + (finalTab?.url ?? 'unknown'),
       );
       try { await chrome.tabs.remove(tab.id); } catch (_) { /* ignore */ }
       return null;
     }
+
+    // Pausa curta pro service worker / interceptors da SPA registrarem
+    // antes do primeiro fetch autenticado.
+    await new Promise(resolve => setTimeout(resolve, POST_COMPLETE_DELAY_MS));
 
     cachedTab = { tabId: tab.id, ownership: 'created' };
     return cachedTab;

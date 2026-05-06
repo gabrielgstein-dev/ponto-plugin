@@ -11,6 +11,7 @@ export const META_TIMESHEET_CONFIG: TimesheetConfig = {
   // falham com "Failed to fetch" mesmo com token válido.
   // O SSO via Senior é encadeado pela própria plataforma.
   bootstrapUrl: 'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create',
+  expectedPathContains: '/modules/timesheet/create',
   sessionEndpoint: '/api/auth/session',
   timesheetsBase: '/timesheets/v1',
   // Rede de segurança contra tokens absurdamente velhos no storage. Se o

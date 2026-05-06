@@ -128,20 +128,21 @@ describe('fetchViaMetaTab', () => {
     expect(mockTabsRemove).toHaveBeenCalledWith(50)
   })
 
-  it('retorna null quando a aba criada redireciona para fora do origin', async () => {
+  it('retorna null quando a aba criada não chega no path esperado dentro do timeout', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     mockTabsQuery.mockResolvedValue([])
     mockTabsCreate.mockResolvedValue({ id: 80 })
-    ;(globalThis.chrome.tabs.get as any) = vi.fn()
-      .mockResolvedValueOnce({ id: 80, status: 'complete', url: 'https://plataforma.meta.com.br/' })
-      .mockResolvedValue({
-        id: 80,
-        status: 'complete',
-        url: 'https://platform.senior.com.br/login/?tenant=meta.com.br',
-      })
+    // URL nunca contém o path esperado ('/' default → sempre passa neste cenário,
+    // por isso usamos um config com path explícito que a aba nunca alcança).
+    ;(globalThis.chrome.tabs.get as any) = vi.fn().mockResolvedValue({
+      id: 80,
+      status: 'complete',
+      url: 'https://platform.senior.com.br/login/?tenant=meta.com.br',
+    })
 
-    const promise = fetchViaMetaTab(CONFIG, 'https://api.meta.com.br/x')
-    await vi.advanceTimersByTimeAsync(3_000)
+    const CONFIG_WITH_PATH = { ...CONFIG, expectedPathContains: '/timesheet/create' }
+    const promise = fetchViaMetaTab(CONFIG_WITH_PATH, 'https://api.meta.com.br/x')
+    await vi.advanceTimersByTimeAsync(31_000) // > timeout default (30s)
     const r = await promise
     vi.useRealTimers()
 
@@ -286,11 +287,12 @@ describe('fetchViaMetaTab', () => {
     vi.useRealTimers()
   })
 
-  it('com bootstrapUrl, retorna null e fecha aba se SSO não termina no origin esperado', async () => {
+  it('com bootstrapUrl, retorna null e fecha aba se SSO não termina no path esperado', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const CONFIG_BOOT: TimesheetConfig = {
       ...CONFIG,
       bootstrapUrl: 'https://platform.senior.com.br/login/?tenant=meta.com.br',
+      expectedPathContains: '/modules/timesheet/create',
     }
     mockTabsQuery.mockResolvedValue([])
     mockTabsCreate.mockResolvedValue({ id: 201 })
@@ -302,7 +304,7 @@ describe('fetchViaMetaTab', () => {
     })
 
     const promise = fetchViaMetaTab(CONFIG_BOOT, 'https://api.meta.com.br/x')
-    await vi.advanceTimersByTimeAsync(16_000)
+    await vi.advanceTimersByTimeAsync(31_000) // > timeout default
     const r = await promise
     vi.useRealTimers()
 
