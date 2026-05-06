@@ -61,6 +61,20 @@ describe('useTimesheetData', () => {
     mockBuildFlags.ENABLE_META_TIMESHEET = true
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date(2026, 3, 15)) // April 2026
+    // Sidepanel agora delega TS_GET_SUMMARY / TS_UPDATE_ENTRY ao service
+    // worker via sendMessage (em vez de chamar provider direto). O teste
+    // intercepta os tipos certos e responde com o que os spies retornariam.
+    mockRuntimeSendMessage.mockImplementation(async (msg: { type: string; period?: string; entryId?: string; entry?: unknown; body?: { observation: string; hourQuantity: number } }) => {
+      if (msg?.type === 'TS_GET_SUMMARY') {
+        const summary = await getSummarySpy(msg.period)
+        return { ok: !!summary, summary }
+      }
+      if (msg?.type === 'TS_UPDATE_ENTRY') {
+        const ok = await updateEntrySpy(msg.entryId, msg.entry, msg.body)
+        return { ok: !!ok }
+      }
+      return { ok: false }
+    })
   })
 
   it('skips loading when feature is disabled', async () => {
@@ -136,7 +150,9 @@ describe('useTimesheetData', () => {
     })
     const { result } = renderHook(() => useTimesheetData())
     await waitFor(() => expect(result.current.summary?.entries.length).toBe(1))
-    expect(mockStorageSet).toHaveBeenCalled()
+    // Sidepanel agora delega TS_GET_SUMMARY ao service worker; persistência
+    // do timesheetSummaryCache é responsabilidade do background.
+    expect(mockRuntimeSendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'TS_GET_SUMMARY' }))
   })
 
   it('handles getSummary returning null', async () => {

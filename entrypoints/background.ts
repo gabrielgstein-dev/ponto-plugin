@@ -7,7 +7,7 @@ import type { PunchReminderSlot } from '../lib/domain/types';
 import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
 import { addPendingPunch, loadPendingPunches } from '../lib/application/detect-punches';
-import { resetGpPunchCache } from '#company/providers';
+import { resetGpPunchCache, getTimesheetProvider } from '#company/providers';
 import { resetSeniorApiCache } from '../lib/infrastructure/senior/senior-api-provider';
 import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-storage-provider';
 import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
@@ -112,6 +112,43 @@ export default defineBackground(() => {
       // Vem do sidepanel quando o usuário abriu o painel e o token está
       // expirado — único momento em que abrir aba via SSO faz sentido (BUG 1+2).
       backgroundTimesheetSync(true).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'TS_GET_SUMMARY') {
+      // Centralizado no service worker: a aba do meta-ts é criada/reutilizada
+      // só aqui (mutex de módulo cobre). Sidepanel não chama provider direto
+      // pra evitar 2 contextos criando abas em paralelo.
+      const period = message.period as string | undefined;
+      if (!period) { sendResponse({ ok: false, error: 'period required' }); return true; }
+      (async () => {
+        try {
+          const provider = getTimesheetProvider();
+          const summary = await provider.getSummary(period);
+          if (summary) {
+            await chrome.storage.local.set({ timesheetSummaryCache: summary, timesheetSyncTs: Date.now() });
+          }
+          sendResponse({ ok: true, summary });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+      })();
+      return true;
+    }
+    if (message.type === 'TS_UPDATE_ENTRY') {
+      const { entryId, entry, body } = message as {
+        entryId: string;
+        entry: import('../lib/domain/types').TimesheetEntry;
+        body: { observation: string; hourQuantity: number };
+      };
+      (async () => {
+        try {
+          const provider = getTimesheetProvider();
+          const ok = await provider.updateEntry(entryId, entry, body);
+          sendResponse({ ok });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+      })();
       return true;
     }
     if (message.type === 'TEST_TS_NOTIFICATION') {

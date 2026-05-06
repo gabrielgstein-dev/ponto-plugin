@@ -68,11 +68,17 @@ export function useTimesheetData() {
       setAvailable(isOk);
       syncRequestedRef.current = false;
       setConnecting(false);
-      const result = await provider.getSummary(period);
+      // Delega ao service worker pra evitar abas paralelas (sidepanel +
+      // background criando aba ao mesmo tempo). Background tem mutex de
+      // módulo natural — apenas 1 contexto criando aba.
+      const response = await chrome.runtime.sendMessage({ type: 'TS_GET_SUMMARY', period }).catch(() => null) as
+        | { ok: boolean; summary?: TimesheetSummary }
+        | null;
+      const result = response?.ok ? response.summary : undefined;
       if (result) {
         setSummary(result);
         hasCacheRef.current = true;
-        chrome.storage.local.set({ timesheetSummaryCache: result });
+        // Background já persistiu em storage; sidepanel só atualiza state local.
       }
     } catch (e) {
       debugWarn('Timesheet load error:', (e as Error).message);
@@ -132,8 +138,13 @@ export function useTimesheetData() {
     }
     
     debugLog(`updateEntry: TS=${entry.hourQuantity.toFixed(2)}h GP=${gpHours?.toFixed(2) ?? 'N/A'} → usando ${hourQuantity.toFixed(2)}h (manual: ${hasMultipleCostCenters})`);
-    const provider = getTimesheetProvider();
-    const ok = await provider.updateEntry(entry.id, entry, { observation, hourQuantity });
+    const response = await chrome.runtime.sendMessage({
+      type: 'TS_UPDATE_ENTRY',
+      entryId: entry.id,
+      entry,
+      body: { observation, hourQuantity },
+    }).catch(() => null) as { ok: boolean } | null;
+    const ok = !!response?.ok;
     if (ok && summary) {
       setSummary({
         ...summary,
@@ -160,8 +171,13 @@ export function useTimesheetData() {
     ).join('\n');
     
     debugLog(`updateEntryWithAllocations: ${allocations.length} alocações, total ${totalHours.toFixed(2)}h`);
-    const provider = getTimesheetProvider();
-    const ok = await provider.updateEntry(entry.id, entry, { observation, hourQuantity: totalHours });
+    const response = await chrome.runtime.sendMessage({
+      type: 'TS_UPDATE_ENTRY',
+      entryId: entry.id,
+      entry,
+      body: { observation, hourQuantity: totalHours },
+    }).catch(() => null) as { ok: boolean } | null;
+    const ok = !!response?.ok;
     if (ok && summary) {
       setSummary({
         ...summary,
