@@ -5,6 +5,7 @@ import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../../senior/senior-page-auth';
 import { refreshSeniorTokenSilently } from '../../senior/senior-token-refresh';
 import { debugLog, debugWarn } from '../../../domain/debug';
+import { logError } from '../../../domain/error-logger';
 
 export async function getGpAssertion(force = false): Promise<GpAuthData | null> {
   const stored = await chrome.storage.local.get(['gpAssertion', 'gpAssertionTs', 'gestaoPontoColaboradorId', 'gestaoPontoCodigoCalculo']);
@@ -57,13 +58,23 @@ async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
       body: '{}',
     });
     if (!r.ok) {
-      debugWarn('GP auth/g7 falhou:', r.status);
       const shouldRefresh = r.status === 401 || r.status === 403;
+      logError(new Error(`GP auth/g7 returned ${r.status}`), {
+        category: 'auth',
+        severity: shouldRefresh ? 'medium' : 'high',
+        operation: 'callGpAuthG7',
+        metadata: { status: r.status, willRefresh: shouldRefresh },
+      });
       return { ok: false, data: null, shouldRefresh };
     }
     const json = await r.json();
     if (!json.token) {
-      debugWarn('GP auth/g7: resposta sem token');
+      logError(new Error('GP auth/g7 response missing token'), {
+        category: 'auth',
+        severity: 'high',
+        operation: 'callGpAuthG7',
+        metadata: { responseKeys: Object.keys(json ?? {}) },
+      });
       return { ok: false, data: null, shouldRefresh: false };
     }
 
@@ -76,7 +87,11 @@ async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
     debugLog('GP auth/g7 OK, colaboradorId:', colaboradorId, 'codigoCalculo:', codigoCalculo, 'userRange:', JSON.stringify(json.userRange)?.substring(0, 200));
     return { ok: true, data: { assertion: json.token, colaboradorId, codigoCalculo }, shouldRefresh: false };
   } catch (e) {
-    debugWarn('GP auth/g7 erro:', (e as Error).message);
+    logError(e, {
+      category: 'network',
+      severity: 'high',
+      operation: 'callGpAuthG7',
+    });
     return { ok: false, data: null, shouldRefresh: false };
   }
 }
@@ -105,7 +120,11 @@ async function getSeniorAccessToken(): Promise<string | null> {
       if (refreshed) return refreshed;
     }
   } catch (e) {
-    debugWarn('getSeniorAccessToken: erro ao ler storage:', (e as Error).message);
+    logError(e, {
+      category: 'storage',
+      severity: 'medium',
+      operation: 'getSeniorAccessToken.readStorage',
+    });
   }
 
   debugLog('getSeniorAccessToken: nenhuma fonte de token disponível');

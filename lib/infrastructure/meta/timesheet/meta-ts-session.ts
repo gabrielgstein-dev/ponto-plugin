@@ -14,7 +14,8 @@
  */
 import type { TimesheetConfig } from '../../timesheet/timesheet-config';
 import type { TimesheetAuth } from '../../timesheet/timesheet-auth';
-import { debugLog, debugWarn } from '../../../domain/debug';
+import { debugLog } from '../../../domain/debug';
+import { logError } from '../../../domain/error-logger';
 
 async function findExistingPlatformTab(platformUrl: string): Promise<number | null> {
   try {
@@ -22,7 +23,12 @@ async function findExistingPlatformTab(platformUrl: string): Promise<number | nu
     const tabs = await chrome.tabs.query({ status: 'complete' });
     const tab = tabs.find(t => t.url?.startsWith(origin) && t.id != null);
     return tab?.id ?? null;
-  } catch {
+  } catch (e) {
+    logError(e, {
+      category: 'unknown',
+      severity: 'low',
+      operation: 'meta-ts-session.findExistingPlatformTab',
+    });
     return null;
   }
 }
@@ -46,7 +52,12 @@ async function fetchSessionViaTab(tabId: number): Promise<string | null> {
     const token = results?.[0]?.result;
     return (typeof token === 'string' && token.length > 20) ? token : null;
   } catch (e) {
-    debugWarn('meta-ts-session: erro no scripting via aba:', (e as Error).message);
+    logError(e, {
+      category: 'auth',
+      severity: 'medium',
+      operation: 'meta-ts-session.fetchSessionViaTab',
+      metadata: { tabId },
+    });
     return null;
   }
 }
@@ -60,7 +71,12 @@ async function fetchSessionViaBackground(platformUrl: string): Promise<string | 
     const data = await r.json() as { accessToken?: string };
     return data?.accessToken ?? null;
   } catch (e) {
-    debugWarn('meta-ts-session: fetch direto do background falhou:', (e as Error).message);
+    logError(e, {
+      category: 'network',
+      severity: 'medium',
+      operation: 'meta-ts-session.fetchSessionViaBackground',
+      metadata: { url: `${platformUrl}/api/auth/session` },
+    });
     return null;
   }
 }

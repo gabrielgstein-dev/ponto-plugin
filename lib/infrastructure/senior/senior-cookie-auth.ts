@@ -1,6 +1,7 @@
 import type { IAuthProvider } from '../../domain/interfaces';
 import { persistSeniorTokens } from './senior-token-refresh';
-import { debugLog, debugWarn } from '../../domain/debug';
+import { debugLog } from '../../domain/debug';
+import { logError } from '../../domain/error-logger';
 
 export class SeniorCookieAuth implements IAuthProvider {
   readonly name = 'cookie';
@@ -22,12 +23,22 @@ export class SeniorCookieAuth implements IAuthProvider {
       const token = this.extractToken(obj);
       if (token) {
         // Persiste no storage para sobreviver ao browser fechar (cookie pode ser de sessão)
-        persistSeniorTokens({ access_token: token, refresh_token: obj.refresh_token }).catch(() => {});
+        persistSeniorTokens({ access_token: token, refresh_token: obj.refresh_token as string | undefined }).catch((e) => {
+          logError(e, {
+            category: 'storage',
+            severity: 'low',
+            operation: 'SeniorCookieAuth.persistTokens',
+          });
+        });
         return token;
       }
       debugLog('SeniorCookieAuth: access_token não encontrado em nenhuma estrutura');
     } catch (e) {
-      debugWarn('Cookie auth erro:', (e as Error).message);
+      logError(e, {
+        category: 'auth',
+        severity: 'medium',
+        operation: 'SeniorCookieAuth.getAccessToken',
+      });
     }
     return null;
   }

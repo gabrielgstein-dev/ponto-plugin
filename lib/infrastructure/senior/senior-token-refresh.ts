@@ -1,5 +1,6 @@
 import { SENIOR_API_BASE, SENIOR_TOKEN_MAX_AGE_MS } from './constants';
 import { debugLog, debugWarn } from '../../domain/debug';
+import { logError } from '../../domain/error-logger';
 
 const REFRESH_ENDPOINT = `${SENIOR_API_BASE}/platform/authentication/actions/refreshToken`;
 const STORAGE_KEYS = ['seniorToken', 'seniorTokenTs', 'seniorRefreshToken'] as const;
@@ -53,14 +54,24 @@ export async function refreshSeniorTokenSilently(opts: { force?: boolean } = {})
     });
 
     if (!r.ok) {
-      debugWarn('Senior refresh: endpoint retornou', r.status);
+      logError(new Error(`refresh endpoint returned ${r.status}`), {
+        category: 'auth',
+        severity: 'high',
+        operation: 'refreshSeniorTokenSilently',
+        metadata: { status: r.status, force: opts.force ?? false },
+      });
       return null;
     }
 
     const json = await r.json();
     const newToken = json.access_token;
     if (!newToken) {
-      debugWarn('Senior refresh: resposta sem access_token', JSON.stringify(json).substring(0, 100));
+      logError(new Error('refresh response missing access_token'), {
+        category: 'auth',
+        severity: 'high',
+        operation: 'refreshSeniorTokenSilently',
+        metadata: { responseKeys: Object.keys(json ?? {}) },
+      });
       return null;
     }
 
@@ -68,7 +79,12 @@ export async function refreshSeniorTokenSilently(opts: { force?: boolean } = {})
     debugLog('Senior refresh: token renovado com sucesso');
     return newToken;
   } catch (e) {
-    debugWarn('Senior refresh erro:', (e as Error).message);
+    logError(e, {
+      category: 'auth',
+      severity: 'high',
+      operation: 'refreshSeniorTokenSilently',
+      metadata: { force: opts.force ?? false },
+    });
     return null;
   }
 }
