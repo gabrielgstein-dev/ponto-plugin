@@ -79,11 +79,24 @@ async function attemptGpAuth(tabId: number): Promise<boolean> {
   const token = await getAnyAccessToken();
   if (!token) return false;
 
+  // DIAG: o fetch dentro do executeScript engolia falhas (return null);
+  // sem visibilidade do status/body real, \u00e9 imposs\u00edvel distinguir entre
+  // "401 origin errado", "401 token errado", "ok mas json sem token",
+  // "rota da aba inadequada" etc. Captura agora todos os sinais e devolve
+  // pra c\u00e1 pra logar fora do contexto da aba.
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     world: 'MAIN',
     args: [token],
     func: async (accessToken: string) => {
+      const diag = {
+        ok: false,
+        status: 0,
+        bodyPreview: '',
+        jsonKeys: [] as string[],
+        url: location.href,
+        error: null as string | null,
+      };
       try {
         const r = await fetch('/gestaoponto-backend/api/senior/auth/g7', {
           method: 'POST',
@@ -95,9 +108,20 @@ async function attemptGpAuth(tabId: number): Promise<boolean> {
           },
           body: '{}',
         });
-        if (!r.ok) return null;
-        const json = await r.json();
-        if (!json.token) return null;
+        diag.status = r.status;
+        diag.ok = r.ok;
+        const text = await r.text();
+        diag.bodyPreview = text.substring(0, 300);
+        if (!r.ok) return { diag };
+        let json: { token?: string; userRange?: unknown; colaborador?: { id?: string }; urlPlataforma?: string };
+        try {
+          json = JSON.parse(text);
+          diag.jsonKeys = Object.keys(json);
+        } catch (e) {
+          diag.error = 'json parse: ' + (e as Error).message;
+          return { diag };
+        }
+        if (!json.token) return { diag };
         const session: Record<string, unknown> = {
           token: json.token,
           platformUrl: json.urlPlataforma || '',
@@ -118,18 +142,28 @@ async function attemptGpAuth(tabId: number): Promise<boolean> {
         }
 
         return {
+          diag,
           colaboradorId: json.colaborador?.id ?? null,
           codigoCalculo,
         };
-      } catch (_) { return null; }
+      } catch (e) {
+        diag.error = (e as Error).message;
+        return { diag };
+      }
     },
   });
 
-  const res = results?.[0]?.result;
+  const res = results?.[0]?.result as
+    | { diag: Record<string, unknown>; colaboradorId?: string | null; codigoCalculo?: string | null }
+    | undefined;
+
+  if (res?.diag) {
+    debugLog('[diag] attemptGpAuth result:', JSON.stringify(res.diag));
+  }
   if (res?.colaboradorId) {
     const save: Record<string, unknown> = { gestaoPontoColaboradorId: res.colaboradorId };
     if (res.codigoCalculo) save.gestaoPontoCodigoCalculo = res.codigoCalculo;
     chrome.storage.local.set(save);
   }
-  return !!res;
+  return !!res?.colaboradorId;
 }
