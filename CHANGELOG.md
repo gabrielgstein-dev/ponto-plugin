@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.6.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.5.0...senior-ponto-v0.6.0) (2026-05-07)
+
+
+### Novidades
+
+* **auth:** refresh silencioso robusto atrás de feature flag ([d620018](https://github.com/gabrielgstein-dev/ponto-plugin/commit/d6200181b6796ab1920d92f2aa151891c19e08aa))
+* **auth:** silent refresh + storage listener filtrado + single-flight TS sync ([759ed72](https://github.com/gabrielgstein-dev/ponto-plugin/commit/759ed726bfd21bf8acca26e36e82d3757f7591e7))
+* **error-logger:** logging estruturado de erros (auth) ([6fbb9c0](https://github.com/gabrielgstein-dev/ponto-plugin/commit/6fbb9c030a8742bd47f2d1d79ef73f09e2fe0d7e))
+* **meta-ts:** aguarda webNavigation.onCompleted antes de executeScript ([db117ea](https://github.com/gabrielgstein-dev/ponto-plugin/commit/db117eabfadadab6db141b652423a1bd30171614))
+* **meta-ts:** centraliza fetch no service worker (single tab owner) ([5de7d7b](https://github.com/gabrielgstein-dev/ponto-plugin/commit/5de7d7b801d8f8b2c923a1b9ade39cf92f6ee806))
+* **meta-ts:** elimina fluxo via aba — fetch direto via host_permissions ([7adaaf8](https://github.com/gabrielgstein-dev/ponto-plugin/commit/7adaaf8d16862cbe067ecdbf657308f0c3a28f00))
+* **ui:** loading state correto no sidepanel + try/finally robusto ([8fc4a0a](https://github.com/gabrielgstein-dev/ponto-plugin/commit/8fc4a0a40b771266f9e1cfa2e8fd6d3c9124a334))
+
+
+### Correções
+
+* **auth+ui:** destrava UI presa, refresh robusto + override manual ([7aa1116](https://github.com/gabrielgstein-dev/ponto-plugin/commit/7aa1116f5f12372043c666af8ab9af8a3768b5c7))
+* **auth:** preserva token + UI Reconectar no sidepanel quando sessão expira ([0fe5e49](https://github.com/gabrielgstein-dev/ponto-plugin/commit/0fe5e49ce5247a6079341ac2d87974ba9e61dde5))
+* **background:** nunca abre abas em ciclos automáticos (background silencioso) ([84418da](https://github.com/gabrielgstein-dev/ponto-plugin/commit/84418dae0db2d2aaa827be501933c2b80e77fae1))
+* corrige 3 bugs críticos reportados (entrada notif, tab spam, auth/login) ([9cac790](https://github.com/gabrielgstein-dev/ponto-plugin/commit/9cac79070c7ca0599674435c9e7836de2bbf4f3b))
+* **meta-ts:** valida exp do Bearer antes de persistir no storage ([6da7516](https://github.com/gabrielgstein-dev/ponto-plugin/commit/6da75160d276867ae54257595835427b39ec9de8))
+* **notifications:** adiciona slot 'entrada' para lembrar início da jornada ([08aef70](https://github.com/gabrielgstein-dev/ponto-plugin/commit/08aef702078612f5b87e8df3b6e87ddd8eca58bd))
+* pathname match URL, link Senior correto, body 5xx em auth/g7 ([1efd954](https://github.com/gabrielgstein-dev/ponto-plugin/commit/1efd9543addb767cbd764fddc98d4ae348198e5b))
+* **senior-auth:** refresh silencioso usando contrato real do endpoint ([9dace71](https://github.com/gabrielgstein-dev/ponto-plugin/commit/9dace7117b9b1cadc488340e7792e6bf0a09d2f3))
+* **senior-auth:** refresh silencioso usando contrato real do endpoint ([447fd5d](https://github.com/gabrielgstein-dev/ponto-plugin/commit/447fd5d9b926d0141f387829c38d8f0af9955007))
+* **senior:** SeniorPageAuth extrai payload.token do sessionStorage Senior X ([467da0c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/467da0c6f6ad5ba5338d0180d92462279e68419b))
+* **ui:** destrava \"Verificando token...\" preso e adiciona override manual ([fe10ac2](https://github.com/gabrielgstein-dev/ponto-plugin/commit/fe10ac262ae6f40b28c56ec8d18e53c5aec3bfc8))
+
+
+### Reversões
+
+* PR [#17](https://github.com/gabrielgstein-dev/ponto-plugin/issues/17) (senior refresh) — regressão em produção ([bfecb33](https://github.com/gabrielgstein-dev/ponto-plugin/commit/bfecb3335d319feb71f42f446fdb662430454824))
+
 ## [0.5.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.4.0...senior-ponto-v0.5.0) (2026-04-30)
 
 
