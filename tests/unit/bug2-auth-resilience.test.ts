@@ -135,44 +135,178 @@ describe('BUG 2 — getGpAssertion ao receber 401/403', () => {
   })
 })
 
-describe('BUG 2 — refreshSeniorTokenSilently com force:true (re-import direto)', () => {
-  beforeEach(() => {
+describe('refreshSeniorTokenSilently — contrato real + proteções', () => {
+  beforeEach(async () => {
     vi.resetModules()
     vi.doUnmock('../../lib/infrastructure/senior/senior-token-refresh')
+    vi.doMock('../../lib/domain/build-flags', () => ({
+      ENABLE_SILENT_REFRESH: true,
+      DEBUG: false,
+      ENABLE_SENIOR_INTEGRATION: true,
+      ENABLE_META_TIMESHEET: true,
+    }))
+    const mod = await import('../../lib/infrastructure/senior/senior-token-refresh')
+    mod._resetForTests()
   })
 
-  it('com force:true, ignora o threshold de 12h e tenta refresh imediato', async () => {
-    // Token recém-criado (idade=0, restaria muito mais que 12h)
-    mockStorageGet.mockResolvedValue({
-      seniorRefreshToken: 'rt-xyz',
-      seniorTokenTs: Date.now(),
-    })
-    ;(globalThis as { fetch: typeof fetch }).fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ access_token: 'new-token', refresh_token: 'rt-xyz' }),
-    }) as Response)
-
-    const { refreshSeniorTokenSilently } = await import(
-      '../../lib/infrastructure/senior/senior-token-refresh'
-    )
-    const result = await refreshSeniorTokenSilently({ force: true })
-    expect(result).toBe('new-token')
-    expect(globalThis.fetch).toHaveBeenCalled()
-  })
-
-  it('sem force, com token recém-criado, pula refresh (preventivo)', async () => {
-    mockStorageGet.mockResolvedValue({
-      seniorRefreshToken: 'rt-xyz',
-      seniorTokenTs: Date.now(),
-    })
-    ;(globalThis as { fetch: typeof fetch }).fetch = vi.fn()
+  it('é no-op quando ENABLE_SILENT_REFRESH=false', async () => {
+    vi.resetModules()
+    vi.doUnmock('../../lib/infrastructure/senior/senior-token-refresh')
+    vi.doMock('../../lib/domain/build-flags', () => ({
+      ENABLE_SILENT_REFRESH: false,
+      DEBUG: false,
+      ENABLE_SENIOR_INTEGRATION: true,
+      ENABLE_META_TIMESHEET: true,
+    }))
+    mockStorageGet.mockResolvedValue({ seniorRefreshToken: 'rt-xyz' })
+    const fetchSpy = vi.fn()
+    ;(globalThis as { fetch: typeof fetch }).fetch = fetchSpy
 
     const { refreshSeniorTokenSilently } = await import(
       '../../lib/infrastructure/senior/senior-token-refresh'
     )
     const result = await refreshSeniorTokenSilently()
     expect(result).toBeNull()
-    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('envia { refreshToken } no body (não { token })', async () => {
+    mockStorageGet.mockResolvedValue({ seniorRefreshToken: 'rt-xyz' })
+    const fetchSpy = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        jsonToken: JSON.stringify({ access_token: 'a', refresh_token: 'b' }),
+      }),
+    }) as Response)
+    ;(globalThis as { fetch: typeof fetch }).fetch = fetchSpy
+
+    const { refreshSeniorTokenSilently } = await import(
+      '../../lib/infrastructure/senior/senior-token-refresh'
+    )
+    await refreshSeniorTokenSilently()
+
+    const [, init] = fetchSpy.mock.calls[0]
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ refreshToken: 'rt-xyz' })
+  })
+
+  it('extrai access_token de jsonToken aninhado e persiste', async () => {
+    mockStorageGet.mockResolvedValue({ seniorRefreshToken: 'rt-old' })
+    ;(globalThis as { fetch: typeof fetch }).fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        jsonToken: JSON.stringify({
+          version: 1,
+          expires_in: 604800,
+          access_token: 'new-access',
+          refresh_token: 'rt-new',
+        }),
+      }),
+    }) as Response)
+
+    const { refreshSeniorTokenSilently } = await import(
+      '../../lib/infrastructure/senior/senior-token-refresh'
+    )
+    const result = await refreshSeniorTokenSilently()
+
+    expect(result).toBe('new-access')
+    const setKeys = mockStorageSet.mock.calls.flatMap(c => Object.entries(c[0] ?? {}))
+    expect(setKeys).toContainEqual(['seniorToken', 'new-access'])
+    expect(setKeys).toContainEqual(['seniorRefreshToken', 'rt-new'])
+  })
+
+  it('chamadas paralelas compartilham a mesma Promise (single-flight)', async () => {
+    mockStorageGet.mockResolvedValue({ seniorRefreshToken: 'rt-xyz' })
+    let fetchCalls = 0
+    ;(globalThis as { fetch: typeof fetch }).fetch = vi.fn(async () => {
+      fetchCalls++
+      // Pequeno delay pra garantir que paralelas se sobrepõem
+      await new Promise(r => setTimeout(r, 10))
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          jsonToken: JSON.stringify({ access_token: 'a', refresh_token: 'b' }),
+        }),
+      } as Response
+    })
+
+    const { refreshSeniorTokenSilently } = await import(
+      '../../lib/infrastructure/senior/senior-token-refresh'
+    )
+    const [r1, r2, r3] = await Promise.all([
+      refreshSeniorTokenSilently(),
+      refreshSeniorTokenSilently(),
+      refreshSeniorTokenSilently(),
+    ])
+
+    expect(r1).toBe('a')
+    expect(r2).toBe('a')
+    expect(r3).toBe('a')
+    expect(fetchCalls).toBe(1) // só 1 fetch real, mesmo com 3 callers
+  })
+
+  it('circuit breaker abre após 3 falhas em 30s', async () => {
+    mockStorageGet.mockResolvedValue({ seniorRefreshToken: 'rt-xyz' })
+    let fetchCalls = 0
+    ;(globalThis as { fetch: typeof fetch }).fetch = vi.fn(async () => {
+      fetchCalls++
+      return { ok: false, status: 500, text: async () => 'err', json: async () => ({}) } as Response
+    })
+
+    const { refreshSeniorTokenSilently } = await import(
+      '../../lib/infrastructure/senior/senior-token-refresh'
+    )
+    await refreshSeniorTokenSilently()
+    await refreshSeniorTokenSilently()
+    await refreshSeniorTokenSilently()
+    expect(fetchCalls).toBe(3)
+
+    // 4ª chamada: circuito aberto, não chama fetch
+    const r4 = await refreshSeniorTokenSilently()
+    expect(r4).toBeNull()
+    expect(fetchCalls).toBe(3)
+  })
+
+  it('retorna null quando endpoint responde 400 (sem propagar exception)', async () => {
+    mockStorageGet.mockResolvedValue({ seniorRefreshToken: 'rt-xyz' })
+    ;(globalThis as { fetch: typeof fetch }).fetch = vi.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => '{"message":"refreshToken is required"}',
+      json: async () => ({}),
+    }) as Response)
+
+    const { refreshSeniorTokenSilently } = await import(
+      '../../lib/infrastructure/senior/senior-token-refresh'
+    )
+    expect(await refreshSeniorTokenSilently()).toBeNull()
+  })
+
+  it('retorna null quando body não tem jsonToken válido', async () => {
+    mockStorageGet.mockResolvedValue({ seniorRefreshToken: 'rt-xyz' })
+    ;(globalThis as { fetch: typeof fetch }).fetch = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ unexpected: 'shape' }),
+    }) as Response)
+
+    const { refreshSeniorTokenSilently } = await import(
+      '../../lib/infrastructure/senior/senior-token-refresh'
+    )
+    expect(await refreshSeniorTokenSilently()).toBeNull()
+  })
+
+  it('retorna null sem fetch quando não há refresh_token no storage', async () => {
+    mockStorageGet.mockResolvedValue({})
+    const fetchSpy = vi.fn()
+    ;(globalThis as { fetch: typeof fetch }).fetch = fetchSpy
+
+    const { refreshSeniorTokenSilently } = await import(
+      '../../lib/infrastructure/senior/senior-token-refresh'
+    )
+    expect(await refreshSeniorTokenSilently()).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

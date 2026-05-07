@@ -6,6 +6,8 @@ import { SeniorPageAuth } from './senior-page-auth';
 import { SeniorInterceptorAuth } from './senior-interceptor-auth';
 import { SENIOR_TOKEN_MAX_AGE_MS } from './constants';
 import { debugWarn } from '../../domain/debug';
+import { executeScriptWithTimeout } from '../../domain/script-utils';
+import { logError } from '../../domain/error-logger';
 
 let _cachedEndpoint: { url: string; method: string; body: string | null } | null = null;
 let _allFailTs = 0;
@@ -66,11 +68,13 @@ export class SeniorApiPunchProvider implements IPunchProvider {
   }
 
   private async fetchViaTab(tabId: number, token: string): Promise<string[]> {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId },
-      world: 'MAIN',
-      args: [token, _cachedEndpoint],
-      func: async (accessToken: string, cached: { url: string; method: string; body: string | null } | null) => {
+    let results;
+    try {
+      results = await executeScriptWithTimeout({
+        target: { tabId },
+        world: 'MAIN',
+        args: [token, _cachedEndpoint],
+        func: async (accessToken: string, cached: { url: string; method: string; body: string | null } | null) => {
         const BASE = 'https://platform.senior.com.br/t/senior.com.br/bridge/1.0/rest';
         const H = { 'Authorization': `bearer ${accessToken}`, 'Content-Type': 'application/json' };
         const d = new Date();
@@ -105,6 +109,19 @@ export class SeniorApiPunchProvider implements IPunchProvider {
         return null;
       },
     });
+    } catch (e) {
+      logError(e, {
+        category: 'detection',
+        severity: 'high',
+        operation: 'SeniorApiPunchProvider.fetchViaTab',
+        metadata: {
+          tabId,
+          isTimeout: (e as { name?: string })?.name === 'ScriptTimeoutError',
+        },
+      });
+      _allFailTs = Date.now();
+      return [];
+    }
 
     const data = results?.[0]?.result;
     if (!data?.text) {
@@ -123,7 +140,13 @@ export class SeniorApiPunchProvider implements IPunchProvider {
         _allFailTs = 0;
       }
       return times;
-    } catch (_) {
+    } catch (e) {
+      logError(e, {
+        category: 'parsing',
+        severity: 'medium',
+        operation: 'SeniorApiPunchProvider.parseResponse',
+        metadata: { url: data.url },
+      });
       _allFailTs = Date.now();
       return [];
     }

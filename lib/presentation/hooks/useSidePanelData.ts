@@ -19,30 +19,37 @@ export function useSidePanelData() {
   const [records, setRecords] = useState<DayRecord[]>([]);
   const [source, setSource] = useState<SidePanelSource>('manual');
   const [periodOffset, setPeriodOffset] = useState(0);
-  const [loadingRecords, setLoadingRecords] = useState(false);
+  // Inicia true porque o useEffect abaixo dispara loadData no primeiro render —
+  // sem isso, há um flash de "Nenhum registro" antes do estado real chegar.
+  const [loadingRecords, setLoadingRecords] = useState(true);
 
   const loadData = useCallback(async () => {
     setLoadingRecords(true);
-    if (ENABLE_SENIOR_INTEGRATION) {
-      const gpResult = await fetchGpHistoryForPeriod(periodOffset);
-      if (gpResult) {
-        setBalance(gpResult.balance);
-        setRecords(gpResult.records.reverse());
-        setSource('gp');
-        setLoadingRecords(false);
-        return;
+    // try/finally garante que loadingRecords NUNCA fica preso em true se algo
+    // throw — sem isso, qualquer falha em fetchGpHistoryForPeriod ou provider
+    // deixa o spinner eterno na UI.
+    try {
+      if (ENABLE_SENIOR_INTEGRATION) {
+        const gpResult = await fetchGpHistoryForPeriod(periodOffset);
+        if (gpResult) {
+          setBalance(gpResult.balance);
+          setRecords(gpResult.records.reverse());
+          setSource('gp');
+          return;
+        }
       }
-    }
 
-    const data = await chrome.storage.local.get(['pontoSettings']);
-    const s: Settings = { ...DEFAULT_SETTINGS, ...data.pontoSettings };
-    await provider.ensureInitialized(s.closingDay);
-    const updated = await provider.recalculate(s);
-    setBalance(updated);
-    const recs = await provider.getHistory(updated.periodStart, updated.periodEnd, s.jornada);
-    setRecords(recs.reverse());
-    setSource('manual');
-    setLoadingRecords(false);
+      const data = await chrome.storage.local.get(['pontoSettings']);
+      const s: Settings = { ...DEFAULT_SETTINGS, ...data.pontoSettings };
+      await provider.ensureInitialized(s.closingDay);
+      const updated = await provider.recalculate(s);
+      setBalance(updated);
+      const recs = await provider.getHistory(updated.periodStart, updated.periodEnd, s.jornada);
+      setRecords(recs.reverse());
+      setSource('manual');
+    } finally {
+      setLoadingRecords(false);
+    }
   }, [provider, periodOffset]);
 
   useEffect(() => { loadData(); }, [loadData]);

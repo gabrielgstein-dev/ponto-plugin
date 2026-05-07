@@ -9,6 +9,7 @@ import { usePunchAction } from './hooks/usePunchAction';
 import { useCountdown } from './hooks/useCountdown';
 import { LiveClock } from './components/LiveClock';
 import { TokenStatus } from './components/TokenStatus';
+import { ResyncButton } from './components/ResyncButton';
 import { PunchCard } from './components/PunchCard';
 import { ProgressBar } from './components/ProgressBar';
 import { StatusBanner } from './components/StatusBanner';
@@ -58,8 +59,11 @@ export function App() {
   return (
     <div className="popup-container">
       <LiveClock time={time} date={date} />
-      {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} />}
-      {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
+      <div className="token-status-row">
+        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} />}
+        {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
+        <ResyncButton />
+      </div>
       <div className="cards-grid">
         {PUNCH_SLOTS.map(slot => {
           const display = getDisplayTime(punchState, slot);

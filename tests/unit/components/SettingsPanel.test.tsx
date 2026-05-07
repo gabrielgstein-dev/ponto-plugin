@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('../../../lib/domain/build-flags', () => ({
   ENABLE_SENIOR_INTEGRATION: false,
+  ENABLE_META_TIMESHEET: false,
   DEBUG: false,
 }))
 
@@ -176,6 +177,7 @@ describe('SettingsPanel', () => {
     vi.resetModules()
     vi.doMock('../../../lib/domain/build-flags', () => ({
       ENABLE_SENIOR_INTEGRATION: true,
+      ENABLE_META_TIMESHEET: false,
       DEBUG: false,
     }))
     const { SettingsPanel: PanelWithSenior } = await import(
@@ -290,6 +292,7 @@ describe('SettingsPanel', () => {
       vi.resetModules()
       vi.doMock('../../../lib/domain/build-flags', () => ({
         ENABLE_SENIOR_INTEGRATION: false,
+        ENABLE_META_TIMESHEET: false,
         DEBUG: true,
       }))
       const { SettingsPanel: PanelDebug } = await import(
@@ -315,6 +318,7 @@ describe('SettingsPanel', () => {
       vi.resetModules()
       vi.doMock('../../../lib/domain/build-flags', () => ({
         ENABLE_SENIOR_INTEGRATION: false,
+        ENABLE_META_TIMESHEET: false,
         DEBUG: true,
       }))
       const sendMessageSpy = vi.fn()

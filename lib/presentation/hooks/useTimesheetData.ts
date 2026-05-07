@@ -68,11 +68,15 @@ export function useTimesheetData() {
       setAvailable(isOk);
       syncRequestedRef.current = false;
       setConnecting(false);
-      const result = await provider.getSummary(period);
+      // Delega ao service worker — fetch direto via host_permissions vive lá.
+      const response = await chrome.runtime.sendMessage({ type: 'TS_GET_SUMMARY', period }).catch(() => null) as
+        | { ok: boolean; summary?: TimesheetSummary }
+        | null;
+      const result = response?.ok ? response.summary : undefined;
       if (result) {
         setSummary(result);
         hasCacheRef.current = true;
-        chrome.storage.local.set({ timesheetSummaryCache: result });
+        // Background já persistiu em storage; sidepanel só atualiza state local.
       }
     } catch (e) {
       debugWarn('Timesheet load error:', (e as Error).message);
@@ -87,9 +91,7 @@ export function useTimesheetData() {
     const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
       if (changes.metaTsToken) {
         // Só recarrega quando o token aparece (era ausente) ou some (era presente).
-        // Renovações silenciosas (presente → presente diferente) não exigem reload —
-        // evita o loop onde fetchViaMetaTab captura novo JWT via webRequest e
-        // dispara loadData() repetidamente.
+        // Renovações silenciosas (presente → presente diferente) não exigem reload.
         const hadToken = !!changes.metaTsToken.oldValue;
         const hasToken = !!changes.metaTsToken.newValue;
         if (hadToken !== hasToken) loadData();
@@ -132,8 +134,13 @@ export function useTimesheetData() {
     }
     
     debugLog(`updateEntry: TS=${entry.hourQuantity.toFixed(2)}h GP=${gpHours?.toFixed(2) ?? 'N/A'} → usando ${hourQuantity.toFixed(2)}h (manual: ${hasMultipleCostCenters})`);
-    const provider = getTimesheetProvider();
-    const ok = await provider.updateEntry(entry.id, entry, { observation, hourQuantity });
+    const response = await chrome.runtime.sendMessage({
+      type: 'TS_UPDATE_ENTRY',
+      entryId: entry.id,
+      entry,
+      body: { observation, hourQuantity },
+    }).catch(() => null) as { ok: boolean } | null;
+    const ok = !!response?.ok;
     if (ok && summary) {
       setSummary({
         ...summary,
@@ -160,8 +167,13 @@ export function useTimesheetData() {
     ).join('\n');
     
     debugLog(`updateEntryWithAllocations: ${allocations.length} alocações, total ${totalHours.toFixed(2)}h`);
-    const provider = getTimesheetProvider();
-    const ok = await provider.updateEntry(entry.id, entry, { observation, hourQuantity: totalHours });
+    const response = await chrome.runtime.sendMessage({
+      type: 'TS_UPDATE_ENTRY',
+      entryId: entry.id,
+      entry,
+      body: { observation, hourQuantity: totalHours },
+    }).catch(() => null) as { ok: boolean } | null;
+    const ok = !!response?.ok;
     if (ok && summary) {
       setSummary({
         ...summary,

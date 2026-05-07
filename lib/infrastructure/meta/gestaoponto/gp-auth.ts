@@ -5,6 +5,7 @@ import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../../senior/senior-page-auth';
 import { refreshSeniorTokenSilently } from '../../senior/senior-token-refresh';
 import { debugLog, debugWarn } from '../../../domain/debug';
+import { logError } from '../../../domain/error-logger';
 
 export async function getGpAssertion(force = false): Promise<GpAuthData | null> {
   const stored = await chrome.storage.local.get(['gpAssertion', 'gpAssertionTs', 'gestaoPontoColaboradorId', 'gestaoPontoCodigoCalculo']);
@@ -57,13 +58,43 @@ async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
       body: '{}',
     });
     if (!r.ok) {
-      debugWarn('GP auth/g7 falhou:', r.status);
       const shouldRefresh = r.status === 401 || r.status === 403;
+      // Lê body pra distinguir causa do 5xx — sem isso, não dá pra saber se
+      // é flakiness do upstream, rate limit, tenant misconfigurado, etc.
+      // Defensivo: tolerante a mocks de teste que não implementam text/headers.
+      let bodyPreview = '';
+      let bodyLength = 0;
+      let contentType = '';
+      try {
+        if (typeof r.text === 'function') {
+          const body = await r.text();
+          bodyLength = body.length;
+          bodyPreview = body.length > 500 ? body.slice(0, 500) + '…' : body;
+        }
+        contentType = r.headers?.get?.('content-type') ?? '';
+      } catch (_) { /* ignore — mock incompleto ou body já consumido */ }
+      logError(new Error(`GP auth/g7 returned ${r.status}`), {
+        category: 'auth',
+        severity: shouldRefresh ? 'medium' : 'high',
+        operation: 'callGpAuthG7',
+        metadata: {
+          status: r.status,
+          willRefresh: shouldRefresh,
+          contentType,
+          bodyLength,
+          bodyPreview,
+        },
+      });
       return { ok: false, data: null, shouldRefresh };
     }
     const json = await r.json();
     if (!json.token) {
-      debugWarn('GP auth/g7: resposta sem token');
+      logError(new Error('GP auth/g7 response missing token'), {
+        category: 'auth',
+        severity: 'high',
+        operation: 'callGpAuthG7',
+        metadata: { responseKeys: Object.keys(json ?? {}) },
+      });
       return { ok: false, data: null, shouldRefresh: false };
     }
 
@@ -76,22 +107,19 @@ async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
     debugLog('GP auth/g7 OK, colaboradorId:', colaboradorId, 'codigoCalculo:', codigoCalculo, 'userRange:', JSON.stringify(json.userRange)?.substring(0, 200));
     return { ok: true, data: { assertion: json.token, colaboradorId, codigoCalculo }, shouldRefresh: false };
   } catch (e) {
-    debugWarn('GP auth/g7 erro:', (e as Error).message);
+    logError(e, {
+      category: 'network',
+      severity: 'high',
+      operation: 'callGpAuthG7',
+    });
     return { ok: false, data: null, shouldRefresh: false };
   }
 }
 
 async function getSeniorAccessToken(): Promise<string | null> {
-  const fromCookie = await new SeniorCookieAuth().getAccessToken();
-  if (fromCookie) return fromCookie;
-
-  const fromPage = await new SeniorPageAuth().getAccessToken();
-  if (fromPage) {
-    debugLog('getSeniorAccessToken: token obtido via aba Senior aberta');
-    return fromPage;
-  }
-
-  debugLog('getSeniorAccessToken: cookie não encontrado, tentando storage...');
+  // Storage é fonte canônica: refresh atualiza só o storage (cookie cross-context
+  // não rotaciona de forma confiável). Cookie só é fallback inicial pra primeira
+  // captura — depois disso, storage manda.
   try {
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
     if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS) {
@@ -99,13 +127,30 @@ async function getSeniorAccessToken(): Promise<string | null> {
       return stored.seniorToken;
     }
     if (stored.seniorToken) {
-      // Token expirado — tenta refresh silencioso antes de desistir
+      // Token expirado — tenta refresh silencioso antes de cair pro cookie
       debugLog('getSeniorAccessToken: seniorToken expirado, tentando refresh silencioso...');
       const refreshed = await refreshSeniorTokenSilently();
       if (refreshed) return refreshed;
     }
   } catch (e) {
-    debugWarn('getSeniorAccessToken: erro ao ler storage:', (e as Error).message);
+    logError(e, {
+      category: 'storage',
+      severity: 'medium',
+      operation: 'getSeniorAccessToken.readStorage',
+    });
+  }
+
+  // Fallback: cookie (primeira captura, ou storage vazio)
+  const fromCookie = await new SeniorCookieAuth().getAccessToken();
+  if (fromCookie) {
+    debugLog('getSeniorAccessToken: storage sem token válido, usando cookie');
+    return fromCookie;
+  }
+
+  const fromPage = await new SeniorPageAuth().getAccessToken();
+  if (fromPage) {
+    debugLog('getSeniorAccessToken: token obtido via aba Senior aberta');
+    return fromPage;
   }
 
   debugLog('getSeniorAccessToken: nenhuma fonte de token disponível');

@@ -91,6 +91,20 @@ const chromeMock = {
     get: mockTabsGet,
     remove: mockTabsRemove,
     sendMessage: mockTabsSendMessage,
+    onRemoved: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
+  },
+  webNavigation: {
+    onCompleted: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
+    onHistoryStateUpdated: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
   },
   windows: {
     getCurrent: mockWindowsGetCurrent,

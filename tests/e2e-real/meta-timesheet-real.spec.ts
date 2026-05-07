@@ -9,9 +9,9 @@
  * a captura DESTA execução, não cache de uma rodada anterior.
  *
  * Em seguida abrimos o sidepanel da extensão na aba Timesheet, o que dispara
- * useTimesheetData → metaTimesheetProvider.getSummary() →
- * fetchViaMetaTab() (GET only) e o resultado deve cair em
- * `timesheetSummaryCache` no chrome.storage.local.
+ * useTimesheetData → metaTimesheetProvider.getSummary() → fetch direto do
+ * service worker para api.meta.com.br (host_permissions cobre o CORS) e o
+ * resultado deve cair em `timesheetSummaryCache` no chrome.storage.local.
  *
  * Asserções: read-only — Zero PATCH, zero POST.
  */
@@ -78,7 +78,7 @@ test('REAL-EXT-TS-1: webRequest interceptor captura Bearer token do Meta Timeshe
   expect(token!.length).toBeGreaterThan(20)
 })
 
-test('REAL-EXT-TS-2: extensão sincroniza timesheetSummaryCache via fetchViaMetaTab', async () => {
+test('REAL-EXT-TS-2: extensão sincroniza timesheetSummaryCache via fetch direto', async () => {
   // Abrir o sidepanel dispara useTimesheetData → getSummary.
   const sidepanel = await fixture.context.newPage()
   await sidepanel.goto(fixture.sidepanelUrl)

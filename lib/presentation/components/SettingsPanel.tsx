@@ -1,8 +1,42 @@
 import { useState } from 'react';
 import type { Settings } from '../../domain/types';
-import { DEBUG, ENABLE_SENIOR_INTEGRATION } from '../../domain/build-flags';
+import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../../domain/build-flags';
 import { exportLogs } from '../export-logs';
 import { clearLogs } from '../../domain/log-store';
+
+interface StorageEntry {
+  key: string;
+  length: number;
+  preview?: string;
+}
+
+interface IdbItem {
+  key: string;
+  valueLength: number;
+  preview?: string;
+}
+
+interface IdbStore {
+  name: string;
+  count: number;
+  items: IdbItem[];
+}
+
+interface IdbDatabase {
+  name: string;
+  version?: number;
+  stores: IdbStore[];
+}
+
+interface SeniorStorageDump {
+  ok: boolean;
+  url?: string;
+  origin?: string;
+  localStorage?: StorageEntry[];
+  sessionStorage?: StorageEntry[];
+  indexedDB?: IdbDatabase[];
+  errorMessage?: string;
+}
 
 interface SettingsPanelProps {
   open: boolean;
@@ -30,7 +64,151 @@ export function SettingsPanel({ open, settings, onToggle, onChange, onClear }: S
           <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
           <LogsActions />
           {DEBUG && <DebugReminderTest />}
+          {DEBUG && ENABLE_META_TIMESHEET && <DebugMetaTsDirectFetch />}
+          {DEBUG && ENABLE_SENIOR_INTEGRATION && <DebugSeniorStorageDump />}
         </div>
+      )}
+    </div>
+  );
+}
+
+function DebugSeniorStorageDump() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<SeniorStorageDump | null>(null);
+  const [err, setErr] = useState<string>('');
+
+  const handleClick = async () => {
+    setBusy(true);
+    setResult(null);
+    setErr('');
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'TEST_SENIOR_STORAGE_DUMP' }) as
+        | { ok: true; result: SeniorStorageDump }
+        | { ok: false; error: string };
+      if (response?.ok) setResult(response.result);
+      else setErr(response?.error ?? 'sem resposta');
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+    setBusy(false);
+  };
+
+  const renderEntry = (e: StorageEntry) =>
+    `  ${e.key} (${e.length} chars)${e.preview ? '\n    preview: ' + e.preview : ''}`;
+  const renderIdbItem = (i: IdbItem) =>
+    `    [${i.key}] (${i.valueLength} chars)${i.preview ? '\n      preview: ' + i.preview : ''}`;
+  const renderIdbStore = (s: IdbStore) =>
+    `  store: ${s.name} (${s.count} items)\n${s.items.map(renderIdbItem).join('\n') || '    (vazio)'}`;
+  const renderIdbDb = (d: IdbDatabase) =>
+    `db: ${d.name} (v${d.version ?? '?'})\n${d.stores.map(renderIdbStore).join('\n')}`;
+
+  return (
+    <div className="logs-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+      <button className="logs-export-btn" onClick={handleClick} disabled={busy}>
+        {busy ? 'Lendo...' : 'POC: dump storage Senior'}
+      </button>
+      {err && <span className="logs-feedback">erro: {err}</span>}
+      {result && (
+        <pre style={{
+          fontSize: 11,
+          background: 'var(--bg-secondary, #f5f5f5)',
+          padding: 8,
+          borderRadius: 4,
+          overflow: 'auto',
+          maxHeight: 360,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}>
+{result.ok
+  ? `url: ${result.url}
+origin: ${result.origin}
+
+localStorage (${result.localStorage?.length ?? 0} keys):
+${result.localStorage?.map(renderEntry).join('\n') || '  (vazio)'}
+
+sessionStorage (${result.sessionStorage?.length ?? 0} keys):
+${result.sessionStorage?.map(renderEntry).join('\n') || '  (vazio)'}
+
+indexedDB (${result.indexedDB?.length ?? 0} dbs):
+${result.indexedDB?.map(renderIdbDb).join('\n\n') || '  (vazio)'}`
+  : `erro: ${result.errorMessage}`}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+interface TokenInfo {
+  isJwt: boolean;
+  expiresInSec: number | null;
+  ageMs: number | null;
+}
+
+interface DirectFetchResult {
+  ok: boolean;
+  status: number;
+  bodyPreview: string;
+  bodyLength: number;
+  contentType: string;
+  responseHeaders: Record<string, string>;
+  errorMessage?: string;
+  tokenInfo: TokenInfo;
+}
+
+function DebugMetaTsDirectFetch() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<DirectFetchResult | null>(null);
+  const [err, setErr] = useState<string>('');
+
+  const handleClick = async () => {
+    setBusy(true);
+    setResult(null);
+    setErr('');
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'TEST_META_TS_DIRECT_FETCH' }) as
+        | { ok: true; result: DirectFetchResult }
+        | { ok: false; error: string };
+      if (response?.ok) setResult(response.result);
+      else setErr(response?.error ?? 'sem resposta');
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="logs-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+      <button className="logs-export-btn" onClick={handleClick} disabled={busy}>
+        {busy ? 'Testando...' : 'POC: fetch direto Meta TS'}
+      </button>
+      {err && <span className="logs-feedback">erro: {err}</span>}
+      {result && (
+        <pre style={{
+          fontSize: 11,
+          background: 'var(--bg-secondary, #f5f5f5)',
+          padding: 8,
+          borderRadius: 4,
+          overflow: 'auto',
+          maxHeight: 280,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}>
+{`status: ${result.status}
+ok: ${result.ok}
+content-type: ${result.contentType}
+bodyLength: ${result.bodyLength}
+${result.errorMessage ? 'error: ' + result.errorMessage + '\n' : ''}
+token:
+  isJwt: ${result.tokenInfo.isJwt}
+  expiresInSec: ${result.tokenInfo.expiresInSec ?? 'n/a'}
+  ageMs: ${result.tokenInfo.ageMs ?? 'n/a'}
+
+response headers:
+${Object.entries(result.responseHeaders).map(([k, v]) => `  ${k}: ${v}`).join('\n') || '  (none)'}
+
+body:
+${result.bodyPreview || '(empty)'}`}
+        </pre>
       )}
     </div>
   );

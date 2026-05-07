@@ -5,8 +5,8 @@ import { generateCSSVariables } from './lib/domain/theme-utils';
 import { readFileSync, writeFileSync } from 'fs';
 
 const basePermissions: string[] = ['storage', 'alarms', 'sidePanel'];
-const seniorPermissions: string[] = ['activeTab', 'tabs', 'scripting', 'webRequest', 'cookies'];
-const metaTimesheetPermissions: string[] = ['webRequest', 'tabs', 'scripting', 'cookies'];
+const seniorPermissions: string[] = ['activeTab', 'tabs', 'scripting', 'webRequest', 'cookies', 'webNavigation'];
+const metaTimesheetPermissions: string[] = ['webRequest', 'tabs', 'scripting', 'cookies', 'webNavigation'];
 const notifPermissions: string[] = ['notifications'];
 
 const permissions = [
@@ -17,7 +17,7 @@ const permissions = [
 ];
 
 const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET || ENABLE_META_TIMESHEET
-  ? ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*']
+  ? ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*', '*://api.meta.com.br/*']
   : [];
 
 function injectThemeCSS() {

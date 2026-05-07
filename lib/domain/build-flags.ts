@@ -22,4 +22,5 @@ export const ENABLE_WIDGET = flags.ENABLE_WIDGET as boolean;
 export const ENABLE_YESTERDAY = flags.ENABLE_YESTERDAY as boolean;
 export const ENABLE_NOTIFICATIONS = flags.ENABLE_NOTIFICATIONS as boolean;
 export const ENABLE_META_TIMESHEET = flags.ENABLE_META_TIMESHEET as boolean;
+export const ENABLE_SILENT_REFRESH = (flags as { ENABLE_SILENT_REFRESH?: boolean }).ENABLE_SILENT_REFRESH ?? false;
 export const THEME = flags.THEME as string;
