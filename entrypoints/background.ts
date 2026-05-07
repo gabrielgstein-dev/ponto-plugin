@@ -15,6 +15,7 @@ import { COMPANY_PUNCH_URL } from '#company/providers';
 import { directFetchMetaTs } from '../lib/infrastructure/meta/timesheet/meta-ts-direct-fetch';
 import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/meta/timesheet/constants';
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
+import { isValidJWT } from '../lib/domain/jwt-utils';
 import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
 
 export default defineBackground(() => {
@@ -107,9 +108,21 @@ export default defineBackground(() => {
         );
         if (authHeader?.value && /^[Bb]earer\s/.test(authHeader.value)) {
           const token = authHeader.value.split(/\s+/)[1];
-          if (token && token.length > 20) {
-            chrome.storage.local.set({ metaTsToken: token, metaTsTokenTs: Date.now() });
+          if (!token || token.length <= 20) return;
+          // Valida `exp` antes de aceitar. Tokens Meta TS são JWT com TTL
+          // ~5min; a SPA às vezes dispara request com token cacheado
+          // expirado antes de renovar via /api/auth/session. Sem essa
+          // validação, persistíamos token vencido no storage → próxima
+          // sync via abria aba SSO inutilmente (visto em prod com exp
+          // 76min no passado, 2026-05-07).
+          if (!isValidJWT(token, 0)) {
+            debugLog('[diag] meta TS Bearer rejected (expired or non-JWT)', JSON.stringify({
+              tokenPrefix: token.substring(0, 8),
+              tokenLength: token.length,
+            }));
+            return;
           }
+          chrome.storage.local.set({ metaTsToken: token, metaTsTokenTs: Date.now() });
         }
       },
       { urls: ['https://api.meta.com.br/*'] },
