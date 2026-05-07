@@ -15,21 +15,29 @@
  */
 
 interface WaitOptions {
-  /** Substring esperada na URL final (ex.: '/modules/timesheet/create'). */
+  /** Substring esperada no PATHNAME final (ex.: '/modules/timesheet/create').
+   *  Match é feito contra `new URL(url).pathname`, não contra a URL inteira —
+   *  evita falso-positivo em `/login?callbackUrl=/modules/timesheet/create`. */
   urlContains: string;
   /** Tempo máximo aguardando (ms). Default 30s. */
   timeoutMs?: number;
 }
 
+function pathnameOf(url: string): string {
+  try { return new URL(url).pathname; } catch { return ''; }
+}
+
 /**
- * Aguarda a aba terminar de navegar até uma URL que contém `urlContains`.
- * Resolve com a URL final ou `null` em timeout / aba removida.
+ * Aguarda a aba terminar de navegar até uma URL cujo pathname contenha
+ * `urlContains`. Resolve com a URL final ou `null` em timeout / aba removida.
  */
 export function waitForNavigation(
   tabId: number,
   opts: WaitOptions,
 ): Promise<string | null> {
   const { urlContains, timeoutMs = 30_000 } = opts;
+  const matches = (url: string | undefined) =>
+    !!url && pathnameOf(url).includes(urlContains);
 
   return new Promise((resolve) => {
     let settled = false;
@@ -43,13 +51,13 @@ export function waitForNavigation(
     const onCompleted = (details: chrome.webNavigation.WebNavigationFramedCallbackDetails) => {
       if (details.tabId !== tabId) return;
       if (details.frameId !== 0) return; // só top frame
-      if (details.url.includes(urlContains)) settle(details.url);
+      if (matches(details.url)) settle(details.url);
     };
 
     const onHistory = (details: chrome.webNavigation.WebNavigationTransitionCallbackDetails) => {
       if (details.tabId !== tabId) return;
       if (details.frameId !== 0) return;
-      if (details.url.includes(urlContains)) settle(details.url);
+      if (matches(details.url)) settle(details.url);
     };
 
     const onRemoved = (removedTabId: number) => {
@@ -72,8 +80,8 @@ export function waitForNavigation(
     // Fast path: aba já está na URL esperada.
     chrome.tabs.get(tabId).then(tab => {
       if (settled) return;
-      if (tab.status === 'complete' && tab.url?.includes(urlContains)) {
-        settle(tab.url);
+      if (tab.status === 'complete' && matches(tab.url)) {
+        settle(tab.url ?? null);
       }
     }).catch(() => settle(null));
   });

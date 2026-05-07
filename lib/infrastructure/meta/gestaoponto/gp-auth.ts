@@ -59,11 +59,31 @@ async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
     });
     if (!r.ok) {
       const shouldRefresh = r.status === 401 || r.status === 403;
+      // Lê body pra distinguir causa do 5xx — sem isso, não dá pra saber se
+      // é flakiness do upstream, rate limit, tenant misconfigurado, etc.
+      // Defensivo: tolerante a mocks de teste que não implementam text/headers.
+      let bodyPreview = '';
+      let bodyLength = 0;
+      let contentType = '';
+      try {
+        if (typeof r.text === 'function') {
+          const body = await r.text();
+          bodyLength = body.length;
+          bodyPreview = body.length > 500 ? body.slice(0, 500) + '…' : body;
+        }
+        contentType = r.headers?.get?.('content-type') ?? '';
+      } catch (_) { /* ignore — mock incompleto ou body já consumido */ }
       logError(new Error(`GP auth/g7 returned ${r.status}`), {
         category: 'auth',
         severity: shouldRefresh ? 'medium' : 'high',
         operation: 'callGpAuthG7',
-        metadata: { status: r.status, willRefresh: shouldRefresh },
+        metadata: {
+          status: r.status,
+          willRefresh: shouldRefresh,
+          contentType,
+          bodyLength,
+          bodyPreview,
+        },
       });
       return { ok: false, data: null, shouldRefresh };
     }
