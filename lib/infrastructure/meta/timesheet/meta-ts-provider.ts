@@ -1,13 +1,12 @@
 import { createTimesheetProvider } from '../../timesheet/timesheet-provider';
 import { metaTsAuth } from './meta-ts-auth';
 import { META_TIMESHEET_CONFIG } from './constants';
-import { fetchViaMetaTab } from './meta-ts-fetch';
 
-// A API api.meta.com.br responde Access-Control-Allow-Origin apenas para
-// https://plataforma.meta.com.br, então o fetch precisa rodar dentro de uma
-// aba aberta nesse domínio (via chrome.scripting.executeScript em world MAIN).
+// Fetch direto do service worker. host_permissions `*://api.meta.com.br/*`
+// dá ao SW fetch privilegiado sem checagem CORS — substituiu fetchViaMetaTab,
+// que dependia de aba aberta + executeScript em world MAIN. Confirmado por
+// POC em 2026-05-07: GET /timesheets/v1/hours-summary?period=2026-05 → 200.
 export const metaTimesheetProvider = createTimesheetProvider(
   META_TIMESHEET_CONFIG,
   metaTsAuth,
-  (url, init) => fetchViaMetaTab(META_TIMESHEET_CONFIG, url, init),
 );

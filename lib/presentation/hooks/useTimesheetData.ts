@@ -68,9 +68,7 @@ export function useTimesheetData() {
       setAvailable(isOk);
       syncRequestedRef.current = false;
       setConnecting(false);
-      // Delega ao service worker pra evitar abas paralelas (sidepanel +
-      // background criando aba ao mesmo tempo). Background tem mutex de
-      // módulo natural — apenas 1 contexto criando aba.
+      // Delega ao service worker — fetch direto via host_permissions vive lá.
       const response = await chrome.runtime.sendMessage({ type: 'TS_GET_SUMMARY', period }).catch(() => null) as
         | { ok: boolean; summary?: TimesheetSummary }
         | null;
@@ -93,9 +91,7 @@ export function useTimesheetData() {
     const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
       if (changes.metaTsToken) {
         // Só recarrega quando o token aparece (era ausente) ou some (era presente).
-        // Renovações silenciosas (presente → presente diferente) não exigem reload —
-        // evita o loop onde fetchViaMetaTab captura novo JWT via webRequest e
-        // dispara loadData() repetidamente.
+        // Renovações silenciosas (presente → presente diferente) não exigem reload.
         const hadToken = !!changes.metaTsToken.oldValue;
         const hasToken = !!changes.metaTsToken.newValue;
         if (hadToken !== hasToken) loadData();

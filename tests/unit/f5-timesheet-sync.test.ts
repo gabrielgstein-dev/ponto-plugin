@@ -155,15 +155,14 @@ describe('F5 — createTimesheetProvider', () => {
     const mockFetch = vi.fn()
     vi.stubGlobal('fetch', mockFetch)
 
+    // hours-summary já traz `costCenters` inline (não há fetch separado).
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      text: vi.fn().mockResolvedValue(JSON.stringify({ pendingHours: 8, approvedHours: 16, repprovedHours: 0, totalReportedHours: 24, countReportedHours: 3 })),
-    })
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      text: vi.fn().mockResolvedValue(JSON.stringify({ data: [{ code: '1001', name: 'Dev' }] })),
+      text: vi.fn().mockResolvedValue(JSON.stringify({
+        pendingHours: 8, approvedHours: 16, repprovedHours: 0, totalReportedHours: 24, countReportedHours: 3,
+        costCenters: [{ code: '1001', description: 'Dev', totalPendingHours: 8, totalApprovedHours: 16, totalReportedHours: 24 }],
+      })),
     })
     mockFetch.mockResolvedValueOnce({
       ok: true,

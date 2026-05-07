@@ -83,7 +83,12 @@ export function createTimesheetProvider(
 
     try {
       const summaryData = await fetchHoursSummary(headers, period);
-      const userCostCenters = await fetchUserCostCenters(headers, userId);
+      // costCenters vêm inline no /hours-summary — não há endpoint
+      // /users/{id}/cost-centers (404 confirmado em produção).
+      const userCostCenters = (summaryData?.costCenters ?? []).map(cc => ({
+        code: cc.code,
+        name: cc.description,
+      }));
       const entries = await fetchReportedHours(headers, userId, period, userCostCenters);
 
       return {
@@ -110,27 +115,6 @@ export function createTimesheetProvider(
       return null;
     }
     return parseJsonSafe<HoursSummaryResponse>(r.text);
-  }
-
-  async function fetchUserCostCenters(headers: Record<string, string>, userId: string): Promise<Array<{ code: string; name: string }>> {
-    const url = `${apiUrl}${timesheetsBase}/users/${userId}/cost-centers`;
-    debugLog(`${name} fetchUserCostCenters:`, url);
-    try {
-      const r = await customFetch(url, { headers });
-      if (!r || !r.ok) {
-        debugLog(`${name} cost-centers não disponível:`, r?.status ?? 'null');
-        if (isAuthFailure(r?.status)) await handleAuthFailure('cost-centers');
-        return [];
-      }
-      const json = parseJsonSafe<{ data?: Array<{ code: string; name: string }> }>(r.text);
-      if (json && Array.isArray(json.data)) {
-        return json.data.map((cc) => ({ code: cc.code, name: cc.name }));
-      }
-      return [];
-    } catch (e) {
-      debugLog(`${name} fetchUserCostCenters erro:`, (e as Error).message);
-      return [];
-    }
   }
 
   async function fetchReportedHours(headers: Record<string, string>, userId: string, period: string, userCostCenters: Array<{ code: string; name: string }>): Promise<TimesheetEntry[]> {
@@ -217,6 +201,13 @@ interface HoursSummaryResponse {
   repprovedHours: number;
   totalReportedHours: number;
   countReportedHours: number;
+  costCenters?: Array<{
+    code: string;
+    description: string;
+    totalPendingHours: number;
+    totalApprovedHours: number;
+    totalReportedHours: number;
+  }>;
 }
 
 interface RawReportedHour {
