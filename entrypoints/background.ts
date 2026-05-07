@@ -12,10 +12,15 @@ import { resetSeniorApiCache } from '../lib/infrastructure/senior/senior-api-pro
 import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-storage-provider';
 import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
 import { COMPANY_PUNCH_URL } from '#company/providers';
+import { directFetchMetaTs } from '../lib/infrastructure/meta/timesheet/meta-ts-direct-fetch';
+import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/meta/timesheet/constants';
+import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
+import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
 
 export default defineBackground(() => {
   installErrorHandlers();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+
 
   chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(['pontoState'], (result) => {
@@ -40,7 +45,14 @@ export default defineBackground(() => {
             // Senior X (Favoritos, frames de outros módulos), e cada app tem
             // escopo de token diferente — explicaria por que tokens "frescos"
             // levam 401 no GP/pontomobile.
+            // Extrai scope do path da bridge: `.../bridge/1.0/rest/<dom>/<svc>/...`
+            // Senior X usa tokens com escopo diferente por app — saber qual
+            // escopo foi capturado ajuda a entender por que `auth/g7` aceita
+            // ou rejeita um token específico.
+            const scopeMatch = details.url.match(/\/bridge\/[^/]+\/rest\/([^/]+(?:\/[^/?]+)?)/);
+            const scope = scopeMatch?.[1] ?? '(non-bridge)';
             debugLog('[diag] Senior Bearer captured', JSON.stringify({
+              scope,
               url: details.url,
               tokenPrefix: token.substring(0, 8),
               tokenLength: token.length,
@@ -52,6 +64,38 @@ export default defineBackground(() => {
       },
       { urls: ['https://platform.senior.com.br/*', 'https://*.senior.com.br/*'] },
       ['requestHeaders', 'extraHeaders']
+    );
+
+    // Captura o `refreshToken` do body quando a SPA Senior chama o endpoint
+    // de refresh. Sem essa captura o `refreshSeniorTokenSilently` fica inerte
+    // — o refresh_token vive em memória da SPA e não é acessível via cookies
+    // nem via storage da página (testado: localStorage/sessionStorage/IndexedDB
+    // não têm o token, dump em 2026-05-07).
+    //
+    // A primeira captura depende do SPA Senior fazer um refresh natural após
+    // a instalação (acontece a cada ~50min, ou quando access_token expira).
+    // Daí em diante o silent refresh nosso assume e roda eternamente.
+    chrome.webRequest.onBeforeRequest.addListener(
+      (details) => {
+        if (details.method !== 'POST') return;
+        const raw = details.requestBody?.raw?.[0]?.bytes;
+        if (!raw) return;
+        try {
+          const body = new TextDecoder().decode(raw);
+          const json = JSON.parse(body) as { refreshToken?: unknown };
+          const rt = json.refreshToken;
+          if (typeof rt === 'string' && rt.length > 10) {
+            chrome.storage.local.set({ seniorRefreshToken: rt });
+            debugLog('[diag] Senior refresh_token captured via SPA refresh call', JSON.stringify({
+              tokenPrefix: rt.substring(0, 8),
+              length: rt.length,
+              tabId: details.tabId,
+            }));
+          }
+        } catch (_) { /* body não é JSON ou não tem refreshToken */ }
+      },
+      { urls: ['https://platform.senior.com.br/t/*/platform/authentication/actions/refreshToken'] },
+      ['requestBody']
     );
   }
 
@@ -171,6 +215,47 @@ export default defineBackground(() => {
       backgroundDetect()
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'TEST_META_TS_DIRECT_FETCH') {
+      // POC: fetch direto pra api.meta.com.br do service worker.
+      // host_permissions cobre o host → fetch sem CORS. Se 200 → abas eliminadas.
+      (async () => {
+        const data = await chrome.storage.local.get(['metaTsToken', 'metaTsTokenTs']);
+        const token = data.metaTsToken as string | undefined;
+        const tokenTs = data.metaTsTokenTs as number | undefined;
+        if (!token) {
+          sendResponse({ ok: false, error: 'metaTsToken ausente — abra https://plataforma.meta.com.br/modules/timesheet/create 1x pra capturar' });
+          return;
+        }
+        const period = message.period as string | undefined ?? getCurrentTimesheetPeriod(0);
+        const url = `${META_TIMESHEET_CONFIG.apiUrl}${META_TIMESHEET_CONFIG.timesheetsBase}/hours-summary?period=${period}`;
+        const tokenAgeMs = tokenTs ? Date.now() - tokenTs : null;
+        debugLog('[POC] TEST_META_TS_DIRECT_FETCH iniciando', JSON.stringify({
+          url, tokenPrefix: token.substring(0, 8), period, tokenAgeMs,
+        }));
+        const result = await directFetchMetaTs(url, token, tokenAgeMs);
+        debugLog('[POC] TEST_META_TS_DIRECT_FETCH resultado', JSON.stringify({
+          ok: result.ok,
+          status: result.status,
+          bodyLength: result.bodyLength,
+          contentType: result.contentType,
+          tokenInfo: result.tokenInfo,
+          responseHeaders: result.responseHeaders,
+          bodyPreview: result.bodyPreview,
+          errorMessage: result.errorMessage,
+        }));
+        sendResponse({ ok: true, result });
+      })();
+      return true;
+    }
+    if (message.type === 'TEST_SENIOR_STORAGE_DUMP') {
+      // POC: dumpa local/sessionStorage da aba Senior pra descobrir onde está
+      // o refresh_token. Read-only.
+      (async () => {
+        const result = await dumpSeniorTabStorage();
+        sendResponse({ ok: true, result });
+      })();
       return true;
     }
     if (message.type === 'TEST_PUNCH_REMINDER') {
@@ -325,13 +410,19 @@ export default defineBackground(() => {
         }
       }).catch(() => {});
     }
-    if (changes.metaTsToken && changes.metaTsToken.newValue) {
-      // Token capturado naturalmente via webRequest (usuário navegou na plataforma).
-      // Atualiza cache de timesheet e em seguida verifica pendentes.
-      debugLog('Background: metaTsToken capturado, sincronizando timesheet + verificando pendentes...');
-      backgroundTimesheetSync()
-        .then(() => notifyPendingTimesheet())
-        .catch(() => {});
+    if (changes.metaTsToken) {
+      // Só dispara em transição ausente↔presente. Renovações rotineiras
+      // (presente→presente diferente) NÃO precisam de re-sync — caso contrário
+      // cada `fetchHoursSummary` que captura novo Bearer dispara nova sync,
+      // que dispara nova captura, em loop. Confirmado em prod 2026-05-07.
+      const hadToken = !!changes.metaTsToken.oldValue;
+      const hasToken = !!changes.metaTsToken.newValue;
+      if (!hadToken && hasToken) {
+        debugLog('Background: metaTsToken apareceu (login/auto-connect), sincronizando...');
+        backgroundTimesheetSync()
+          .then(() => notifyPendingTimesheet())
+          .catch(() => {});
+      }
     }
     if (changes.tsMutationTs) {
       debugLog('Background: edição manual de timesheet detectada, re-sincronizando...');

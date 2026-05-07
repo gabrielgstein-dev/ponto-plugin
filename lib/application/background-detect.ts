@@ -193,9 +193,41 @@ async function tsAutoConnect(): Promise<boolean> {
  *
  * Aceita allowInteractive (default false) para permitir que o sidepanel
  * peça uma renovação completa via SSO em ações explícitas.
+ *
+ * Single-flight: chamadas concorrentes compartilham a mesma execução. Quando
+ * o silent refresh seta um token novo, o storage listener dispara nova sync
+ * em paralelo à que pediu o refresh — sem o lock isso vira 2 fetches
+ * `hours-summary` + 4 `reported-hours` na mesma transição (confirmado em prod).
+ *
+ * Gate por allowInteractive: chamada em curso passiva NÃO bloqueia uma nova
+ * interactive (sidepanel "Reconectar"); a interactive aguarda a passiva
+ * terminar e dispara separadamente, podendo abrir aba se necessário.
  */
+let inflightSync: Promise<void> | null = null;
+let inflightSyncInteractive = false;
+
 export async function backgroundTimesheetSync(allowInteractive = false): Promise<void> {
   if (!ENABLE_META_TIMESHEET) return;
+
+  if (inflightSync) {
+    // Em curso cobre nosso requisito (ela é interactive, ou nós aceitamos passiva)
+    // → compartilha. Caso contrário (queremos interactive, em curso é passiva),
+    // espera a passiva terminar e dispara nossa logo abaixo.
+    if (inflightSyncInteractive || !allowInteractive) {
+      return inflightSync;
+    }
+    await inflightSync.catch(() => {});
+  }
+
+  inflightSyncInteractive = allowInteractive;
+  inflightSync = doBackgroundTimesheetSync(allowInteractive).finally(() => {
+    inflightSync = null;
+    inflightSyncInteractive = false;
+  });
+  return inflightSync;
+}
+
+async function doBackgroundTimesheetSync(allowInteractive: boolean): Promise<void> {
   try {
     const provider = getTimesheetProvider();
     let isOk = await provider.isAvailable();
@@ -228,6 +260,12 @@ export async function backgroundTimesheetSync(allowInteractive = false): Promise
   } catch (e) {
     debugWarn('TS sync erro:', (e as Error).message);
   }
+}
+
+/* v8 ignore next 4 -- helper apenas para testes */
+export function _resetTsSyncInflight(): void {
+  inflightSync = null;
+  inflightSyncInteractive = false;
 }
 
 const TS_NOTIF_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2h após dismiss
