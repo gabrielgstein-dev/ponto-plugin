@@ -71,7 +71,9 @@ export function SidePanelApp() {
               <span className="sp-col-balance">Saldo</span>
             </div>
             {records.length === 0 && (
-              <div className="sp-empty">Nenhum registro no período atual</div>
+              <div className="sp-empty">
+                {loadingRecords ? 'Carregando...' : 'Nenhum registro no período atual'}
+              </div>
             )}
             {records.map(r => (
               <DayRow
