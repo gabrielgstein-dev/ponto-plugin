@@ -5,7 +5,8 @@ import { DayRow } from './components/DayRow';
 import { TimesheetPanel } from './components/TimesheetPanel';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ResyncButton } from './components/ResyncButton';
-import { ENABLE_META_TIMESHEET } from '../domain/build-flags';
+import { SidePanelNav } from './components/SidePanelNav';
+import { NAV_MSG_TO_SETTINGS, navigateToSettings } from './sidepanel-switch';
 
 type SidePanelTab = 'ponto' | 'timesheet';
 
@@ -15,23 +16,30 @@ export function SidePanelApp() {
 
   useEffect(() => {
     chrome.storage.local.get('sidePanelTab').then((data) => {
-      if (data.sidePanelTab === 'timesheet') {
-        setActiveTab('timesheet');
+      if (data.sidePanelTab === 'timesheet' || data.sidePanelTab === 'ponto') {
+        setActiveTab(data.sidePanelTab);
         chrome.storage.local.remove('sidePanelTab');
       }
     });
+  }, []);
+
+  // Quando o popup pede pra trocar pro settings com o sidepanel já aberto
+  // aqui, open() do popup é no-op — recebemos via mensagem e navegamos.
+  useEffect(() => {
+    const listener = (msg: unknown) => {
+      if ((msg as { type?: string })?.type === NAV_MSG_TO_SETTINGS) {
+        navigateToSettings();
+      }
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
   }, []);
   const isPositive = balance ? balance.totalMinutes >= 0 : true;
   const today = todayDateStr();
 
   return (
     <div className="sp-container">
-      {ENABLE_META_TIMESHEET && (
-        <div className="sp-tabs">
-          <button className={`sp-tab ${activeTab === 'ponto' ? 'active' : ''}`} onClick={() => setActiveTab('ponto')}>Ponto</button>
-          <button className={`sp-tab ${activeTab === 'timesheet' ? 'active' : ''}`} onClick={() => setActiveTab('timesheet')}>Timesheet</button>
-        </div>
-      )}
+      <SidePanelNav active={activeTab} onLocalChange={setActiveTab} />
 
       {activeTab === 'ponto' && (
         <>

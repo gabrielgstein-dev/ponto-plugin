@@ -39,37 +39,38 @@ interface SeniorStorageDump {
 }
 
 interface SettingsPanelProps {
-  open: boolean;
   settings: Settings;
-  onToggle: () => void;
   onChange: (partial: Partial<Settings>) => void;
   onClear: () => void;
 }
 
-export function SettingsPanel({ open, settings, onToggle, onChange, onClear }: SettingsPanelProps) {
+export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProps) {
   return (
     <div className="settings-section">
-      <button className="settings-toggle" onClick={onToggle}>
-        {open ? '▲ Fechar Configurações' : '⚙ Configurações'}
-      </button>
-      {open && (
-        <div className="settings-body">
-          <SettingRow label="Jornada (horas)" value={settings.jornada / 60} onChange={v => onChange({ jornada: Math.round(v * 60) })} step={0.5} />
-          <TimeSettingRow label="Horário Entrada" value={settings.entradaHorario} onChange={v => onChange({ entradaHorario: v })} />
-          <TimeSettingRow label="Horário Almoço" value={settings.almocoHorario} onChange={v => onChange({ almocoHorario: v })} />
-          <SettingRow label="Duração Almoço (min)" value={settings.almocoDur} onChange={v => onChange({ almocoDur: v })} />
-          <SettingRow label="Antecipação Notif. (min)" value={settings.notifAntecip} onChange={v => onChange({ notifAntecip: v })} />
-          <SettingRow label="Lembrete Atraso (min)" value={settings.lembreteAtraso} onChange={v => onChange({ lembreteAtraso: Math.max(0, Math.round(v)) })} />
-          {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
-          <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
-          <LogsActions />
-          {DEBUG && <DebugReminderTest />}
-          {DEBUG && ENABLE_META_TIMESHEET && <DebugMetaTsDirectFetch />}
-          {DEBUG && ENABLE_SENIOR_INTEGRATION && <DebugSeniorStorageDump />}
-        </div>
-      )}
+      <div className="settings-body">
+        <SettingRow label="Jornada (horas)" value={settings.jornada / 60} onChange={v => onChange({ jornada: Math.round(v * 60) })} step={0.5} />
+        <TimeSettingRow label="Horário Entrada" value={settings.entradaHorario} onChange={v => onChange({ entradaHorario: v })} />
+        <TimeSettingRow label="Horário Almoço" value={settings.almocoHorario} onChange={v => onChange({ almocoHorario: v })} />
+        <SettingRow label="Duração Almoço (min)" value={settings.almocoDur} onChange={v => onChange({ almocoDur: v })} />
+        <SettingRow label="Antecipação Notif. (min)" value={settings.notifAntecip} onChange={v => onChange({ notifAntecip: v })} />
+        <SettingRow label="Lembrete Atraso (min)" value={settings.lembreteAtraso} onChange={v => onChange({ lembreteAtraso: Math.max(0, Math.round(v)) })} />
+        {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
+        <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
+        <LogsActions />
+        {DEBUG && <DebugReminderTest />}
+        {DEBUG && ENABLE_META_TIMESHEET && <DebugMetaTsDirectFetch />}
+        {DEBUG && ENABLE_SENIOR_INTEGRATION && <DebugSeniorStorageDump />}
+        <VersionFooter />
+      </div>
     </div>
   );
+}
+
+function VersionFooter() {
+  const runtime = chrome?.runtime as unknown as { getManifest?: () => { version?: string } } | undefined;
+  const version = runtime?.getManifest?.()?.version;
+  if (!version) return null;
+  return <div className="settings-version">v{version}</div>;
 }
 
 function DebugSeniorStorageDump() {

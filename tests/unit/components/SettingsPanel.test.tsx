@@ -22,33 +22,14 @@ import { DEFAULT_SETTINGS } from '../../../lib/domain/types'
 const settings = { ...DEFAULT_SETTINGS }
 
 describe('SettingsPanel', () => {
-  it('renders only toggle button when closed', () => {
+  it('renders all settings rows', () => {
     render(
       <SettingsPanel
-        open={false}
         settings={settings}
-        onToggle={() => {}}
         onChange={() => {}}
         onClear={() => {}}
       />,
     )
-    expect(screen.getByText('⚙ Configurações')).toBeInTheDocument()
-    expect(screen.queryByText('Jornada (horas)')).toBeNull()
-  })
-
-  it('opens, calls onToggle, and renders all settings rows', () => {
-    const onToggle = vi.fn()
-    render(
-      <SettingsPanel
-        open
-        settings={settings}
-        onToggle={onToggle}
-        onChange={() => {}}
-        onClear={() => {}}
-      />,
-    )
-    fireEvent.click(screen.getByText('▲ Fechar Configurações'))
-    expect(onToggle).toHaveBeenCalled()
     expect(screen.getByText('Jornada (horas)')).toBeInTheDocument()
     expect(screen.getByText('Horário Entrada')).toBeInTheDocument()
     expect(screen.getByText('Horário Almoço')).toBeInTheDocument()
@@ -62,9 +43,7 @@ describe('SettingsPanel', () => {
     const onChange = vi.fn()
     render(
       <SettingsPanel
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={onChange}
         onClear={() => {}}
       />,
@@ -79,9 +58,7 @@ describe('SettingsPanel', () => {
     const onChange = vi.fn()
     render(
       <SettingsPanel
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={onChange}
         onClear={() => {}}
       />,
@@ -95,9 +72,7 @@ describe('SettingsPanel', () => {
     const onChange = vi.fn()
     render(
       <SettingsPanel
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={onChange}
         onClear={() => {}}
       />,
@@ -111,9 +86,7 @@ describe('SettingsPanel', () => {
     const onChange = vi.fn()
     render(
       <SettingsPanel
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={onChange}
         onClear={() => {}}
       />,
@@ -127,9 +100,7 @@ describe('SettingsPanel', () => {
     const onChange = vi.fn()
     render(
       <SettingsPanel
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={onChange}
         onClear={() => {}}
       />,
@@ -145,9 +116,7 @@ describe('SettingsPanel', () => {
     const onChange = vi.fn()
     render(
       <SettingsPanel
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={onChange}
         onClear={() => {}}
       />,
@@ -161,9 +130,7 @@ describe('SettingsPanel', () => {
     const onChange = vi.fn()
     render(
       <SettingsPanel
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={onChange}
         onClear={() => {}}
       />,
@@ -185,9 +152,7 @@ describe('SettingsPanel', () => {
     )
     render(
       <PanelWithSenior
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={() => {}}
         onClear={() => {}}
       />,
@@ -200,9 +165,7 @@ describe('SettingsPanel', () => {
     const onClear = vi.fn()
     render(
       <SettingsPanel
-        open
         settings={settings}
-        onToggle={() => {}}
         onChange={() => {}}
         onClear={onClear}
       />,
@@ -212,29 +175,27 @@ describe('SettingsPanel', () => {
   })
 
   describe('LogsActions', () => {
-    function renderOpen() {
+    function renderPanel() {
       return render(
         <SettingsPanel
-          open
           settings={settings}
-          onToggle={() => {}}
           onChange={() => {}}
           onClear={() => {}}
         />,
       )
     }
 
-    it('renders both buttons when panel is open', () => {
+    it('renders both buttons', () => {
       exportLogsSpy.mockReset()
       clearLogsSpy.mockReset()
-      renderOpen()
+      renderPanel()
       expect(screen.getByText('Exportar logs')).toBeInTheDocument()
       expect(screen.getByText('Limpar logs')).toBeInTheDocument()
     })
 
     it('exports successfully and shows feedback', async () => {
       exportLogsSpy.mockReset().mockResolvedValue(undefined)
-      renderOpen()
+      renderPanel()
       fireEvent.click(screen.getByText('Exportar logs'))
       expect(screen.getByText('Exportando...')).toBeInTheDocument()
       await waitFor(() =>
@@ -244,7 +205,7 @@ describe('SettingsPanel', () => {
 
     it('shows failure feedback when export rejects', async () => {
       exportLogsSpy.mockReset().mockRejectedValue(new Error('boom'))
-      renderOpen()
+      renderPanel()
       fireEvent.click(screen.getByText('Exportar logs'))
       await waitFor(() =>
         expect(screen.getByText('Falha ao exportar logs.')).toBeInTheDocument(),
@@ -253,7 +214,7 @@ describe('SettingsPanel', () => {
 
     it('clears successfully and shows feedback', async () => {
       clearLogsSpy.mockReset().mockResolvedValue(undefined)
-      renderOpen()
+      renderPanel()
       fireEvent.click(screen.getByText('Limpar logs'))
       expect(screen.getByText('Limpando...')).toBeInTheDocument()
       await waitFor(() =>
@@ -263,7 +224,7 @@ describe('SettingsPanel', () => {
 
     it('shows failure feedback when clear rejects', async () => {
       clearLogsSpy.mockReset().mockRejectedValue(new Error('boom'))
-      renderOpen()
+      renderPanel()
       fireEvent.click(screen.getByText('Limpar logs'))
       await waitFor(() =>
         expect(screen.getByText('Falha ao limpar logs.')).toBeInTheDocument(),
@@ -277,7 +238,7 @@ describe('SettingsPanel', () => {
           resolve = r
         }),
       )
-      renderOpen()
+      renderPanel()
       const exportBtn = screen.getByText('Exportar logs')
       fireEvent.click(exportBtn)
       const clearBtn = screen.getByText('Limpar logs')
@@ -300,9 +261,7 @@ describe('SettingsPanel', () => {
       )
       render(
         <PanelDebug
-          open
           settings={settings}
-          onToggle={() => {}}
           onChange={() => {}}
           onClear={() => {}}
         />,
@@ -330,9 +289,7 @@ describe('SettingsPanel', () => {
       )
       render(
         <PanelDebug
-          open
           settings={settings}
-          onToggle={() => {}}
           onChange={() => {}}
           onClear={() => {}}
         />,

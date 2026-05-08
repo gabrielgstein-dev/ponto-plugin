@@ -120,9 +120,9 @@ vi.mock('../../../lib/presentation/components/PunchButton', () => ({
     </button>
   ),
 }))
-vi.mock('../../../lib/presentation/components/SettingsPanel', () => ({
-  SettingsPanel: ({ onToggle }: any) => (
-    <button data-testid="settings-toggle" onClick={onToggle}>
+vi.mock('../../../lib/presentation/components/SettingsButton', () => ({
+  SettingsButton: () => (
+    <button data-testid="settings-button">
       settings
     </button>
   ),
@@ -325,10 +325,9 @@ describe('App', () => {
     expect(screen.getByTestId('progress')).toBeInTheDocument()
   })
 
-  it('exercises onToggle and toast onDismiss callbacks', () => {
+  it('exercises toast onDismiss callback', () => {
     render(<App />)
-    fireEvent.click(screen.getByTestId('settings-toggle'))
-    fireEvent.click(screen.getByTestId('settings-toggle'))
+    expect(screen.getByTestId('settings-button')).toBeInTheDocument()
     // Trigger toast via captured callback, then click it to invoke onDismiss
     act(() => {
       capturedToastFn?.('hello')

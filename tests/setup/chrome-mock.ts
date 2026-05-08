@@ -44,6 +44,7 @@ export const mockWindowsUpdate = vi.fn().mockResolvedValue({ id: 42 })
 // ── Runtime ───────────────────────────────────────────────────────────────────
 export const mockRuntimeSendMessage = vi.fn().mockResolvedValue(undefined)
 export const mockRuntimeGetURL = vi.fn((path: string) => `chrome-extension://test-id/${path}`)
+export const mockRuntimeGetManifest = vi.fn(() => ({ version: '0.0.0-test' }))
 
 // ── Alarms ────────────────────────────────────────────────────────────────────
 export const mockAlarmsCreate = vi.fn()
@@ -78,6 +79,7 @@ const chromeMock = {
   },
   sidePanel: {
     open: mockSidePanelOpen,
+    setOptions: vi.fn(() => Promise.resolve()),
   },
   cookies: {
     getAll: mockCookiesGetAll,
@@ -120,6 +122,7 @@ const chromeMock = {
     },
     sendMessage: mockRuntimeSendMessage,
     getURL: mockRuntimeGetURL,
+    getManifest: mockRuntimeGetManifest,
   },
   alarms: {
     create: mockAlarmsCreate,
@@ -159,6 +162,7 @@ beforeEach(() => {
   mockWindowsUpdate.mockResolvedValue({ id: 42 })
   mockRuntimeSendMessage.mockResolvedValue(undefined)
   mockRuntimeGetURL.mockImplementation((path: string) => `chrome-extension://test-id/${path}`)
+  mockRuntimeGetManifest.mockReturnValue({ version: '0.0.0-test' })
   mockAlarmsClear.mockResolvedValue(true)
   mockSidePanelOpen.mockResolvedValue(undefined)
 

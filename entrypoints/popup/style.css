@@ -262,36 +262,47 @@ body {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.settings-section { padding: 0 16px; }
-.settings-toggle {
-  background: none; border: none; color: var(--text-dimmer);
-  font-size: 11px; cursor: pointer; padding: 6px 0; width: 100%; text-align: left;
+.settings-banner {
+  margin: 8px 16px; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
 }
-.settings-toggle:hover { color: var(--text-dim); }
-.settings-body {
-  padding: 8px 0; border-top: 1px solid var(--border);
+.settings-banner:hover { border-color: var(--accent2); }
+.settings-banner-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  transition: color 0.15s;
 }
-.setting-row {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+.settings-banner:hover .settings-banner-icon { color: var(--accent2); }
+.settings-banner-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text-dim);
 }
-.setting-row label { font-size: 11px; color: var(--text-dim); }
-.setting-row input {
-  width: 90px; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 5px; color: var(--text); font-family: var(--mono);
-  font-size: 13px; padding: 4px 6px; outline: none; text-align: center;
-  color-scheme: dark;
-}
-.setting-row input:focus { border-color: rgba(74,222,128,0.4); }
 
 .hour-bank-banner {
   margin: 8px 16px; padding: 10px 12px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
 }
+.hour-bank-banner:hover { border-color: var(--accent2); }
+.hour-bank-banner:hover .hour-bank-icon { color: var(--accent2); }
 .hour-bank-banner.positive { border-color: rgba(74,222,128,0.25); }
 .hour-bank-banner.negative { border-color: rgba(248,113,113,0.25); }
 .hour-bank-header {
   display: flex; justify-content: space-between; align-items: center;
+}
+.hour-bank-title {
+  display: flex; align-items: center; gap: 10px;
+}
+.hour-bank-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  transition: color 0.15s;
 }
 .hour-bank-label {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
@@ -309,17 +320,11 @@ body {
   font-family: var(--mono); color: var(--accent2);
 }
 .hour-bank-footer {
-  display: flex; justify-content: space-between; align-items: center; margin-top: 6px; gap: 8px;
+  margin-top: 6px;
 }
 .hour-bank-period {
   font-size: 10px; color: var(--text-dimmer);
 }
-.hour-bank-detail-btn {
-  background: none; border: none; color: var(--accent2);
-  font-size: 12px; cursor: pointer; padding: 2px 0;
-  font-family: var(--sans); white-space: nowrap;
-}
-.hour-bank-detail-btn:hover { text-decoration: underline; }
 
 .history-section { padding: 0 16px; margin-top: 8px; }
 .history-toggle {
@@ -369,3 +374,13 @@ body {
 }
 .toast.show { opacity: 1; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.popup-version {
+  margin: 6px 16px 0;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dimmer);
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}

@@ -8,7 +8,6 @@ describe('HourBankBanner', () => {
     const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => {})
     render(<HourBankBanner balance={null} estimatedExit={null} />)
     expect(screen.getByText('Histórico & Timesheet')).toBeInTheDocument()
-    expect(screen.getByText('Abrir →')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Histórico & Timesheet').closest('.hour-bank-banner')!)
     await waitFor(() => expect(mockSidePanelOpen).toHaveBeenCalledWith({ windowId: 42 }))
