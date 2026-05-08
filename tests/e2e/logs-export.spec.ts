@@ -16,6 +16,7 @@ import fs from 'fs'
 
 let ctx: BrowserContext
 let popupUrl: string
+let settingsUrl: string
 let tmpDir: string
 
 test.beforeAll(async () => {
@@ -23,6 +24,7 @@ test.beforeAll(async () => {
   const fixture = await launchExtension(tmpDir)
   ctx = fixture.context
   popupUrl = fixture.popupUrl
+  settingsUrl = fixture.settingsUrl
 })
 
 test.afterAll(async () => {
@@ -101,7 +103,7 @@ test('LOG-3: console.error wrap captura mensagens manuais', async () => {
 
 test('LOG-4: botão "Limpar logs" remove os marcadores pré-existentes', async () => {
   const page = await ctx.newPage()
-  await page.goto(popupUrl)
+  await page.goto(settingsUrl)
   await page.waitForLoadState('domcontentloaded')
 
   // Pré-popula com marcadores únicos para conseguir distinguir do que o
@@ -120,7 +122,6 @@ test('LOG-4: botão "Limpar logs" remove os marcadores pré-existentes', async (
     { a: markerA, b: markerB },
   )
 
-  await page.locator('.settings-toggle').click()
   await page.locator('button.logs-clear-btn').click()
   await expect(page.locator('.logs-feedback')).toHaveText('Logs limpos.')
 
@@ -136,7 +137,7 @@ test('LOG-4: botão "Limpar logs" remove os marcadores pré-existentes', async (
 
 test('LOG-5: botão "Exportar logs" dispara download de arquivo .json', async () => {
   const page = await ctx.newPage()
-  await page.goto(popupUrl)
+  await page.goto(settingsUrl)
   await page.waitForLoadState('domcontentloaded')
 
   // Garante que tem ao menos uma entrada
@@ -145,8 +146,6 @@ test('LOG-5: botão "Exportar logs" dispara download de arquivo .json', async ()
       appLogs: [{ ts: 1, level: 'log', ctx: 'popup', msg: 'exported-entry' }],
     })
   })
-
-  await page.locator('.settings-toggle').click()
 
   const downloadPromise = page.waitForEvent('download', { timeout: 5000 })
   await page.locator('button.logs-export-btn').click()

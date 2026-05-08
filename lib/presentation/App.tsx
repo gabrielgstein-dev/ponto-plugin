@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
 import { PUNCH_SLOTS } from '../domain/types';
 import type { PunchState } from '../domain/types';
@@ -15,7 +15,7 @@ import { ProgressBar } from './components/ProgressBar';
 import { StatusBanner } from './components/StatusBanner';
 import { NextAction } from './components/NextAction';
 import { PunchButton } from './components/PunchButton';
-import { SettingsPanel } from './components/SettingsPanel';
+import { SettingsButton } from './components/SettingsButton';
 import { ENABLE_SENIOR_PUNCH_BUTTON, ENABLE_MANUAL_PUNCH, ENABLE_SENIOR_INTEGRATION, ENABLE_YESTERDAY, APP_NAME } from '../domain/build-flags';
 import { useYesterdayPunches } from './hooks/useYesterdayPunches';
 import { useManualPunch } from './hooks/useManualPunch';
@@ -32,9 +32,8 @@ const ICONS: Record<string, string> = { entrada: '🌅', almoco: '🍽️', volt
 
 export function App() {
   const { time, date } = useClock();
-  const { punchState, settings, loading, refresh, updateSettings, clearState, stateRepo } = usePunchState();
+  const { punchState, settings, loading, refresh, stateRepo } = usePunchState();
   const [toast, setToast] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
   const { detecting } = useAutoDetect(stateRepo, refresh, showToast);
@@ -89,10 +88,18 @@ export function App() {
       {ENABLE_MANUAL_PUNCH && <PunchButton onClick={doManualPunch} loading={manualPunching} disabled={!!punchState.saida} />}
       <HourBankBanner balance={balance} estimatedExit={getDisplayTime(punchState, 'saida')} />
       {ENABLE_MANUAL_PUNCH && <PunchHistory showSeedButton />}
-      <SettingsPanel open={settingsOpen} settings={settings} onToggle={() => setSettingsOpen(o => !o)} onChange={updateSettings} onClear={clearState} />
+      <SettingsButton />
+      <PopupVersion />
       <Toast message={toast} onDismiss={() => setToast(null)} />
     </div>
   );
+}
+
+function PopupVersion() {
+  const runtime = chrome?.runtime as unknown as { getManifest?: () => { version?: string } } | undefined;
+  const version = runtime?.getManifest?.()?.version;
+  if (!version) return null;
+  return <div className="popup-version">v{version}</div>;
 }
 
 function getDisplayTime(ps: PunchState, slot: keyof PunchState): string | null {

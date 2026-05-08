@@ -15,6 +15,7 @@ export interface ExtensionFixture {
   extensionId: string
   popupUrl: string
   sidepanelUrl: string
+  settingsUrl: string
 }
 
 export async function launchExtension(profileDir = ''): Promise<ExtensionFixture> {
@@ -49,6 +50,7 @@ export async function launchExtension(profileDir = ''): Promise<ExtensionFixture
     extensionId,
     popupUrl: `chrome-extension://${extensionId}/popup.html`,
     sidepanelUrl: `chrome-extension://${extensionId}/sidepanel.html`,
+    settingsUrl: `chrome-extension://${extensionId}/settings.html`,
   }
 }
 
