@@ -4,7 +4,7 @@
  * Testa o HTML/JS do popup diretamente:
  * - Renderiza corretamente para cada slot
  * - Exibe título, ícone e horário esperado
- * - Botão "Entendido" fecha a janela
+ * - Botão "Registrar agora" fecha a janela
  */
 import { test, expect } from '@playwright/test'
 import { launchExtension } from './helpers/extension'
@@ -119,7 +119,7 @@ test('popup saida exibe ícone de casa', async () => {
   await page.close()
 })
 
-// ── Botão "Entendido" ─────────────────────────────────────────────────────────
+// ── Botão "Registrar agora" ───────────────────────────────────────────────────
 
 test('popup carrega sem erros de console', async () => {
   const page = await ctx.newPage()
@@ -133,14 +133,14 @@ test('popup carrega sem erros de console', async () => {
   await page.close()
 })
 
-test('botão "Entendido" está presente e visível', async () => {
+test('botão "Registrar agora" está presente e visível', async () => {
   const page = await ctx.newPage()
   await page.goto(reminderUrl('almoco', '12:00'))
   await page.waitForLoadState('domcontentloaded')
 
   const btn = page.locator('#btnOk')
   await expect(btn).toBeVisible()
-  await expect(btn).toHaveText('Entendido')
+  await expect(btn).toHaveText('Registrar agora')
   await page.close()
 })
 
