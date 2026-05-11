@@ -11,14 +11,6 @@ export interface TimesheetConfig {
    * indefinido, cai pra `platformUrl`.
    */
   bootstrapUrl?: string;
-  /**
-   * Substring esperada na URL final da aba após o SSO terminar. Usado pra
-   * aguardar (via `webNavigation.onCompleted`) o SPA bootstrapar o módulo
-   * antes de tentar `executeScript` — evita "Frame with ID 0 was removed"
-   * quando o frame ainda está sendo trocado durante o redirect chain.
-   * Quando indefinido, basta a URL estar no `platformUrl` origin.
-   */
-  expectedPathContains?: string;
   sessionEndpoint: string;
   timesheetsBase: string;
   tokenMaxAgeMs: number;
