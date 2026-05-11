@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.6.0...senior-ponto-v0.7.0) (2026-05-11)
+
+
+### Novidades
+
+* **popups:** troca CTA dos lembretes para "Registrar agora" ([55e77ee](https://github.com/gabrielgstein-dev/ponto-plugin/commit/55e77eeb9dba8a33e134a49a0432932d0abc9ce5))
+* **ui:** settings em sidepanel próprio e versão visível no popup ([8f6be05](https://github.com/gabrielgstein-dev/ponto-plugin/commit/8f6be05ed73ec380b7e3f7d7d19611e732f05e59))
+
 ## [0.6.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.5.0...senior-ponto-v0.6.0) (2026-05-07)
 
 
