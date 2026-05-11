@@ -33,7 +33,7 @@ Definidas em `lib/domain/build-flags.ts`. São constantes `as const` — resolvi
 | `ENABLE_SENIOR_INTEGRATION` | `true` | Habilita integração com Senior/GestaoPonto (APIs, interceptors, cookies, content scripts) |
 | `ENABLE_SENIOR_PUNCH_BUTTON` | `false` | Habilita botão de bater ponto via API Senior (requer `ENABLE_SENIOR_INTEGRATION`) |
 | `ENABLE_MANUAL_PUNCH` | `false` | Habilita ponto manual local (sem Senior, grava em `chrome.storage.local`) |
-| `ENABLE_WIDGET` | `true` | Habilita widget flutuante em todas as páginas |
+| `ENABLE_WIDGET` | `true` | Habilita widget flutuante nos domínios autorizados (Senior X, GestãoPonto, plataforma Meta) |
 | `ENABLE_YESTERDAY` | `true` | Habilita banner de pontos de ontem (requer `ENABLE_SENIOR_INTEGRATION`) |
 | `ENABLE_NOTIFICATIONS` | `true` | Habilita notificações de almoço/volta/saída via `chrome.alarms` |
 
@@ -166,7 +166,7 @@ Se almoco E !volta: worked -= (now - almoco)   // desconta tempo de almoço em a
 ## 7. Widget Flutuante (content script)
 
 ### 7.1 Escopo
-- Injetado em **todas as URLs** (`<all_urls>`)
+- Injetado apenas nos domínios autorizados: `platform.senior.com.br`, `gestaoponto.meta.com.br`, `plataforma.meta.com.br`
 - Apenas em `window.top` (ignora iframes)
 - Posição fixa: `bottom:20px; right:20px; z-index:99999`
 
@@ -311,12 +311,11 @@ As permissões são condicionais via build flags em `wxt.config.ts`.
 | `storage` | Persistir state, settings, tokens | sempre |
 | `alarms` | Agendar notificações e reset diário | sempre |
 | `notifications` | Notificações de almoço/volta/saída | `ENABLE_NOTIFICATIONS` |
-| `activeTab` | Acesso à aba ativa | `ENABLE_SENIOR_INTEGRATION` |
-| `tabs` | Buscar/criar abas Senior e GestaoPonto | `ENABLE_SENIOR_INTEGRATION` |
-| `scripting` | Injetar scripts nas abas (executeScript) | `ENABLE_SENIOR_INTEGRATION` |
-| `webRequest` | Interceptar headers de Authorization no background | `ENABLE_SENIOR_INTEGRATION` |
-| `cookies` | Ler `com.senior.token` do domínio `.senior.com.br` | `ENABLE_SENIOR_INTEGRATION` |
-| `host_permissions: <all_urls>` | Widget content script + Senior pages | `ENABLE_SENIOR_INTEGRATION` ou `ENABLE_WIDGET` |
+| `tabs` | Buscar/criar abas Senior e GestaoPonto | `ENABLE_SENIOR_INTEGRATION` ou `ENABLE_META_TIMESHEET` |
+| `scripting` | Injetar scripts nas abas (executeScript) | `ENABLE_SENIOR_INTEGRATION` ou `ENABLE_META_TIMESHEET` |
+| `webRequest` | Capturar headers de Authorization no background | `ENABLE_SENIOR_INTEGRATION` ou `ENABLE_META_TIMESHEET` |
+| `cookies` | Ler `com.senior.token` do domínio `.senior.com.br` | `ENABLE_SENIOR_INTEGRATION` ou `ENABLE_META_TIMESHEET` |
+| `host_permissions` (4 domínios) | Senior X, GestãoPonto, plataforma Meta, API Meta | `ENABLE_SENIOR_INTEGRATION`, `ENABLE_WIDGET` ou `ENABLE_META_TIMESHEET` |
 
 ---
 

@@ -5,16 +5,16 @@ import { generateCSSVariables } from './lib/domain/theme-utils';
 import { readFileSync, writeFileSync } from 'fs';
 
 const basePermissions: string[] = ['storage', 'alarms', 'sidePanel'];
-const seniorPermissions: string[] = ['activeTab', 'tabs', 'scripting', 'webRequest', 'cookies', 'webNavigation'];
-const metaTimesheetPermissions: string[] = ['webRequest', 'tabs', 'scripting', 'cookies', 'webNavigation'];
+const seniorPermissions: string[] = ['tabs', 'scripting', 'webRequest', 'cookies'];
+const metaTimesheetPermissions: string[] = ['tabs', 'scripting', 'webRequest', 'cookies'];
 const notifPermissions: string[] = ['notifications'];
 
-const permissions = [
+const permissions = Array.from(new Set([
   ...basePermissions,
   ...(ENABLE_SENIOR_INTEGRATION ? seniorPermissions : []),
   ...(ENABLE_META_TIMESHEET ? metaTimesheetPermissions : []),
   ...(ENABLE_NOTIFICATIONS ? notifPermissions : []),
-];
+]));
 
 const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET || ENABLE_META_TIMESHEET
   ? ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*', '*://api.meta.com.br/*']

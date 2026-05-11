@@ -98,16 +98,6 @@ const chromeMock = {
       removeListener: vi.fn(),
     },
   },
-  webNavigation: {
-    onCompleted: {
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-    },
-    onHistoryStateUpdated: {
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-    },
-  },
   windows: {
     getCurrent: mockWindowsGetCurrent,
     get: mockWindowsGet,
