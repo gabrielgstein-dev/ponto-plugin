@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Settings } from '../../domain/types';
 import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../../domain/build-flags';
 import { exportLogs } from '../export-logs';
@@ -54,6 +54,7 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
         <SettingRow label="Duração Almoço (min)" value={settings.almocoDur} onChange={v => onChange({ almocoDur: v })} />
         <SettingRow label="Antecipação Notif. (min)" value={settings.notifAntecip} onChange={v => onChange({ notifAntecip: v })} />
         <SettingRow label="Lembrete Atraso (min)" value={settings.lembreteAtraso} onChange={v => onChange({ lembreteAtraso: Math.max(0, Math.round(v)) })} />
+        <SoundSettings settings={settings} onChange={onChange} />
         {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
         <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
         <LogsActions />
@@ -282,6 +283,131 @@ function LogsActions() {
       {feedback && <span className="logs-feedback">{feedback}</span>}
     </div>
   );
+}
+
+const SOUND_MAX_BYTES = 500 * 1024;
+const SOUND_ACCEPTED_MIME = ['audio/mpeg', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/ogg'];
+
+interface SoundSettingsProps {
+  settings: Settings;
+  onChange: (partial: Partial<Settings>) => void;
+}
+
+function SoundSettings({ settings, onChange }: SoundSettingsProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const hasCustom = !!settings.customSoundDataUrl;
+  const enabled = settings.soundEnabled;
+
+  const handlePickFile = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!SOUND_ACCEPTED_MIME.includes(file.type)) {
+      setFeedback('Formato inválido. Use MP3, WAV ou OGG.');
+      return;
+    }
+    if (file.size > SOUND_MAX_BYTES) {
+      setFeedback(`Arquivo muito grande (${Math.round(file.size / 1024)} KB). Máximo: 500 KB.`);
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      onChange({ customSoundDataUrl: dataUrl });
+      setFeedback(`Som personalizado: ${file.name}`);
+    } catch {
+      setFeedback('Falha ao ler arquivo.');
+    }
+  };
+
+  const handleReset = () => {
+    onChange({ customSoundDataUrl: null });
+    setFeedback('Som padrão restaurado.');
+  };
+
+  const safeVolume = typeof settings.soundVolume === 'number' && Number.isFinite(settings.soundVolume)
+    ? Math.max(0, Math.min(1, settings.soundVolume))
+    : 1;
+
+  const handleTest = () => {
+    audioRef.current?.pause();
+    const src = settings.customSoundDataUrl || chrome.runtime.getURL('sounds/punch-reminder.mp3');
+    const audio = new Audio(src);
+    audio.volume = safeVolume;
+    audioRef.current = audio;
+    audio.play().catch(() => setFeedback('Falha ao tocar som.'));
+  };
+
+  const volumePct = Math.round(safeVolume * 100);
+
+  return (
+    <div className="sound-settings">
+      <div className="setting-row">
+        <label htmlFor="sound-enabled">Som no lembrete</label>
+        <input
+          id="sound-enabled"
+          type="checkbox"
+          className="setting-checkbox"
+          checked={enabled}
+          onChange={e => onChange({ soundEnabled: e.target.checked })}
+        />
+      </div>
+      <div className="setting-row">
+        <label htmlFor="sound-volume">Volume</label>
+        <div className="sound-volume">
+          <input
+            id="sound-volume"
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={volumePct}
+            disabled={!enabled}
+            onChange={e => onChange({ soundVolume: parseInt(e.target.value, 10) / 100 })}
+          />
+          <span className="sound-volume-value">{volumePct}%</span>
+        </div>
+      </div>
+      <div className="sound-actions">
+        <button className="logs-export-btn" onClick={handlePickFile} disabled={!enabled}>
+          Escolher arquivo...
+        </button>
+        {hasCustom && (
+          <button className="logs-export-btn" onClick={handleReset} disabled={!enabled}>
+            Restaurar padrão
+          </button>
+        )}
+        <button className="logs-export-btn" onClick={handleTest} disabled={!enabled}>
+          Testar
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
+      </div>
+      <div className="sound-status">
+        <span className="sound-status-label">
+          {hasCustom ? 'Usando som personalizado.' : 'Usando som padrão.'}
+        </span>
+        {feedback && <span className="logs-feedback">{feedback}</span>}
+      </div>
+    </div>
+  );
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 interface SettingRowProps {

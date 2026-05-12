@@ -16,6 +16,24 @@ document.getElementById('title').textContent = config.title;
 document.getElementById('msg').innerHTML =
   `${config.msg}${time ? ` Horário previsto: <strong>${time}</strong>.` : ''}`;
 
+playReminderSound();
+
+function clampVolume(v) {
+  const n = typeof v === 'number' && Number.isFinite(v) ? v : 1;
+  return Math.max(0, Math.min(1, n));
+}
+
+async function playReminderSound() {
+  try {
+    const { pontoSettings } = await chrome.storage.local.get('pontoSettings');
+    if (pontoSettings?.soundEnabled === false) return;
+    const src = pontoSettings?.customSoundDataUrl || chrome.runtime.getURL('sounds/punch-reminder.mp3');
+    const audio = new Audio(src);
+    audio.volume = clampVolume(pontoSettings?.soundVolume);
+    await audio.play();
+  } catch {}
+}
+
 document.getElementById('btnOk').addEventListener('click', () => {
   try {
     chrome.runtime.sendMessage({ type: 'OPEN_PUNCH_PAGE' }, () => {

@@ -158,6 +158,61 @@ body {
   color: var(--text-dim);
 }
 
+.setting-checkbox {
+  width: 18px !important;
+  height: 18px;
+  padding: 0 !important;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent2);
+}
+
+.sound-settings {
+  margin-bottom: 12px;
+}
+.sound-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 160px;
+}
+.sound-volume input[type="range"] {
+  flex: 1;
+  width: 110px;
+  padding: 0 !important;
+  background: transparent;
+  accent-color: var(--accent2);
+  cursor: pointer;
+}
+.sound-volume input[type="range"]:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sound-volume-value {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  min-width: 38px;
+  text-align: right;
+}
+.sound-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+.sound-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.sound-status-label {
+  font-size: 11px;
+  color: var(--text-dimmer);
+}
+
 .settings-version {
   margin-top: 16px;
   text-align: center;
