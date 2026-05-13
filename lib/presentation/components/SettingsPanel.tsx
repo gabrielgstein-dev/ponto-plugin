@@ -375,14 +375,6 @@ function SoundSettings({ settings, onChange }: SoundSettingsProps) {
         <button className="logs-export-btn" onClick={handlePickFile} disabled={!enabled}>
           Escolher arquivo...
         </button>
-        <span
-          className="help-tooltip"
-          data-tooltip={'Formatos aceitos: MP3, WAV, OGG\nTamanho máximo: 500 KB'}
-          aria-label="Requisitos do arquivo de áudio"
-          tabIndex={0}
-        >
-          ?
-        </span>
         {hasCustom && (
           <button className="logs-export-btn" onClick={handleReset} disabled={!enabled}>
             Restaurar padrão
@@ -399,6 +391,7 @@ function SoundSettings({ settings, onChange }: SoundSettingsProps) {
           style={{ display: 'none' }}
         />
       </div>
+      <div className="sound-hint">MP3, WAV ou OGG · máx. 500 KB</div>
       <div className="sound-status">
         <span className="sound-status-label">
           {hasCustom ? 'Usando som personalizado.' : 'Usando som padrão.'}
