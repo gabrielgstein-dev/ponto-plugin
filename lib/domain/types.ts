@@ -17,6 +17,9 @@ export interface Settings {
   notifAntecip: number;
   lembreteAtraso: number;
   closingDay: number;
+  soundEnabled: boolean;
+  customSoundDataUrl: string | null;
+  soundVolume: number;
 }
 
 export interface PunchDetectionResult {
@@ -63,6 +66,9 @@ export const DEFAULT_SETTINGS: Settings = {
   notifAntecip: 10,
   lembreteAtraso: 30,
   closingDay: 28,
+  soundEnabled: true,
+  customSoundDataUrl: null,
+  soundVolume: 1,
 };
 
 export interface DayRecord {
