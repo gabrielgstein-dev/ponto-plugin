@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.7.0...senior-ponto-v0.8.0) (2026-05-13)
+
+
+### Novidades
+
+* **reminder:** som configurável no popup de lembrete ([#23](https://github.com/gabrielgstein-dev/ponto-plugin/issues/23)) ([48f64d0](https://github.com/gabrielgstein-dev/ponto-plugin/commit/48f64d05638edd0112e199368d5b973a1fd3d4f1))
+
 ## [0.7.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.6.0...senior-ponto-v0.7.0) (2026-05-11)
 
 
