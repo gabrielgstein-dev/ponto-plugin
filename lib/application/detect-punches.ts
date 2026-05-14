@@ -1,23 +1,33 @@
 import type { IPunchProvider, IPunchDetector } from '../domain/interfaces';
 import type { PunchDetectionResult } from '../domain/types';
 import { debugLog, debugWarn } from '../domain/debug';
+import { timeToMinutes } from '../domain/time-utils';
 
 const PENDING_TTL_MS = 120000;
 let _pendingPunches: { time: string; ts: number }[] = [];
+
+// Ordena "HH:MM" cronologicamente. Sem isso, .sort() lexicográfico funciona
+// só por coincidência (24h zero-padded) — basta um "9:30" sem pad pra furar
+// a invariante de slots por índice (1º=entrada, 2º=almoço, 3º=volta, 4º=saída).
+function sortTimes(times: string[]): string[] {
+  return [...times].sort((a, b) => (timeToMinutes(a) ?? 0) - (timeToMinutes(b) ?? 0));
+}
 
 export function addPendingPunch(time: string): void {
   _pendingPunches = _pendingPunches.filter(p => Date.now() - p.ts < PENDING_TTL_MS);
   if (!_pendingPunches.some(p => p.time === time)) {
     _pendingPunches.push({ time, ts: Date.now() });
     debugLog('Pending punch adicionado:', time);
-    savePendingPunches();
+    void savePendingPunches();
   }
 }
 
-function savePendingPunches(): void {
+async function savePendingPunches(): Promise<void> {
   try {
-    chrome.storage.local.set({ pendingPunches: _pendingPunches });
-  } catch (_) {}
+    await chrome.storage.local.set({ pendingPunches: _pendingPunches });
+  } catch (e) {
+    debugWarn('savePendingPunches falhou:', (e as Error).message);
+  }
 }
 
 export async function loadPendingPunches(): Promise<void> {
@@ -30,7 +40,9 @@ export async function loadPendingPunches(): Promise<void> {
         debugLog('Pending punches restaurados:', _pendingPunches.map(p => p.time).join(', '));
       }
     }
-  } catch (_) {}
+  } catch (e) {
+    debugWarn('loadPendingPunches falhou:', (e as Error).message);
+  }
 }
 
 function getActivePendingPunches(): string[] {
@@ -71,7 +83,7 @@ export class PunchDetector implements IPunchDetector {
     }
 
     if (primaryTimes.length > 0) {
-      const unique = [...new Set(primaryTimes)].sort();
+      const unique = sortTimes([...new Set(primaryTimes)]);
       const merged = this.mergePending(unique);
       debugLog(`PunchDetector: primary providers retornaram ${merged.length} batimentos (sources: ${primarySources.join('+')})`);
       return { times: merged, source: primarySources.join('+') };
@@ -99,7 +111,7 @@ export class PunchDetector implements IPunchDetector {
     const pending = getActivePendingPunches();
     if (pending.length > 0) {
       debugLog(`PunchDetector: usando pending punches (${pending.length})`);
-      return { times: [...new Set(pending)].sort(), source: 'pending' };
+      return { times: sortTimes([...new Set(pending)]), source: 'pending' };
     }
 
     debugLog('PunchDetector: nenhum provider retornou dados');
@@ -111,7 +123,7 @@ export class PunchDetector implements IPunchDetector {
     if (pending.length === 0) return times;
     const set = new Set(times);
     for (const p of pending) set.add(p);
-    const merged = [...set].sort();
+    const merged = sortTimes([...set]);
     if (merged.length !== times.length) {
       debugLog('Pending punches mergeados:', merged.join(', '));
     }

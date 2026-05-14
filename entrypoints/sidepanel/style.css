@@ -913,3 +913,94 @@ body {
   font-style: italic;
   margin-top: 2px;
 }
+
+.spike-debug-panel {
+  margin-top: 24px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.spike-debug-panel > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.spike-body { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.spike-hint { color: var(--text-dim); font-size: 11px; }
+.spike-hint code {
+  background: var(--surface2);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+}
+.spike-actions { display: flex; gap: 8px; }
+.spike-actions button {
+  flex: 1;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.spike-actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.spike-actions button:disabled { opacity: 0.6; cursor: default; }
+.spike-result {
+  padding: 8px;
+  background: var(--surface2);
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.spike-result-header {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.spike-error { color: var(--danger); }
+.spike-body-preview {
+  background: var(--bg);
+  padding: 6px;
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.spike-winner {
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.spike-attempts {
+  width: 100%;
+  font-size: 10px;
+  margin-top: 4px;
+  border-collapse: collapse;
+}
+.spike-attempts th, .spike-attempts td {
+  padding: 2px 6px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.spike-attempts th { color: var(--text-dim); font-weight: 500; }
+.spike-attempts td { font-family: ui-monospace, monospace; }
+.spike-attempts tr.win td { color: var(--accent); font-weight: 600; }
+.spike-attempts td:nth-child(1) { width: 50px; }
+.spike-attempts td:nth-child(2) { width: 60px; text-align: center; }
+.spike-attempts td:nth-child(3) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}

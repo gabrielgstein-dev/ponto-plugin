@@ -17,8 +17,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // ── Hoisted mocks (disponíveis nos factories vi.mock) ─────────────────────────
-const { mockDetect } = vi.hoisted(() => ({
+const { mockDetect, mockSchedule } = vi.hoisted(() => ({
   mockDetect: vi.fn<Parameters<import('../../lib/domain/interfaces').IPunchDetector['detect']>, ReturnType<import('../../lib/domain/interfaces').IPunchDetector['detect']>>(),
+  mockSchedule: vi.fn(),
 }))
 
 vi.mock('../../lib/application/detect-punches', () => ({
@@ -40,7 +41,7 @@ vi.mock('../../lib/application/calc-schedule', () => ({
 }))
 
 vi.mock('../../lib/application/schedule-notifications', () => ({
-  scheduleNotifications: vi.fn(),
+  scheduleNotifications: mockSchedule,
 }))
 
 vi.mock('../../lib/application/schedule-ts-notifications', () => ({
@@ -185,5 +186,21 @@ describe('F3 — backgroundDetect()', () => {
     const call = mockDetect.mock.calls[mockDetect.mock.calls.length - 1]
     // detect(date, aggressive)
     expect(call[1]).toBe(false)
+  })
+
+  it('agenda popup de entrada mesmo quando detector não retorna batimentos (manhã)', async () => {
+    // Cenário típico: Chrome aberto antes das 08:00, nenhum ponto detectado.
+    // Sem essa chamada, o alarme `punch_popup_entrada` nunca seria criado.
+    mockDetect.mockResolvedValue(null)
+    mockSchedule.mockClear()
+    expect(await backgroundDetect()).toBe(false)
+    expect(mockSchedule).toHaveBeenCalledWith(null, null, null, null)
+  })
+
+  it('agenda também quando detector retorna lista vazia', async () => {
+    mockDetect.mockResolvedValue({ times: [], source: 'test' })
+    mockSchedule.mockClear()
+    expect(await backgroundDetect()).toBe(false)
+    expect(mockSchedule).toHaveBeenCalledWith(null, null, null, null)
   })
 })

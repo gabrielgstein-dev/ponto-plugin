@@ -10,15 +10,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('../../lib/application/punch-reminder-manager', () => ({
   startReminder: vi.fn().mockResolvedValue(undefined),
   resolveReminder: vi.fn().mockResolvedValue(undefined),
+  DISMISSED_SLOTS_KEY: 'punchPopupDismissedSlots',
 }))
 
 vi.mock('../../lib/application/schedule-ts-notifications', () => ({
   resetTsScheduled: vi.fn(),
 }))
 
-import { handlePunchPopupAlarm, handleReminderAlarm } from '../../lib/application/handle-alarm'
+const scheduleNotificationsSpy = vi.fn()
+vi.mock('../../lib/application/schedule-notifications', () => ({
+  scheduleNotifications: (...args: unknown[]) => scheduleNotificationsSpy(...args),
+}))
+
+import {
+  handlePunchPopupAlarm,
+  handleReminderAlarm,
+  handleDailyReset,
+} from '../../lib/application/handle-alarm'
 import { startReminder } from '../../lib/application/punch-reminder-manager'
-import { mockStorageGet } from '../setup/chrome-mock'
+import {
+  mockAlarmsClear,
+  mockStorageGet,
+} from '../setup/chrome-mock'
 
 beforeEach(() => {
   // chrome.notifications não existe no mock global — stub local.
@@ -75,5 +88,20 @@ describe("handleReminderAlarm — slot 'entrada' (BUG 3)", () => {
     const notif = (globalThis as { chrome: { notifications: { create: ReturnType<typeof vi.fn> } } })
       .chrome.notifications.create
     expect(notif).not.toHaveBeenCalled()
+  })
+})
+
+describe('handleDailyReset — reagenda entrada após reset', () => {
+  beforeEach(() => {
+    scheduleNotificationsSpy.mockClear()
+    mockAlarmsClear.mockResolvedValue(true)
+    ;(globalThis as { chrome: { alarms: { getAll: ReturnType<typeof vi.fn> } } })
+      .chrome.alarms.getAll = vi.fn().mockResolvedValue([])
+  })
+
+  it('chama scheduleNotifications(null,null,null,null) após resetar o dia', async () => {
+    mockStorageGet.mockResolvedValue({})
+    await handleDailyReset()
+    expect(scheduleNotificationsSpy).toHaveBeenCalledWith(null, null, null, null)
   })
 })

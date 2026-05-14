@@ -6,6 +6,7 @@ import { TimesheetPanel } from './components/TimesheetPanel';
 import { ThemeToggle } from './components/ThemeToggle';
 import { ResyncButton } from './components/ResyncButton';
 import { SidePanelNav } from './components/SidePanelNav';
+import { SpikeDebugPanel } from './components/SpikeDebugPanel';
 import { NAV_MSG_TO_SETTINGS, navigateToSettings } from './sidepanel-switch';
 
 type SidePanelTab = 'ponto' | 'timesheet';
@@ -95,6 +96,8 @@ export function SidePanelApp() {
               />
             ))}
           </div>
+
+          <SpikeDebugPanel />
         </>
       )}
 

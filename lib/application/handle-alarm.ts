@@ -1,6 +1,8 @@
-import { ENABLE_SENIOR_INTEGRATION } from '../domain/build-flags';
+import { ENABLE_SENIOR_INTEGRATION, ENABLE_NOTIFICATIONS } from '../domain/build-flags';
 import { resetTsScheduled } from './schedule-ts-notifications';
-import { startReminder, resolveReminder } from './punch-reminder-manager';
+import { scheduleNotifications } from './schedule-notifications';
+import { resetNotifScheduled } from './state';
+import { startReminder, resolveReminder, DISMISSED_SLOTS_KEY } from './punch-reminder-manager';
 import type { PunchReminderSlot } from '../domain/types';
 
 const REMINDER_SLOT_MAP: Record<string, PunchReminderSlot> = {
@@ -16,6 +18,17 @@ const PUNCH_POPUP_SLOT_MAP: Record<string, PunchReminderSlot> = {
   punch_popup_volta: 'volta',
   punch_popup_saida: 'saida',
 };
+
+// Alarmes do Chrome são persistidos e disparam imediatamente quando o SO
+// acorda do sleep, mesmo que o horário agendado já tenha passado faz horas.
+// Sem esse guard, um `reminder_saida` agendado pras 16:36 dispara à noite
+// quando o usuário liga o notebook — notificação irrelevante (e errada, se o
+// ponto já foi batido mas o storage ainda não sincronizou).
+const STALE_ALARM_THRESHOLD_MS = 60 * 60 * 1000; // 1h
+
+function isStaleAlarm(scheduledTime: number): boolean {
+  return Date.now() - scheduledTime > STALE_ALARM_THRESHOLD_MS;
+}
 
 export async function handleDailyReset(): Promise<void> {
   const alarms = await chrome.alarms.getAll();
@@ -45,6 +58,10 @@ export async function handleDailyReset(): Promise<void> {
   }
   await chrome.storage.local.remove(['tsNotifWindowId', 'tsNotifDismissedTs']);
 
+  // Limpa dismissed slots — o user pode bater "Parar lembretes" hoje, mas
+  // amanhã quer voltar a ser lembrado normalmente.
+  await chrome.storage.local.remove(DISMISSED_SLOTS_KEY);
+
   const resetData: Record<string, unknown> = {
     pontoState: null,
     pontoDate: new Date().toDateString(),
@@ -57,21 +74,38 @@ export async function handleDailyReset(): Promise<void> {
   }
   await chrome.storage.local.set(resetData);
   resetTsScheduled();
+  resetNotifScheduled();
+
+  // Reagenda alarmes do dia novo. Sem isso, o popup de entrada só era
+  // agendado depois que um batimento fosse detectado — o que não acontece
+  // antes da entrada ser batida. Cobre o caso do PC ficar ligado durante a
+  // virada do dia.
+  if (ENABLE_NOTIFICATIONS) {
+    scheduleNotifications(null, null, null, null);
+  }
 }
 
-export async function handlePunchPopupAlarm(alarmName: string): Promise<void> {
+export async function handlePunchPopupAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
   const slot = PUNCH_POPUP_SLOT_MAP[alarmName];
   if (!slot) return;
   const timeKey = `alarm_time_${alarmName}`;
+  if (isStaleAlarm(scheduledTime)) {
+    await chrome.storage.local.remove(timeKey);
+    return;
+  }
   const data = await chrome.storage.local.get([timeKey]);
   const expectedTime = (data[timeKey] as string) || '';
   await startReminder(slot, expectedTime);
   await chrome.storage.local.remove(timeKey);
 }
 
-export async function handleReminderAlarm(alarmName: string): Promise<void> {
+export async function handleReminderAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
   const slot = REMINDER_SLOT_MAP[alarmName];
   const msgKey = `alarm_msg_${alarmName}`;
+  if (isStaleAlarm(scheduledTime)) {
+    await chrome.storage.local.remove(msgKey);
+    return;
+  }
   const data = await chrome.storage.local.get(['pontoState', msgKey]);
 
   const ps = data.pontoState;
@@ -95,8 +129,12 @@ export async function handleReminderAlarm(alarmName: string): Promise<void> {
   await chrome.storage.local.remove(msgKey);
 }
 
-export async function handleNotifAlarm(alarmName: string): Promise<void> {
+export async function handleNotifAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
   const msgKey = `alarm_msg_${alarmName}`;
+  if (isStaleAlarm(scheduledTime)) {
+    await chrome.storage.local.remove(msgKey);
+    return;
+  }
   const data = await chrome.storage.local.get([msgKey]);
   const msg = data[msgKey];
   if (!msg) return;
