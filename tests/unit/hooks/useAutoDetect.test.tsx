@@ -37,6 +37,7 @@ vi.mock('../../../lib/domain/build-flags', () => ({
   ENABLE_MANUAL_PUNCH: true,
   ENABLE_NOTIFICATIONS: true,
   APP_NAME: 'TestApp',
+  DEBUG: false,
 }))
 vi.mock('#company/providers', () => ({
   getCompanyPunchProviders: () => [{ name: 'gp', priority: 1, fetchPunches: vi.fn() }],
@@ -231,6 +232,20 @@ describe('useAutoDetect', () => {
       triggerStorageChange({ punchSuccessTs: { newValue: 1 } }, 'sync')
     })
     expect(addPendingPunchSpy).not.toHaveBeenCalled()
+  })
+
+  it('Fix #1: não vaza log "BUILD v4" via console.log ao montar', async () => {
+    // Regressão: havia um `console.log("[App] === BUILD v4 27/02 ===")`
+    // executado em todo useEffect mount, fora do gate de DEBUG.
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    detectorDetectSpy.mockResolvedValue(null)
+    renderHook(() => useAutoDetect(stateRepo, vi.fn(), vi.fn()))
+    await waitFor(() => expect(detectorDetectSpy).toHaveBeenCalled())
+    const buildLogs = spy.mock.calls.filter(args =>
+      args.some(a => typeof a === 'string' && /BUILD v\d/i.test(a)),
+    )
+    expect(buildLogs).toHaveLength(0)
+    spy.mockRestore()
   })
 
   it('polls every 15s and clears interval on unmount', async () => {

@@ -7,7 +7,8 @@ import { scheduleNotifications } from '../../application/schedule-notifications'
 import { applyPartialState, state } from '../../application/state';
 import { calcHorarios } from '../../application/calc-schedule';
 import { timeToMinutes } from '../../domain/time-utils';
-import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, APP_NAME } from '../../domain/build-flags';
+import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS } from '../../domain/build-flags';
+import { debugLog } from '../../domain/debug';
 import { getCompanyPunchProviders } from '#company/providers';
 import { SeniorStoragePunchProvider } from '../../infrastructure/senior/senior-storage-provider';
 import { SeniorApiPunchProvider } from '../../infrastructure/senior/senior-api-provider';
@@ -83,7 +84,6 @@ export function useAutoDetect(
   }, []);
 
   useEffect(() => {
-    console.log(`[${APP_NAME}] === BUILD v4 27/02 ===`);
     detect(true, true);
     pollingRef.current = setInterval(() => detect(true, false), 15000);
 
@@ -94,7 +94,7 @@ export function useAutoDetect(
         const now = new Date();
         const fallback = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         const time = punchTime || fallback;
-        console.log(`[${APP_NAME}] Ponto registrado! Pending: ${time}. Re-detectando em 2s, 6s e 15s...`);
+        debugLog(`Ponto registrado! Pending: ${time}. Re-detectando em 2s, 6s e 15s...`);
         addPendingPunch(time);
         resetGpPunchCache();
         resetSeniorApiCache();
@@ -109,7 +109,7 @@ export function useAutoDetect(
         const local = JSON.stringify({ e: state.entrada, a: state.almoco, v: state.volta, s: state.saida });
         const incoming = JSON.stringify({ e: remote.entrada, a: remote.almoco, v: remote.volta, s: remote.saida });
         if (local !== incoming) {
-          console.log(`[${APP_NAME}] State sync do background`);
+          debugLog('State sync do background');
           applyPartialState(remote);
           calcHorarios();
           ctxRef.current.onRender();

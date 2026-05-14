@@ -1,5 +1,5 @@
 import type { IPunchProvider } from '../domain/interfaces';
-import type { PunchState, Settings } from '../domain/types';
+import type { PunchState, Settings, TimesheetSummary } from '../domain/types';
 import { DEFAULT_STATE, DEFAULT_SETTINGS } from '../domain/types';
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, ENABLE_META_TIMESHEET } from '../domain/build-flags';
@@ -13,6 +13,7 @@ import { META_TIMESHEET_CONFIG } from '../infrastructure/meta/timesheet/constant
 import { SeniorStoragePunchProvider } from '../infrastructure/senior/senior-storage-provider';
 import { SeniorApiPunchProvider } from '../infrastructure/senior/senior-api-provider';
 import { SeniorScraperProvider } from '../infrastructure/senior/senior-scraper';
+import { SeniorActiveUserPunchProvider } from '../infrastructure/senior/senior-active-user-provider';
 import { ManualPunchProvider } from '../infrastructure/manual/manual-punch-provider';
 import { scheduleNotifications } from './schedule-notifications';
 import { scheduleTsNotifications } from './schedule-ts-notifications';
@@ -23,6 +24,11 @@ function buildProviders(): IPunchProvider[] {
   const providers: IPunchProvider[] = [];
   if (ENABLE_MANUAL_PUNCH) providers.push(new ManualPunchProvider());
   if (ENABLE_SENIOR_INTEGRATION) {
+    // SeniorActiveUserPunchProvider tem priority 1 (igual ao GP) — primary.
+    // Os dois rodam em paralelo e os resultados são mergeados pelo
+    // PunchDetector. Esse cobre o gap de mobile-sync (lag do GP pra
+    // batimentos vindos do app mobile).
+    providers.push(new SeniorActiveUserPunchProvider());
     providers.push(...getCompanyPunchProviders());
     providers.push(new SeniorApiPunchProvider());
     providers.push(new SeniorStoragePunchProvider());
@@ -61,6 +67,17 @@ export async function backgroundDetect(): Promise<boolean> {
   const result = await detector.detect(new Date(), false);
   if (!result || result.times.length === 0) {
     debugLog('backgroundDetect: detector não retornou batimentos');
+    // Sem batimentos detectados ainda é o caminho típico da manhã (Chrome
+    // aberto antes da entrada). Agenda os alarmes baseado no estado salvo —
+    // garante que `punch_popup_entrada` exista quando state.entrada é null.
+    if (ENABLE_NOTIFICATIONS) {
+      scheduleNotifications(
+        timeToMinutes(state.entrada),
+        timeToMinutes(state.almoco),
+        timeToMinutes(state.volta),
+        timeToMinutes(state._saidaEstimada),
+      );
+    }
     return false;
   }
   debugLog(`backgroundDetect: detector retornou ${result.times.length} batimentos de ${result.source}`);
@@ -159,8 +176,8 @@ async function tsAutoConnect(): Promise<boolean> {
         resolve(false);
       }, TS_AUTO_CONNECT_TIMEOUT_MS);
 
-      function onChange(changes: Record<string, unknown>, area: string) {
-        if (area === 'local' && (changes as any).metaTsToken) {
+      function onChange(changes: Record<string, chrome.storage.StorageChange>, area: string) {
+        if (area === 'local' && changes.metaTsToken) {
           clearTimeout(timeout);
           chrome.storage.onChanged.removeListener(onChange);
           resolve(true);
@@ -305,9 +322,9 @@ export async function notifyPendingTimesheet(): Promise<void> {
       return;
     }
 
-    const summary = stored.timesheetSummaryCache;
+    const summary = stored.timesheetSummaryCache as TimesheetSummary | undefined;
     if (!summary) return;
-    const pendingNoObs = summary.entries.filter((e: any) => e.status === 'PENDING' && !e.observation);
+    const pendingNoObs = summary.entries.filter(e => e.status === 'PENDING' && !e.observation);
     if (pendingNoObs.length === 0) return;
 
     // Se já tem popup aberta, só foca nela

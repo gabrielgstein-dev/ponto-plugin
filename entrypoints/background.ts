@@ -2,7 +2,7 @@ import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/
 import { debugLog } from '../lib/domain/debug';
 import { installErrorHandlers } from '../lib/domain/install-error-handlers';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
-import { recheckReminder, resolveReminder } from '../lib/application/punch-reminder-manager';
+import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
 import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
@@ -10,9 +10,14 @@ import { addPendingPunch, loadPendingPunches } from '../lib/application/detect-p
 import { resetGpPunchCache, getTimesheetProvider } from '#company/providers';
 import { resetSeniorApiCache } from '../lib/infrastructure/senior/senior-api-provider';
 import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-storage-provider';
+import { resetSeniorActiveUserCache } from '../lib/infrastructure/senior/senior-active-user-provider';
 import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
 import { COMPANY_PUNCH_URL } from '#company/providers';
 import { directFetchMetaTs } from '../lib/infrastructure/meta/timesheet/meta-ts-direct-fetch';
+import { directFetchSenior } from '../lib/infrastructure/senior/senior-direct-fetch';
+import { directFetchGp } from '../lib/infrastructure/meta/gestaoponto/gp-direct-fetch';
+import { SeniorCookieAuth } from '../lib/infrastructure/senior/senior-cookie-auth';
+import { SENIOR_TOKEN_MAX_AGE_MS } from '../lib/infrastructure/senior/constants';
 import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/meta/timesheet/constants';
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
 import { isValidJWT } from '../lib/domain/jwt-utils';
@@ -219,6 +224,24 @@ export default defineBackground(() => {
       openPunchPage().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
+    if (message.type === 'MARK_SLOT_PUNCHED') {
+      // Modo escalado: usuário confirma que bateu no celular. Marca o slot
+      // manualmente com o expectedTime — bgDetect futuro pode sobrescrever
+      // com o horário real quando o sync chegar.
+      const slot = message.slot as PunchReminderSlot;
+      const time = (message.time as string) || '';
+      if (!slot || !time) { sendResponse({ ok: false, error: 'slot e time obrigatórios' }); return true; }
+      markSlotPunched(slot, time).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'DISMISS_SLOT_REMINDERS') {
+      // Modo escalado: usuário pediu pra parar de lembrar pro slot hoje.
+      // Persistido até dailyReset à meia-noite.
+      const slot = message.slot as PunchReminderSlot;
+      if (!slot) { sendResponse({ ok: false, error: 'slot obrigatório' }); return true; }
+      dismissSlotForToday(slot).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'FORCE_REDETECT') {
       // Override manual quando UI estiver presa ou cache stale: reseta
       // todos caches (gp/api/storage + lastHash) e força detecção agressiva.
@@ -268,6 +291,52 @@ export default defineBackground(() => {
       (async () => {
         const result = await dumpSeniorTabStorage();
         sendResponse({ ok: true, result });
+      })();
+      return true;
+    }
+    if (message.type === 'SPIKE_SENIOR_DIRECT_FETCH') {
+      // Spike: testa fetch direto contra pontomobile_bff sem aba aberta.
+      // Resolve token: cookie OAuth → storage (seniorToken).
+      (async () => {
+        try {
+          let token: string | null = null;
+          let tokenAgeMs: number | null = null;
+          const cookieToken = await new SeniorCookieAuth().getAccessToken().catch(() => null);
+          if (cookieToken) {
+            token = cookieToken;
+            tokenAgeMs = 0;
+          } else {
+            const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
+            if (stored.seniorToken && stored.seniorTokenTs) {
+              const age = Date.now() - stored.seniorTokenTs;
+              if (age < SENIOR_TOKEN_MAX_AGE_MS) {
+                token = stored.seniorToken;
+                tokenAgeMs = age;
+              }
+            }
+          }
+          if (!token) {
+            sendResponse({ ok: false, error: 'sem token Senior — abra a aba do Senior 1x pra capturar' });
+            return;
+          }
+          const result = await directFetchSenior(token, tokenAgeMs);
+          sendResponse({ ok: true, result });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
+      })();
+      return true;
+    }
+    if (message.type === 'SPIKE_GP_DIRECT_FETCH') {
+      // Spike: simétrico ao do Senior. GP já roda direct fetch em produção;
+      // aqui retornamos a resposta crua pra comparar com o Senior.
+      (async () => {
+        try {
+          const result = await directFetchGp();
+          sendResponse({ ok: true, result });
+        } catch (e) {
+          sendResponse({ ok: false, error: (e as Error).message });
+        }
       })();
       return true;
     }
@@ -325,21 +394,30 @@ export default defineBackground(() => {
       return;
     }
     if (alarm.name === 'punch_recheck') { recheckReminder().catch(() => {}); return; }
-    if (alarm.name.startsWith('punch_popup_')) { handlePunchPopupAlarm(alarm.name).catch(() => {}); return; }
-    if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name); return; }
-    if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name); return; }
+    if (alarm.name.startsWith('punch_popup_')) { handlePunchPopupAlarm(alarm.name, alarm.scheduledTime).catch(() => {}); return; }
+    if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name, alarm.scheduledTime); return; }
+    if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name, alarm.scheduledTime); return; }
     if (alarm.name.startsWith('ts_')) { handleTsAlarm(alarm.name); }
   });
 
   chrome.windows.onRemoved.addListener((windowId) => {
-    chrome.storage.local.get(['punchPopupWindowId', 'tsNotifWindowId'], (data) => {
-      if (data.punchPopupWindowId === windowId) {
-        chrome.storage.local.remove('punchPopupWindowId');
-      }
-      if (data.tsNotifWindowId === windowId) {
-        chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
-        chrome.storage.local.remove('tsNotifWindowId');
-      }
+    chrome.storage.local.get(
+      ['punchPopupWindowId', 'punchPopupSlot', 'punchPopupEscalated', 'tsNotifWindowId'],
+      (data) => {
+        if (data.punchPopupWindowId === windowId) {
+          // Se o popup escalado fechou sem o user clicar em nenhuma das 3 ações
+          // (X da janela), tratamos como dismiss implícito — não vamos reabrir.
+          // No modo normal só limpa windowId (recheck pode reabrir depois).
+          if (data.punchPopupEscalated && data.punchPopupSlot) {
+            dismissSlotForToday(data.punchPopupSlot as PunchReminderSlot).catch(() => {});
+          } else {
+            chrome.storage.local.remove('punchPopupWindowId');
+          }
+        }
+        if (data.tsNotifWindowId === windowId) {
+          chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
+          chrome.storage.local.remove('tsNotifWindowId');
+        }
     });
   });
 
@@ -376,6 +454,7 @@ export default defineBackground(() => {
     resetGpPunchCache();
     resetSeniorApiCache();
     resetSeniorStorageCache();
+    resetSeniorActiveUserCache();
     resetBackgroundHash();
   }
 

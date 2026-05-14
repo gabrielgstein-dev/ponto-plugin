@@ -1,5 +1,6 @@
 import { generateWidgetStyles } from '../lib/presentation/widget-styles';
 import { ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
+import type { TimesheetSummary } from '../lib/domain/types';
 
 declare global {
   namespace chrome {
@@ -302,8 +303,8 @@ async function updateWidgetFromStorage() {
     set('spw-saida', s.saida ?? s._saidaEstimada ?? null, !s.saida);
 
     if (ENABLE_META_TIMESHEET && data.timesheetSummaryCache) {
-      const summary = data.timesheetSummaryCache;
-      const pendingNoObs = (summary.entries || []).filter((e: any) => e.status === 'PENDING' && !e.observation);
+      const summary = data.timesheetSummaryCache as TimesheetSummary;
+      const pendingNoObs = (summary.entries || []).filter(e => e.status === 'PENDING' && !e.observation);
       const count = pendingNoObs.length;
       const el = document.getElementById('spw-ts-pending');
       if (el) {

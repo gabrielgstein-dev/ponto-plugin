@@ -16,25 +16,25 @@
   }
   .card {
     text-align: center;
-    padding: 32px 28px;
+    padding: 24px 28px;
     max-width: 380px;
     width: 100%;
   }
   .icon {
-    font-size: 48px;
-    margin-bottom: 16px;
+    font-size: 40px;
+    margin-bottom: 10px;
   }
   h1 {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
     margin-bottom: 8px;
     color: #fbbf24;
   }
   .msg {
-    font-size: 14px;
+    font-size: 13px;
     color: #9da7b8;
     line-height: 1.5;
-    margin-bottom: 24px;
+    margin-bottom: 18px;
   }
   .msg strong {
     color: #fbbf24;
@@ -42,11 +42,15 @@
   }
   .actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     justify-content: center;
+    flex-wrap: wrap;
+  }
+  .actions.escalated {
+    flex-direction: column;
   }
   button {
-    padding: 10px 20px;
+    padding: 9px 16px;
     border-radius: 8px;
     border: none;
     font-size: 13px;
@@ -59,6 +63,18 @@
     background: #4ade80;
     color: #1a1e2e;
   }
+  .btn-secondary {
+    background: #334155;
+    color: #e8eaf0;
+  }
+  .btn-tertiary {
+    background: transparent;
+    color: #9da7b8;
+    border: 1px solid #334155;
+  }
+  /* Escalated mode: warning color */
+  body.escalated h1 { color: #f87171; }
+  body.escalated .icon { font-size: 36px; }
 </style>
 </head>
 <body>
@@ -66,9 +82,7 @@
     <div class="icon" id="icon"></div>
     <h1 id="title"></h1>
     <p class="msg" id="msg"></p>
-    <div class="actions">
-      <button class="btn-primary" id="btnOk">Registrar agora</button>
-    </div>
+    <div class="actions" id="actions"></div>
   </div>
   <script src="punch-reminder.js"></script>
 </body>

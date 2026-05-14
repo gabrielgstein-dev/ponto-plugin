@@ -28,12 +28,16 @@ describe('U1 — startReminder cria storage keys e abre janela', () => {
     storageWith({ pontoState: pontoEntrada, punchPopupWindowId: undefined })
   })
 
-  it('grava punchPopupSlot e punchPopupExpectedTime', async () => {
+  it('grava punchPopupSlot, expectedTime, startedTs e escalated=false', async () => {
     await startReminder('almoco', '12:00')
-    expect(mockStorageSet).toHaveBeenCalledWith({
-      punchPopupSlot: 'almoco',
-      punchPopupExpectedTime: '12:00',
-    })
+    expect(mockStorageSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        punchPopupSlot: 'almoco',
+        punchPopupExpectedTime: '12:00',
+        punchPopupStartedTs: expect.any(Number),
+        punchPopupEscalated: false,
+      }),
+    )
   })
 
   it('abre janela popup com URL correta', async () => {
@@ -46,9 +50,12 @@ describe('U1 — startReminder cria storage keys e abre janela', () => {
     )
   })
 
-  it('salva windowId no storage após criar janela', async () => {
+  it('salva windowId + escalated=false no storage após criar janela', async () => {
     await startReminder('almoco', '12:00')
-    expect(mockStorageSet).toHaveBeenCalledWith({ punchPopupWindowId: 42 })
+    expect(mockStorageSet).toHaveBeenCalledWith({
+      punchPopupWindowId: 42,
+      punchPopupEscalated: false,
+    })
   })
 
   it('agenda alarm punch_recheck com 5 minutos', async () => {
