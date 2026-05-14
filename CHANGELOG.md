@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.8.0...senior-ponto-v0.9.0) (2026-05-14)
+
+
+### Novidades
+
+* sync mobile robusto + escalação UI + audit fixes ([c8d1aff](https://github.com/gabrielgstein-dev/ponto-plugin/commit/c8d1affd807ea6b7821e4b1011fd51671cf1e23c))
+* sync mobile robusto + escalação UI + audit fixes alta-prioridade ([52497ce](https://github.com/gabrielgstein-dev/ponto-plugin/commit/52497ce8c8aec311695f4848792d4ad78707ed9a))
+
 ## [0.8.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.7.0...senior-ponto-v0.8.0) (2026-05-13)
 
 
