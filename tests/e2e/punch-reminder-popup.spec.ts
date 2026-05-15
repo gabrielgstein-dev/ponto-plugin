@@ -134,13 +134,170 @@ test('popup carrega sem erros de console', async () => {
 })
 
 test('botão "Registrar agora" está presente e visível', async () => {
+  // Pós-0.9: o botão é criado dinamicamente em #actions (antes era #btnOk
+  // estático no HTML). Selector atualizado pra refletir a nova estrutura.
   const page = await ctx.newPage()
   await page.goto(reminderUrl('almoco', '12:00'))
   await page.waitForLoadState('domcontentloaded')
 
-  const btn = page.locator('#btnOk')
+  const btn = page.locator('#actions button.btn-primary')
   await expect(btn).toBeVisible()
   await expect(btn).toHaveText('Registrar agora')
+  await page.close()
+})
+
+// ── Click chain: botão → OPEN_PUNCH_PAGE → abertura do Senior ────────────────
+
+test('click em "Registrar agora" dispara mensagem OPEN_PUNCH_PAGE e fecha popup', async () => {
+  const page = await ctx.newPage()
+  await page.goto(reminderUrl('almoco', '12:00'))
+  await page.waitForLoadState('domcontentloaded')
+
+  // Intercepta chrome.runtime.sendMessage antes do click pra ver o que sai
+  const sentMessages = await page.evaluate(() => {
+    const captured: unknown[] = [];
+    const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+    (chrome.runtime as { sendMessage: unknown }).sendMessage = ((msg: unknown, cb?: () => void) => {
+      captured.push(msg);
+      // Não chama a real pra não abrir aba do Senior de verdade no teste
+      if (typeof cb === 'function') cb();
+    }) as typeof chrome.runtime.sendMessage;
+    (window as unknown as { __captured: unknown[] }).__captured = captured;
+    void original; // mantém referência pra evitar GC
+    return captured;
+  })
+  void sentMessages;
+
+  // window.close() não funciona em página normal (só em popup aberto via
+  // windows.create). Em vez disso, intercepta a chamada.
+  await page.evaluate(() => {
+    (window as unknown as { __closeCalled: boolean }).__closeCalled = false;
+    window.close = () => { (window as unknown as { __closeCalled: boolean }).__closeCalled = true; };
+  })
+
+  await page.locator('#actions button.btn-primary').click()
+
+  const result = await page.evaluate(() => ({
+    messages: (window as unknown as { __captured: unknown[] }).__captured,
+    closeCalled: (window as unknown as { __closeCalled: boolean }).__closeCalled,
+  }))
+
+  expect(result.messages).toContainEqual({ type: 'OPEN_PUNCH_PAGE' })
+  expect(result.closeCalled).toBe(true)
+  await page.close()
+})
+
+test('click → redirect funciona pros 4 slots (entrada, almoco, volta, saida)', async () => {
+  for (const slot of ['entrada', 'almoco', 'volta', 'saida'] as const) {
+    const page = await ctx.newPage()
+    await page.goto(reminderUrl(slot, '12:00'))
+    await page.waitForLoadState('domcontentloaded')
+
+    await page.evaluate(() => {
+      const captured: unknown[] = [];
+      (chrome.runtime as { sendMessage: unknown }).sendMessage = ((msg: unknown, cb?: () => void) => {
+        captured.push(msg);
+        if (typeof cb === 'function') cb();
+      }) as typeof chrome.runtime.sendMessage;
+      (window as unknown as { __captured: unknown[] }).__captured = captured;
+      window.close = () => {};
+    })
+
+    await page.locator('#actions button.btn-primary').click()
+    const messages = await page.evaluate(() => (window as unknown as { __captured: unknown[] }).__captured)
+    expect(messages, `slot=${slot}`).toContainEqual({ type: 'OPEN_PUNCH_PAGE' })
+    await page.close()
+  }
+})
+
+// ── Escalated mode (após 20 min sem detectar) ────────────────────────────────
+
+function escalatedUrl(slot: string, time: string) {
+  return `chrome-extension://${extensionId}/punch-reminder.html?slot=${slot}&time=${encodeURIComponent(time)}&escalated=1`
+}
+
+test('modo escalado exibe título "Não consegui sincronizar" e ícone ⚠️', async () => {
+  const page = await ctx.newPage()
+  await page.goto(escalatedUrl('almoco', '12:00'))
+  await page.waitForLoadState('domcontentloaded')
+
+  await expect(page.locator('#title')).toHaveText('Não consegui sincronizar')
+  await expect(page.locator('#icon')).toHaveText('⚠️')
+  await expect(page.locator('#msg')).toContainText('almoço')
+  await page.close()
+})
+
+test('modo escalado tem os 3 botões: Já bati, Abrir Senior, Parar lembretes', async () => {
+  const page = await ctx.newPage()
+  await page.goto(escalatedUrl('almoco', '12:00'))
+  await page.waitForLoadState('domcontentloaded')
+
+  await expect(page.locator('#actions button.btn-primary')).toContainText('Já bati')
+  await expect(page.locator('#actions button.btn-secondary')).toContainText('Abrir Senior')
+  await expect(page.locator('#actions button.btn-tertiary')).toContainText('Parar de lembrar')
+  await page.close()
+})
+
+test('botão "Já bati" dispara MARK_SLOT_PUNCHED com slot e time', async () => {
+  const page = await ctx.newPage()
+  await page.goto(escalatedUrl('almoco', '12:15'))
+  await page.waitForLoadState('domcontentloaded')
+
+  await page.evaluate(() => {
+    const captured: unknown[] = [];
+    (chrome.runtime as { sendMessage: unknown }).sendMessage = ((msg: unknown, cb?: () => void) => {
+      captured.push(msg);
+      if (typeof cb === 'function') cb();
+    }) as typeof chrome.runtime.sendMessage;
+    (window as unknown as { __captured: unknown[] }).__captured = captured;
+    window.close = () => {};
+  })
+
+  await page.locator('#actions button.btn-primary').click()
+  const messages = await page.evaluate(() => (window as unknown as { __captured: unknown[] }).__captured)
+  expect(messages).toContainEqual({ type: 'MARK_SLOT_PUNCHED', slot: 'almoco', time: '12:15' })
+  await page.close()
+})
+
+test('botão "Parar de lembrar" dispara DISMISS_SLOT_REMINDERS', async () => {
+  const page = await ctx.newPage()
+  await page.goto(escalatedUrl('saida', '17:30'))
+  await page.waitForLoadState('domcontentloaded')
+
+  await page.evaluate(() => {
+    const captured: unknown[] = [];
+    (chrome.runtime as { sendMessage: unknown }).sendMessage = ((msg: unknown, cb?: () => void) => {
+      captured.push(msg);
+      if (typeof cb === 'function') cb();
+    }) as typeof chrome.runtime.sendMessage;
+    (window as unknown as { __captured: unknown[] }).__captured = captured;
+    window.close = () => {};
+  })
+
+  await page.locator('#actions button.btn-tertiary').click()
+  const messages = await page.evaluate(() => (window as unknown as { __captured: unknown[] }).__captured)
+  expect(messages).toContainEqual({ type: 'DISMISS_SLOT_REMINDERS', slot: 'saida' })
+  await page.close()
+})
+
+test('botão "Abrir Senior" (modo escalado) também dispara OPEN_PUNCH_PAGE', async () => {
+  const page = await ctx.newPage()
+  await page.goto(escalatedUrl('volta', '13:00'))
+  await page.waitForLoadState('domcontentloaded')
+
+  await page.evaluate(() => {
+    const captured: unknown[] = [];
+    (chrome.runtime as { sendMessage: unknown }).sendMessage = ((msg: unknown, cb?: () => void) => {
+      captured.push(msg);
+      if (typeof cb === 'function') cb();
+    }) as typeof chrome.runtime.sendMessage;
+    (window as unknown as { __captured: unknown[] }).__captured = captured;
+    window.close = () => {};
+  })
+
+  await page.locator('#actions button.btn-secondary').click()
+  const messages = await page.evaluate(() => (window as unknown as { __captured: unknown[] }).__captured)
+  expect(messages).toContainEqual({ type: 'OPEN_PUNCH_PAGE' })
   await page.close()
 })
 
@@ -155,6 +312,57 @@ test('popup sem slot desconhecido usa fallback gracioso', async () => {
   // Não deve lançar erro; usa fallback
   expect(errors).toHaveLength(0)
   await expect(page.locator('#title')).toHaveText('Lembrete de Ponto')
+  await page.close()
+})
+
+// ── Sound loop ────────────────────────────────────────────────────────────────
+
+test('audio do popup é criado com loop=true (toca em ciclo até user agir)', async () => {
+  const page = await ctx.newPage()
+  // Intercepta `new Audio()` antes do popup carregar pra capturar o objeto
+  await page.addInitScript(() => {
+    (window as { __capturedAudios?: HTMLAudioElement[] }).__capturedAudios = [];
+    const OriginalAudio = window.Audio;
+    (window as unknown as { Audio: unknown }).Audio = function (src?: string) {
+      const a = new OriginalAudio(src);
+      (window as unknown as { __capturedAudios: HTMLAudioElement[] }).__capturedAudios.push(a);
+      return a;
+    } as unknown as typeof Audio;
+  })
+
+  await page.goto(reminderUrl('almoco', '12:00'))
+  await page.waitForLoadState('domcontentloaded')
+  // dá tempo do playReminderSound async pegar settings e construir o Audio
+  await page.waitForTimeout(500)
+
+  const loopAttr = await page.evaluate(() => {
+    const audios = (window as unknown as { __capturedAudios: HTMLAudioElement[] }).__capturedAudios
+    return audios.length > 0 ? audios[0].loop : null
+  })
+  expect(loopAttr).toBe(true)
+  await page.close()
+})
+
+test('audio do popup NÃO é criado em modo escalado (sem som na escalação)', async () => {
+  const page = await ctx.newPage()
+  await page.addInitScript(() => {
+    (window as { __capturedAudios?: HTMLAudioElement[] }).__capturedAudios = [];
+    const OriginalAudio = window.Audio;
+    (window as unknown as { Audio: unknown }).Audio = function (src?: string) {
+      const a = new OriginalAudio(src);
+      (window as unknown as { __capturedAudios: HTMLAudioElement[] }).__capturedAudios.push(a);
+      return a;
+    } as unknown as typeof Audio;
+  })
+
+  await page.goto(escalatedUrl('almoco', '12:00'))
+  await page.waitForLoadState('domcontentloaded')
+  await page.waitForTimeout(500)
+
+  const count = await page.evaluate(
+    () => (window as unknown as { __capturedAudios: HTMLAudioElement[] }).__capturedAudios.length,
+  )
+  expect(count).toBe(0)
   await page.close()
 })
 

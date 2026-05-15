@@ -28,14 +28,15 @@ test.afterAll(async () => {
   fs.rmSync(tmpDir, { recursive: true, force: true })
 })
 
-test('HBB-1: banner aparece e mostra "Abrir →"', async () => {
+test('HBB-1: banner aparece com título "Histórico & Timesheet"', async () => {
+  // Pós-refactor: banner é totalmente clicável (sem botão CTA "Abrir →" separado).
+  // O click event está no próprio `.hour-bank-banner` — coberto no HBB-2/HBB-3.
   const page = await ctx.newPage()
   await page.goto(popupUrl)
   await page.waitForLoadState('domcontentloaded')
 
   await expect(page.locator('.hour-bank-banner')).toBeVisible()
   await expect(page.locator('.hour-bank-banner')).toContainText('Histórico & Timesheet')
-  await expect(page.locator('.hour-bank-detail-btn').first()).toContainText('Abrir')
   await page.close()
 })
 

@@ -147,8 +147,10 @@ test('LOG-5: botão "Exportar logs" dispara download de arquivo .json', async ()
     })
   })
 
+  // Pós-feat do som: agora existem 3 botões `.logs-export-btn` na página
+  // (Escolher arquivo / Testar / Exportar logs). Usa o texto pra desambiguar.
   const downloadPromise = page.waitForEvent('download', { timeout: 5000 })
-  await page.locator('button.logs-export-btn').click()
+  await page.locator('button.logs-export-btn', { hasText: 'Exportar logs' }).click()
   const download = await downloadPromise
 
   expect(download.suggestedFilename()).toMatch(/^ponto-meta-logs-.*\.json$/)
