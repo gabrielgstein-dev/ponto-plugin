@@ -120,11 +120,11 @@ test('SMOKE BUG 3 — popup de entrada renderiza com título, ícone e horário'
   await reminder.close()
 })
 
-test('SMOKE BUG 3 — settings panel mostra Horário Entrada e persiste', async () => {
+test('SMOKE BUG 3 — settings.html mostra Horário Entrada e persiste', async () => {
+  // Pós-0.7: settings vive em settings.html (sidepanel), não mais inline no popup
   const settings = await ctx.newPage()
-  await settings.goto(popupUrl)
+  await settings.goto(`chrome-extension://${extensionId}/settings.html`)
   await settings.waitForLoadState('domcontentloaded')
-  await settings.locator('.settings-toggle').click()
   await expect(settings.locator('text=Horário Entrada')).toBeVisible()
 
   const row = settings.locator('.setting-row', { hasText: 'Horário Entrada' })

@@ -1,11 +1,18 @@
 /**
  * E2E — Settings Panel: configurações persistem e refletem na UI
  *
+ * Pós-0.7: o painel de configurações vive numa página dedicada
+ * (`settings.html`, renderizada via Chrome Side Panel API). Antes era um
+ * accordion inline no popup com `.settings-toggle`. Os testes navegam
+ * direto pra `settings.html` em vez de tentar abrir o sidepanel via Chrome
+ * API (que não funciona em contexto de teste sem janela ativa).
+ *
  * Verifica que:
- * - O painel abre/fecha ao clicar no botão
- * - Editar a jornada atualiza as settings em chrome.storage.local
- * - O botão "Limpar registros de hoje" reseta o pontoState
+ * - A página settings.html mostra os campos esperados
+ * - Editar valores persiste em chrome.storage.local
+ * - "Limpar registros de hoje" reseta o pontoState
  * - No build com ENABLE_SENIOR_INTEGRATION, "Dia Fechamento" não aparece
+ * - O popup tem o banner `.settings-banner` que aciona a navegação
  */
 import { test, expect } from '@playwright/test'
 import { launchExtension } from './helpers/extension'
@@ -16,6 +23,8 @@ import fs from 'fs'
 
 let ctx: BrowserContext
 let popupUrl: string
+let settingsUrl: string
+let extensionId: string
 let tmpDir: string
 
 test.beforeAll(async () => {
@@ -23,6 +32,8 @@ test.beforeAll(async () => {
   const fixture = await launchExtension(tmpDir)
   ctx = fixture.context
   popupUrl = fixture.popupUrl
+  extensionId = fixture.extensionId
+  settingsUrl = `chrome-extension://${extensionId}/settings.html`
 })
 
 test.afterAll(async () => {
@@ -30,13 +41,25 @@ test.afterAll(async () => {
   fs.rmSync(tmpDir, { recursive: true, force: true })
 })
 
-test('S-1: painel abre ao clicar e mostra os campos esperados', async () => {
+// ── Popup: banner de Configurações ────────────────────────────────────────────
+
+test('S-0: popup mostra banner "Configurações" que aciona o sidepanel', async () => {
   const page = await ctx.newPage()
   await page.goto(popupUrl)
   await page.waitForLoadState('domcontentloaded')
 
-  await expect(page.locator('.settings-toggle')).toContainText('Configurações')
-  await page.locator('.settings-toggle').click()
+  const banner = page.locator('.settings-banner')
+  await expect(banner).toBeVisible()
+  await expect(banner).toContainText('Configurações')
+  await page.close()
+})
+
+// ── settings.html — campos visíveis ───────────────────────────────────────────
+
+test('S-1: settings.html exibe todos os campos esperados', async () => {
+  const page = await ctx.newPage()
+  await page.goto(settingsUrl)
+  await page.waitForLoadState('domcontentloaded')
 
   await expect(page.locator('text=Jornada (horas)')).toBeVisible()
   await expect(page.locator('text=Horário Entrada')).toBeVisible()
@@ -47,11 +70,10 @@ test('S-1: painel abre ao clicar e mostra os campos esperados', async () => {
   await page.close()
 })
 
-test('S-1b — BUG 3 — editar Horário Entrada persiste em settings', async () => {
+test('S-1b — editar Horário Entrada persiste em settings', async () => {
   const page = await ctx.newPage()
-  await page.goto(popupUrl)
+  await page.goto(settingsUrl)
   await page.waitForLoadState('domcontentloaded')
-  await page.locator('.settings-toggle').click()
 
   const row = page.locator('.setting-row', { hasText: 'Horário Entrada' })
   const input = row.locator('input[type="time"]')
@@ -69,9 +91,8 @@ test('S-1b — BUG 3 — editar Horário Entrada persiste em settings', async ()
 
 test('S-2: build com integração Senior oculta "Dia Fechamento"', async () => {
   const page = await ctx.newPage()
-  await page.goto(popupUrl)
+  await page.goto(settingsUrl)
   await page.waitForLoadState('domcontentloaded')
-  await page.locator('.settings-toggle').click()
 
   await expect(page.locator('text=Dia Fechamento')).toHaveCount(0)
   await page.close()
@@ -79,16 +100,13 @@ test('S-2: build com integração Senior oculta "Dia Fechamento"', async () => {
 
 test('S-3: editar jornada persiste em chrome.storage.local', async () => {
   const page = await ctx.newPage()
-  await page.goto(popupUrl)
+  await page.goto(settingsUrl)
   await page.waitForLoadState('domcontentloaded')
-  await page.locator('.settings-toggle').click()
 
-  // Get the jornada input by its label
   const jornadaRow = page.locator('.setting-row', { hasText: 'Jornada (horas)' })
   const input = jornadaRow.locator('input[type="number"]')
   await input.fill('7.5')
   await input.blur()
-  // dar tempo para o efeito persistir
   await page.waitForTimeout(300)
 
   const stored = await page.evaluate(async () => {
@@ -96,15 +114,13 @@ test('S-3: editar jornada persiste em chrome.storage.local', async () => {
     return data.pontoSettings
   })
   expect(stored.jornada).toBe(450)
-
   await page.close()
 })
 
 test('S-4: editar duração de almoço persiste', async () => {
   const page = await ctx.newPage()
-  await page.goto(popupUrl)
+  await page.goto(settingsUrl)
   await page.waitForLoadState('domcontentloaded')
-  await page.locator('.settings-toggle').click()
 
   const row = page.locator('.setting-row', { hasText: 'Duração Almoço (min)' })
   const input = row.locator('input[type="number"]')
@@ -122,10 +138,9 @@ test('S-4: editar duração de almoço persiste', async () => {
 
 test('S-5: clicar em "Limpar registros de hoje" reseta o pontoState', async () => {
   const page = await ctx.newPage()
-  await page.goto(popupUrl)
+  await page.goto(settingsUrl)
   await page.waitForLoadState('domcontentloaded')
 
-  // Pre-popula um estado com pontos batidos
   await page.evaluate(() => {
     chrome.storage.local.set({
       pontoState: {
@@ -140,7 +155,6 @@ test('S-5: clicar em "Limpar registros de hoje" reseta o pontoState', async () =
 
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
-  await page.locator('.settings-toggle').click()
   await page.locator('button.clear-btn').click()
   await page.waitForTimeout(300)
 

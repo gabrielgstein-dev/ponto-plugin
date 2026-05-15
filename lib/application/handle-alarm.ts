@@ -1,9 +1,10 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_NOTIFICATIONS } from '../domain/build-flags';
 import { resetTsScheduled } from './schedule-ts-notifications';
 import { scheduleNotifications } from './schedule-notifications';
-import { resetNotifScheduled } from './state';
+import { applySettings, resetNotifScheduled } from './state';
 import { startReminder, resolveReminder, DISMISSED_SLOTS_KEY } from './punch-reminder-manager';
-import type { PunchReminderSlot } from '../domain/types';
+import { DEFAULT_SETTINGS } from '../domain/types';
+import type { PunchReminderSlot, Settings } from '../domain/types';
 
 const REMINDER_SLOT_MAP: Record<string, PunchReminderSlot> = {
   reminder_entrada: 'entrada',
@@ -75,6 +76,16 @@ export async function handleDailyReset(): Promise<void> {
   await chrome.storage.local.set(resetData);
   resetTsScheduled();
   resetNotifScheduled();
+
+  // Carrega pontoSettings do storage ANTES de scheduleNotifications. Sem isso,
+  // se o SW reiniciou recentemente (típico em alarm wake), `settings` em
+  // memória estaria em DEFAULT_SETTINGS — entradaHorario=08:00 — e qualquer
+  // dia em que o reset rodasse depois das 08:00, o popup_entrada não seria
+  // agendado (time <= nowMin no schedule-notifications).
+  const settingsData = await chrome.storage.local.get('pontoSettings');
+  if (settingsData.pontoSettings) {
+    applySettings({ ...DEFAULT_SETTINGS, ...(settingsData.pontoSettings as Partial<Settings>) });
+  }
 
   // Reagenda alarmes do dia novo. Sem isso, o popup de entrada só era
   // agendado depois que um batimento fosse detectado — o que não acontece
