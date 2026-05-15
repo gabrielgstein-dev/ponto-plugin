@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.9.0...senior-ponto-v0.9.1) (2026-05-15)
+
+
+### Correções
+
+* e2e tests + cobertura de redirect + bug do handleDailyReset ([614d24c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/614d24c3fb1dde724fa6e26496ef110ff90eba80))
+* e2e tests + cobertura de redirect + bug do handleDailyReset ([7d85f49](https://github.com/gabrielgstein-dev/ponto-plugin/commit/7d85f495d5301a46f0f370dea797a2abd49ce853))
+
 ## [0.9.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.8.0...senior-ponto-v0.9.0) (2026-05-14)
 
 
