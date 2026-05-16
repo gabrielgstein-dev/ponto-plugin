@@ -2,6 +2,7 @@ import type { IPunchProvider } from '../domain/interfaces';
 import type { PunchState, Settings, TimesheetSummary } from '../domain/types';
 import { DEFAULT_STATE, DEFAULT_SETTINGS } from '../domain/types';
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
+import { isReminderBlockedToday } from '../domain/weekday-gate';
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, ENABLE_META_TIMESHEET } from '../domain/build-flags';
 import { debugLog, debugWarn } from '../domain/debug';
 import { getCurrentTimesheetPeriod } from '../domain/timesheet-period';
@@ -294,6 +295,14 @@ export function resetTsNotifDebounce(): void {
 }
 
 export async function notifyPendingTimesheet(): Promise<void> {
+  // weekdaysOnly: não notifica em sábado/domingo. Lê do storage (não usa
+  // `settings` em memória) porque o SW MV3 hiberna e essa função pode rodar
+  // antes do próximo backgroundDetect re-hidratar `settings`.
+  if (await isReminderBlockedToday()) {
+    debugLog('Popup timesheet: fim de semana, ignorando (weekdaysOnly=true)');
+    return;
+  }
+
   // Debounce: ignora chamadas em sequência rápida
   const now = Date.now();
   if (now - _tsNotifLastCall < TS_NOTIF_DEBOUNCE_MS) {

@@ -1,6 +1,7 @@
-import { getNowMinutes } from '../domain/time-utils';
+import { getNowMinutes, isWeekend } from '../domain/time-utils';
 import { notifyPendingTimesheet } from './background-detect';
 import { debugLog } from '../domain/debug';
+import { settings } from './state';
 
 const TS_ALARM_PREFIX = 'ts_';
 let _tsScheduled: Record<string, boolean> = {};
@@ -16,6 +17,8 @@ export function scheduleTsNotifications(
   justDetectedEntrada: boolean,
   justDetectedVolta: boolean,
 ): void {
+  if (settings.weekdaysOnly && isWeekend()) return;
+
   const nowMin = getNowMinutes();
   const today = new Date();
 

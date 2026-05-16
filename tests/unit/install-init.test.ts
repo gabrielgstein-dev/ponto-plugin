@@ -186,7 +186,7 @@ describe('initializeStorageIfNeeded', () => {
     expect(after.pontoSettings.entradaHorario).toBe('09:00');
   });
 
-  it('GARANTIA: cada campo individual de Settings (10 no total) é preservado', async () => {
+  it('GARANTIA: cada campo individual de Settings (11 no total) é preservado', async () => {
     // Enumera explicitamente cada campo que o user pode customizar.
     // Se algum dia alguém adicionar wipe de uma key específica, esse teste
     // documenta exatamente o que NÃO pode ser perdido.
@@ -201,6 +201,7 @@ describe('initializeStorageIfNeeded', () => {
       soundEnabled: true,                    // som ligado/desligado
       customSoundDataUrl: 'data:audio/mp3;base64,SUQzBAAAAAAA',  // som customizado
       soundVolume: 0.75,                     // volume do som
+      weekdaysOnly: false,                   // lembretes só em dia útil (user desligou)
     };
     mockStorageGet.mockResolvedValue({
       pontoState: null,
@@ -228,5 +229,6 @@ describe('initializeStorageIfNeeded', () => {
     expect(after.pontoSettings.soundEnabled).toBe(true);
     expect(after.pontoSettings.customSoundDataUrl).toBe('data:audio/mp3;base64,SUQzBAAAAAAA');
     expect(after.pontoSettings.soundVolume).toBe(0.75);
+    expect(after.pontoSettings.weekdaysOnly).toBe(false);
   });
 });

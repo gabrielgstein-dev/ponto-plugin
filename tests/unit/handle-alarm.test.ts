@@ -5,7 +5,11 @@
  * REMINDER_SLOT_MAP e PUNCH_POPUP_SLOT_MAP não incluíam entrada, então
  * `punch_popup_entrada` e `reminder_entrada` viravam no-op.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+
+// Pin data pra weekday (2026-05-13 = quarta). settings.weekdaysOnly=true (default)
+// bloqueia firing em sábado/domingo — sem pin, os testes quebram em fds.
+const FAKE_NOW = new Date(2026, 4, 13, 12, 0, 0)
 
 vi.mock('../../lib/application/punch-reminder-manager', () => ({
   startReminder: vi.fn().mockResolvedValue(undefined),
@@ -31,9 +35,11 @@ import { startReminder } from '../../lib/application/punch-reminder-manager'
 import {
   mockAlarmsClear,
   mockStorageGet,
+  mockStorageGetForHandler,
 } from '../setup/chrome-mock'
 
 beforeEach(() => {
+  vi.useFakeTimers({ now: FAKE_NOW })
   // chrome.notifications não existe no mock global — stub local.
   ;(globalThis as { chrome: { notifications: unknown } }).chrome.notifications = {
     create: vi.fn((_id: string, _opts: unknown, cb: (id: string) => void) => cb('id')),
@@ -41,15 +47,19 @@ beforeEach(() => {
   }
 })
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe("handlePunchPopupAlarm — slot 'entrada' (BUG 3)", () => {
   it('chama startReminder com slot=entrada para punch_popup_entrada', async () => {
-    mockStorageGet.mockResolvedValueOnce({ alarm_time_punch_popup_entrada: '08:00' })
+    mockStorageGetForHandler({ alarm_time_punch_popup_entrada: '08:00' })
     await handlePunchPopupAlarm('punch_popup_entrada')
     expect(startReminder).toHaveBeenCalledWith('entrada', '08:00')
   })
 
   it('chama startReminder com slot=almoco para punch_popup_almoco (regression)', async () => {
-    mockStorageGet.mockResolvedValueOnce({ alarm_time_punch_popup_almoco: '12:00' })
+    mockStorageGetForHandler({ alarm_time_punch_popup_almoco: '12:00' })
     await handlePunchPopupAlarm('punch_popup_almoco')
     expect(startReminder).toHaveBeenCalledWith('almoco', '12:00')
   })
@@ -62,7 +72,7 @@ describe("handlePunchPopupAlarm — slot 'entrada' (BUG 3)", () => {
 
 describe("handleReminderAlarm — slot 'entrada' (BUG 3)", () => {
   it('dispara notification para reminder_entrada quando entrada ainda não foi batida', async () => {
-    mockStorageGet.mockResolvedValueOnce({
+    mockStorageGetForHandler({
       pontoState: { entrada: null, almoco: null, volta: null, saida: null },
       alarm_msg_reminder_entrada: 'Você ainda não bateu a entrada! (30 min em atraso)',
     })
@@ -80,7 +90,7 @@ describe("handleReminderAlarm — slot 'entrada' (BUG 3)", () => {
   })
 
   it('NÃO dispara notification para reminder_entrada quando entrada já foi batida', async () => {
-    mockStorageGet.mockResolvedValueOnce({
+    mockStorageGetForHandler({
       pontoState: { entrada: '07:58', almoco: null, volta: null, saida: null },
       alarm_msg_reminder_entrada: 'Você ainda não bateu a entrada! (30 min em atraso)',
     })

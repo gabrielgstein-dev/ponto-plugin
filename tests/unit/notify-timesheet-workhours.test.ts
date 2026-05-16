@@ -54,11 +54,20 @@ vi.mock('../../lib/infrastructure/meta/timesheet/meta-ts-session', () => ({
 }))
 
 import { notifyPendingTimesheet, resetTsNotifDebounce } from '../../lib/application/background-detect'
-import { mockStorageGet, mockWindowsCreate } from '../setup/chrome-mock'
-import { beforeEach } from 'vitest'
+import { mockStorageGet, mockWindowsCreate, mockStorageGetForHandler } from '../setup/chrome-mock'
+import { beforeEach, afterEach } from 'vitest'
+
+// Pin data pra weekday (2026-05-13 = quarta). settings.weekdaysOnly=true (default)
+// bloqueia firing em sábado/domingo — sem pin, os testes quebram em fds.
+const FAKE_NOW = new Date(2026, 4, 13, 12, 0, 0)
 
 beforeEach(() => {
+  vi.useFakeTimers({ now: FAKE_NOW })
   resetTsNotifDebounce()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -90,7 +99,7 @@ const MOCK_SUMMARY = {
  * do token, o aviso de pendentes dispara baseado no último estado conhecido.
  */
 function setupStorage(pontoState: unknown, summary: unknown = MOCK_SUMMARY): void {
-  mockStorageGet.mockResolvedValueOnce({
+  mockStorageGetForHandler({
     timesheetSummaryCache: summary,
     tsNotifWindowId: null,
     pontoState,

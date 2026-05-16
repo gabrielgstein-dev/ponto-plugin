@@ -1,4 +1,4 @@
-import { timeToMinutes, minutesToTime, getNowMinutes } from '../domain/time-utils';
+import { timeToMinutes, minutesToTime, getNowMinutes, isWeekend } from '../domain/time-utils';
 import { settings, notifScheduled } from './state';
 import type { PunchReminderSlot } from '../domain/types';
 
@@ -61,6 +61,10 @@ export function scheduleNotifications(
   voltaMin: number | null,
   saidaEstMin: number | null,
 ): void {
+  // weekdaysOnly: não agenda nada em sábado/domingo. dailyReset roda à meia-noite
+  // e re-agenda na segunda — então basta gatear aqui.
+  if (settings.weekdaysOnly && isWeekend()) return;
+
   const antecip = settings.notifAntecip;
   const atraso = settings.lembreteAtraso;
   const entries: NotifEntry[] = [];

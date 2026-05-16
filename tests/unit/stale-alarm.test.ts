@@ -10,7 +10,11 @@
  *
  * Threshold: 1h de drift entre `scheduledTime` e `Date.now()`.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+
+// Pin data pra weekday (2026-05-13 = quarta). settings.weekdaysOnly=true (default)
+// bloqueia firing em sábado/domingo — sem pin, os testes quebram em fds.
+const FAKE_NOW = new Date(2026, 4, 13, 12, 0, 0)
 
 vi.mock('../../lib/application/punch-reminder-manager', () => ({
   startReminder: vi.fn().mockResolvedValue(undefined),
@@ -27,7 +31,7 @@ import {
   handleReminderAlarm,
 } from '../../lib/application/handle-alarm'
 import { startReminder } from '../../lib/application/punch-reminder-manager'
-import { mockStorageGet, mockStorageRemove } from '../setup/chrome-mock'
+import { mockStorageGet, mockStorageRemove, mockStorageGetForHandler } from '../setup/chrome-mock'
 
 const HOUR = 60 * 60 * 1000
 
@@ -37,6 +41,7 @@ function getNotifMock() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ now: FAKE_NOW })
   ;(globalThis as { chrome: { notifications: unknown } }).chrome.notifications = {
     create: vi.fn((_id: string, _opts: unknown, cb: (id: string) => void) => cb('id')),
     clear: vi.fn(),
@@ -47,6 +52,10 @@ beforeEach(() => {
   // explícito + redefine default empty.
   mockStorageGet.mockReset()
   mockStorageGet.mockResolvedValue({})
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 // ── Cenário do usuário (2026-05-13): saída estimada 16:06, notebook off 16:20.
@@ -88,7 +97,7 @@ describe('handleReminderAlarm — stale alarm (wake-from-sleep)', () => {
   })
 
   it('AINDA dispara notificação quando scheduledTime é recente (<1h drift)', async () => {
-    mockStorageGet.mockResolvedValueOnce({
+    mockStorageGetForHandler({
       pontoState: { entrada: '08:00', almoco: null, volta: null, saida: null },
       alarm_msg_reminder_saida: 'Você ainda não bateu a saída! (30 min em atraso)',
     })
@@ -105,14 +114,14 @@ describe('handleReminderAlarm — stale alarm (wake-from-sleep)', () => {
     // Sem o fix, ambos dispararam (handler não checa drift). Com o fix, só o
     // de 59min dispara. Sem o par, "exatamente 1h dispara" sozinho passaria
     // dos dois lados — não testando o limite de verdade.
-    mockStorageGet.mockResolvedValueOnce({
+    mockStorageGetForHandler({
       pontoState: { entrada: '08:00', almoco: null, volta: null, saida: null },
       alarm_msg_reminder_saida: 'msg',
     })
     await handleReminderAlarm('reminder_saida', Date.now() - 59 * 60 * 1000)
     expect(getNotifMock()).toHaveBeenCalledTimes(1)
 
-    mockStorageGet.mockResolvedValueOnce({
+    mockStorageGetForHandler({
       pontoState: { entrada: '08:00', almoco: null, volta: null, saida: null },
       alarm_msg_reminder_saida: 'msg',
     })
@@ -150,7 +159,7 @@ describe('handlePunchPopupAlarm — stale alarm (wake-from-sleep)', () => {
   })
 
   it('AINDA abre popup quando scheduledTime é recente', async () => {
-    mockStorageGet.mockResolvedValueOnce({ alarm_time_punch_popup_saida: '16:06' })
+    mockStorageGetForHandler({ alarm_time_punch_popup_saida: '16:06' })
     await handlePunchPopupAlarm('punch_popup_saida', Date.now() - 2 * 60 * 1000)
     expect(startReminder).toHaveBeenCalledWith('saida', '16:06')
   })
@@ -177,7 +186,7 @@ describe('handleNotifAlarm — stale alarm (wake-from-sleep)', () => {
   })
 
   it('AINDA dispara notificação "Prepare-se" quando scheduledTime é recente', async () => {
-    mockStorageGet.mockResolvedValueOnce({
+    mockStorageGetForHandler({
       alarm_msg_notif_saida: 'Saída em 10 minutos! Prepare-se.',
     })
     await handleNotifAlarm('notif_saida', Date.now() - 30 * 1000)
@@ -196,7 +205,7 @@ describe('handleNotifAlarm — stale alarm (wake-from-sleep)', () => {
 //    pra não quebrar testes existentes que chamam só com alarmName.
 describe('backwards compatibility — chamada sem scheduledTime', () => {
   it('handleReminderAlarm sem scheduledTime usa Date.now() (não stale)', async () => {
-    mockStorageGet.mockResolvedValueOnce({
+    mockStorageGetForHandler({
       pontoState: { entrada: null, almoco: null, volta: null, saida: null },
       alarm_msg_reminder_entrada: 'msg',
     })
@@ -205,7 +214,7 @@ describe('backwards compatibility — chamada sem scheduledTime', () => {
   })
 
   it('handlePunchPopupAlarm sem scheduledTime usa Date.now() (não stale)', async () => {
-    mockStorageGet.mockResolvedValueOnce({ alarm_time_punch_popup_entrada: '08:00' })
+    mockStorageGetForHandler({ alarm_time_punch_popup_entrada: '08:00' })
     await handlePunchPopupAlarm('punch_popup_entrada')
     expect(startReminder).toHaveBeenCalledWith('entrada', '08:00')
   })

@@ -140,6 +140,71 @@ describe('SettingsPanel', () => {
     expect(onChange).toHaveBeenCalledWith({ notifAntecip: 15 })
   })
 
+  describe('weekdaysOnly toggle', () => {
+    it('renderiza o checkbox "Só dias úteis (seg-sex)"', () => {
+      render(
+        <SettingsPanel
+          settings={settings}
+          onChange={() => {}}
+          onClear={() => {}}
+        />,
+      )
+      expect(screen.getByText('Só dias úteis (seg-sex)')).toBeInTheDocument()
+    })
+
+    it('checkbox está marcado quando settings.weekdaysOnly=true (default)', () => {
+      render(
+        <SettingsPanel
+          settings={{ ...DEFAULT_SETTINGS, weekdaysOnly: true }}
+          onChange={() => {}}
+          onClear={() => {}}
+        />,
+      )
+      const checkbox = screen.getByLabelText('Só dias úteis (seg-sex)') as HTMLInputElement
+      expect(checkbox.checked).toBe(true)
+    })
+
+    it('checkbox está desmarcado quando settings.weekdaysOnly=false', () => {
+      render(
+        <SettingsPanel
+          settings={{ ...DEFAULT_SETTINGS, weekdaysOnly: false }}
+          onChange={() => {}}
+          onClear={() => {}}
+        />,
+      )
+      const checkbox = screen.getByLabelText('Só dias úteis (seg-sex)') as HTMLInputElement
+      expect(checkbox.checked).toBe(false)
+    })
+
+    it('dispara onChange({ weekdaysOnly: false }) quando user desliga', () => {
+      const onChange = vi.fn()
+      render(
+        <SettingsPanel
+          settings={{ ...DEFAULT_SETTINGS, weekdaysOnly: true }}
+          onChange={onChange}
+          onClear={() => {}}
+        />,
+      )
+      const checkbox = screen.getByLabelText('Só dias úteis (seg-sex)') as HTMLInputElement
+      fireEvent.click(checkbox)
+      expect(onChange).toHaveBeenCalledWith({ weekdaysOnly: false })
+    })
+
+    it('dispara onChange({ weekdaysOnly: true }) quando user religa', () => {
+      const onChange = vi.fn()
+      render(
+        <SettingsPanel
+          settings={{ ...DEFAULT_SETTINGS, weekdaysOnly: false }}
+          onChange={onChange}
+          onClear={() => {}}
+        />,
+      )
+      const checkbox = screen.getByLabelText('Só dias úteis (seg-sex)') as HTMLInputElement
+      fireEvent.click(checkbox)
+      expect(onChange).toHaveBeenCalledWith({ weekdaysOnly: true })
+    })
+  })
+
   it('hides closingDay when ENABLE_SENIOR_INTEGRATION', async () => {
     vi.resetModules()
     vi.doMock('../../../lib/domain/build-flags', () => ({

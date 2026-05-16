@@ -5,6 +5,7 @@ import { applySettings, resetNotifScheduled } from './state';
 import { startReminder, resolveReminder, DISMISSED_SLOTS_KEY } from './punch-reminder-manager';
 import { DEFAULT_SETTINGS } from '../domain/types';
 import type { PunchReminderSlot, Settings } from '../domain/types';
+import { isReminderBlockedToday } from '../domain/weekday-gate';
 
 const REMINDER_SLOT_MAP: Record<string, PunchReminderSlot> = {
   reminder_entrada: 'entrada',
@@ -100,7 +101,7 @@ export async function handlePunchPopupAlarm(alarmName: string, scheduledTime = D
   const slot = PUNCH_POPUP_SLOT_MAP[alarmName];
   if (!slot) return;
   const timeKey = `alarm_time_${alarmName}`;
-  if (isStaleAlarm(scheduledTime)) {
+  if (isStaleAlarm(scheduledTime) || await isReminderBlockedToday()) {
     await chrome.storage.local.remove(timeKey);
     return;
   }
@@ -113,7 +114,7 @@ export async function handlePunchPopupAlarm(alarmName: string, scheduledTime = D
 export async function handleReminderAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
   const slot = REMINDER_SLOT_MAP[alarmName];
   const msgKey = `alarm_msg_${alarmName}`;
-  if (isStaleAlarm(scheduledTime)) {
+  if (isStaleAlarm(scheduledTime) || await isReminderBlockedToday()) {
     await chrome.storage.local.remove(msgKey);
     return;
   }
@@ -142,7 +143,7 @@ export async function handleReminderAlarm(alarmName: string, scheduledTime = Dat
 
 export async function handleNotifAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
   const msgKey = `alarm_msg_${alarmName}`;
-  if (isStaleAlarm(scheduledTime)) {
+  if (isStaleAlarm(scheduledTime) || await isReminderBlockedToday()) {
     await chrome.storage.local.remove(msgKey);
     return;
   }
