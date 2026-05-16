@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.9.1...senior-ponto-v0.10.0) (2026-05-16)
+
+
+### Novidades
+
+* lembretes só em dias úteis (toggle nas Settings) ([246cc8c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/246cc8c191c3093b557e6b88466b1a750e9a9f4d))
+* lembretes só em dias úteis (toggle nas Settings) ([b00c4ad](https://github.com/gabrielgstein-dev/ponto-plugin/commit/b00c4ad058da4225ea304db167329827a3f782aa))
+
+
+### Correções
+
+* onInstalled preserva pontoSettings em updates do plugin ([6167526](https://github.com/gabrielgstein-dev/ponto-plugin/commit/6167526eaa2cbe0851b18a789bd9a17fa8d7dac1))
+* onInstalled preserva pontoSettings em updates do plugin ([0452e30](https://github.com/gabrielgstein-dev/ponto-plugin/commit/0452e309520e86413467bd73a03f8ba25f2cf3a1))
+
 ## [0.9.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.9.0...senior-ponto-v0.9.1) (2026-05-15)
 
 
