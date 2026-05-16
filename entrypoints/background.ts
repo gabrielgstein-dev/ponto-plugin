@@ -22,18 +22,18 @@ import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/meta/timesheet/cons
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
 import { isValidJWT } from '../lib/domain/jwt-utils';
 import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
+import { initializeStorageIfNeeded } from '../lib/application/install-init';
 
 export default defineBackground(() => {
   installErrorHandlers();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 
 
+  // onInstalled dispara em install, update e chrome_update. A lógica de
+  // inicialização defensiva está em lib/application/install-init.ts —
+  // single source of truth com os tests pra evitar divergência.
   chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.local.get(['pontoState'], (result) => {
-      if (!result.pontoState) {
-        chrome.storage.local.set({ pontoState: null, pontoSettings: null, pontoDate: new Date().toDateString() });
-      }
-    });
+    initializeStorageIfNeeded().catch(() => {});
   });
 
   if (ENABLE_SENIOR_INTEGRATION) {
