@@ -79,7 +79,8 @@ test('audit-fix-#1: backgroundDetect sem batimentos cria alarme punch_popup_entr
   await resetStorage({
     pontoState: null,
     pontoDate: new Date().toDateString(),
-    pontoSettings: { entradaHorario: entradaTime, notifAntecip: 10, lembreteAtraso: 30 },
+    // weekdaysOnly:false força agendamento independente do dia (CI pode rodar fds)
+    pontoSettings: { entradaHorario: entradaTime, notifAntecip: 10, lembreteAtraso: 30, weekdaysOnly: false },
   })
   await clearAllAlarms()
 
@@ -107,7 +108,9 @@ test('alarme punch_popup_entrada disparando cria janela com slot=entrada', async
   await resetStorage({
     pontoState: null,
     pontoDate: new Date().toDateString(),
-    pontoSettings: { entradaHorario: '08:00', notifAntecip: 10, lembreteAtraso: 30 },
+    // weekdaysOnly:false: handlePunchPopupAlarm tem gate de fim de semana (defense
+    // in depth). Esse teste valida o fire, então força a flag desligada.
+    pontoSettings: { entradaHorario: '08:00', notifAntecip: 10, lembreteAtraso: 30, weekdaysOnly: false },
     alarm_time_punch_popup_entrada: '08:00',
   })
   await clearAllAlarms()
@@ -157,7 +160,7 @@ test('audit-fix-#2: dailyReset reseta estado e agenda punch_popup_entrada', asyn
   await resetStorage({
     pontoState: { entrada: '08:00', almoco: '12:00', volta: '13:00', saida: '17:00' },
     pontoDate: new Date().toDateString(),
-    pontoSettings: { entradaHorario: entradaTime, notifAntecip: 10, lembreteAtraso: 30 },
+    pontoSettings: { entradaHorario: entradaTime, notifAntecip: 10, lembreteAtraso: 30, weekdaysOnly: false },
   })
   await clearAllAlarms()
 

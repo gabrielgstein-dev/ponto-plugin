@@ -20,6 +20,7 @@ export interface Settings {
   soundEnabled: boolean;
   customSoundDataUrl: string | null;
   soundVolume: number;
+  weekdaysOnly: boolean;
 }
 
 export interface PunchDetectionResult {
@@ -69,6 +70,7 @@ export const DEFAULT_SETTINGS: Settings = {
   soundEnabled: true,
   customSoundDataUrl: null,
   soundVolume: 1,
+  weekdaysOnly: true,
 };
 
 export interface DayRecord {

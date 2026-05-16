@@ -78,6 +78,9 @@ async function triggerAndCheck(
       tsNotifWindowId: null,
       pontoState,
       timesheetSummaryCache: MOCK_SUMMARY_PENDING,
+      // weekdaysOnly:false força notify a disparar independente do dia. CI/local
+      // pode rodar em fds — sem isso o gate em notifyPendingTimesheet bloqueia.
+      pontoSettings: { weekdaysOnly: false },
     },
   )
 

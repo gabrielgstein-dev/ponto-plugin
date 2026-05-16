@@ -54,6 +54,16 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
         <SettingRow label="Duração Almoço (min)" value={settings.almocoDur} onChange={v => onChange({ almocoDur: v })} />
         <SettingRow label="Antecipação Notif. (min)" value={settings.notifAntecip} onChange={v => onChange({ notifAntecip: v })} />
         <SettingRow label="Lembrete Atraso (min)" value={settings.lembreteAtraso} onChange={v => onChange({ lembreteAtraso: Math.max(0, Math.round(v)) })} />
+        <div className="setting-row">
+          <label htmlFor="weekdays-only">Só dias úteis (seg-sex)</label>
+          <input
+            id="weekdays-only"
+            type="checkbox"
+            className="setting-checkbox"
+            checked={settings.weekdaysOnly}
+            onChange={e => onChange({ weekdaysOnly: e.target.checked })}
+          />
+        </div>
         <SoundSettings settings={settings} onChange={onChange} />
         {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
         <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>

@@ -12,6 +12,22 @@ export const mockStorageGet = vi.fn().mockResolvedValue({})
 export const mockStorageSet = vi.fn().mockResolvedValue(undefined)
 export const mockStorageRemove = vi.fn().mockResolvedValue(undefined)
 
+/**
+ * Helper: enfileira uma leitura "pontoSettings" antes da leitura real do handler.
+ *
+ * Por que existe: `isReminderBlockedToday` (gate de weekdaysOnly) lê
+ * `pontoSettings` do storage ANTES dos handlers de alarm/notify lerem seus
+ * dados. Sem esse prepend, o `mockResolvedValueOnce(handlerData)` do teste
+ * vira a resposta da leitura de pontoSettings (não a leitura que o handler
+ * espera), e o handler ve {} → vira no-op.
+ *
+ * Use em testes de fire handlers (handle*Alarm) e notifyPendingTimesheet.
+ */
+export function mockStorageGetForHandler(handlerData: Record<string, unknown>): void {
+  mockStorageGet.mockResolvedValueOnce({})  // leitura de pontoSettings → default weekdaysOnly
+  mockStorageGet.mockResolvedValueOnce(handlerData)
+}
+
 type StorageListener = (changes: Record<string, unknown>, area: string) => void
 const _storageListeners: StorageListener[] = []
 
@@ -135,6 +151,10 @@ Object.defineProperty(globalThis, 'chrome', {
 beforeEach(() => {
   vi.clearAllMocks()
 
+  // clearAllMocks NÃO limpa a fila de mockResolvedValueOnce. Sem o reset
+  // explícito abaixo, valores enfileirados por um teste vazam pro próximo
+  // (bug sutil que aparece em testes que dependem da ordem das chamadas).
+  mockStorageGet.mockReset()
   mockStorageGet.mockResolvedValue({})
   mockStorageSet.mockResolvedValue(undefined)
   mockStorageRemove.mockResolvedValue(undefined)

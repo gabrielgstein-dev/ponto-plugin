@@ -67,6 +67,38 @@ test('S-1: settings.html exibe todos os campos esperados', async () => {
   await expect(page.locator('text=Duração Almoço (min)')).toBeVisible()
   await expect(page.locator('text=Antecipação Notif. (min)')).toBeVisible()
   await expect(page.locator('text=Lembrete Atraso (min)')).toBeVisible()
+  await expect(page.locator('text=Só dias úteis (seg-sex)')).toBeVisible()
+  await page.close()
+})
+
+// ── S-1c — weekdaysOnly toggle persiste e default é true ──────────────────────
+
+test('S-1c: checkbox "Só dias úteis" inicia marcado (default true) e toggle persiste', async () => {
+  const page = await ctx.newPage()
+  await page.goto(settingsUrl)
+  await page.waitForLoadState('domcontentloaded')
+
+  const checkbox = page.locator('#weekdays-only')
+  await expect(checkbox).toBeChecked()
+
+  // Desmarca → persiste false
+  await checkbox.click()
+  await page.waitForTimeout(300)
+  const afterOff = await page.evaluate(async () => {
+    const data = await chrome.storage.local.get('pontoSettings')
+    return (data.pontoSettings as { weekdaysOnly?: boolean }).weekdaysOnly
+  })
+  expect(afterOff).toBe(false)
+
+  // Marca de novo → persiste true
+  await checkbox.click()
+  await page.waitForTimeout(300)
+  const afterOn = await page.evaluate(async () => {
+    const data = await chrome.storage.local.get('pontoSettings')
+    return (data.pontoSettings as { weekdaysOnly?: boolean }).weekdaysOnly
+  })
+  expect(afterOn).toBe(true)
+
   await page.close()
 })
 

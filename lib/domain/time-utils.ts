@@ -35,6 +35,11 @@ export function getNowMinutes(): number {
   return now.getHours() * 60 + now.getMinutes();
 }
 
+export function isWeekend(date: Date = new Date()): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
 export function padZero(n: number): string {
   return String(n).padStart(2, '0');
 }
