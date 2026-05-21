@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.11.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.10.0...senior-ponto-v0.11.0) (2026-05-21)
+
+
+### Novidades
+
+* lembrete visual do prazo Paytrack no popup ([b8dbe5e](https://github.com/gabrielgstein-dev/ponto-plugin/commit/b8dbe5e52afc500422ef6bf47981866845137ee4))
+* lembrete visual do prazo Paytrack no popup ([6c8e73e](https://github.com/gabrielgstein-dev/ponto-plugin/commit/6c8e73eec161e345b6f41c37ce1b64285995b9e1))
+
+
+### Correções
+
+* simplifica payload do ajuste GP ([0e8e600](https://github.com/gabrielgstein-dev/ponto-plugin/commit/0e8e600b3eaf63aa432b02698248a3c10be04ce5))
+* simplifica payload do ajuste GP ([51f44e5](https://github.com/gabrielgstein-dev/ponto-plugin/commit/51f44e5230c923d3a4a612b9cf8ba468213120ff))
+
 ## [0.10.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.9.1...senior-ponto-v0.10.0) (2026-05-16)
 
 
