@@ -326,6 +326,99 @@ body {
   font-size: 10px; color: var(--text-dimmer);
 }
 
+.paytrack-banner {
+  margin: 8px 16px; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.paytrack-banner:focus-visible {
+  outline: 2px solid var(--accent2); outline-offset: 2px;
+}
+.paytrack-banner:hover { border-color: var(--accent2); }
+.paytrack-banner:hover .paytrack-banner-icon { color: var(--accent2); }
+.paytrack-banner-header {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+}
+.paytrack-banner-title {
+  display: flex; align-items: center; gap: 10px;
+}
+.paytrack-banner-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  transition: color 0.15s;
+}
+.paytrack-banner-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text-dim);
+}
+.paytrack-banner-value {
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  color: var(--text-dim);
+  text-align: right;
+}
+/* attention — light: âmbar escuro p/ contraste em branco */
+.paytrack-banner.attention {
+  border-color: rgba(202, 138, 4, 0.6);
+  background: rgba(234, 179, 8, 0.12);
+}
+.paytrack-banner.attention .paytrack-banner-icon,
+.paytrack-banner.attention .paytrack-banner-label,
+.paytrack-banner.attention .paytrack-banner-value { color: #92400e; }
+/* attention — dark: amarelo claro p/ contraste em fundo escuro */
+.dark .paytrack-banner.attention {
+  border-color: rgba(250, 204, 21, 0.55);
+  background: rgba(234, 179, 8, 0.1);
+}
+.dark .paytrack-banner.attention .paytrack-banner-icon,
+.dark .paytrack-banner.attention .paytrack-banner-label,
+.dark .paytrack-banner.attention .paytrack-banner-value { color: #fde047; }
+
+/* warning — light */
+.paytrack-banner.warning {
+  border-color: rgba(194, 65, 12, 0.65);
+  background: rgba(249, 115, 22, 0.13);
+}
+.paytrack-banner.warning .paytrack-banner-icon,
+.paytrack-banner.warning .paytrack-banner-label,
+.paytrack-banner.warning .paytrack-banner-value { color: #9a3412; }
+/* warning — dark */
+.dark .paytrack-banner.warning {
+  border-color: rgba(251, 146, 60, 0.65);
+  background: rgba(249, 115, 22, 0.12);
+}
+.dark .paytrack-banner.warning .paytrack-banner-icon,
+.dark .paytrack-banner.warning .paytrack-banner-label,
+.dark .paytrack-banner.warning .paytrack-banner-value { color: #fdba74; }
+
+/* urgent — light: vermelho escuro p/ não gritar em branco */
+.paytrack-banner.urgent {
+  border-color: rgba(185, 28, 28, 0.7);
+  background: rgba(239, 68, 68, 0.13);
+  animation: paytrack-pulse 1.8s ease-in-out infinite;
+}
+.paytrack-banner.urgent .paytrack-banner-icon,
+.paytrack-banner.urgent .paytrack-banner-label,
+.paytrack-banner.urgent .paytrack-banner-value { color: #991b1b; }
+/* urgent — dark */
+.dark .paytrack-banner.urgent {
+  border-color: rgba(248, 113, 113, 0.75);
+  background: rgba(239, 68, 68, 0.14);
+}
+.dark .paytrack-banner.urgent .paytrack-banner-icon,
+.dark .paytrack-banner.urgent .paytrack-banner-label,
+.dark .paytrack-banner.urgent .paytrack-banner-value { color: #fca5a5; }
+
+@keyframes paytrack-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paytrack-banner.urgent { animation: none; }
+}
+
 .history-section { padding: 0 16px; margin-top: 8px; }
 .history-toggle {
   background: none; border: none; color: var(--text-dimmer);

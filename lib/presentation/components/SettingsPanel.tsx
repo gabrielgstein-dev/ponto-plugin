@@ -64,6 +64,16 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
             onChange={e => onChange({ weekdaysOnly: e.target.checked })}
           />
         </div>
+        <div className="setting-row">
+          <label htmlFor="paytrack-reminder">Lembrete Paytrack</label>
+          <input
+            id="paytrack-reminder"
+            type="checkbox"
+            className="setting-checkbox"
+            checked={settings.paytrackReminder}
+            onChange={e => onChange({ paytrackReminder: e.target.checked })}
+          />
+        </div>
         <SoundSettings settings={settings} onChange={onChange} />
         {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
         <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
