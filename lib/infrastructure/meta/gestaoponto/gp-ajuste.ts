@@ -48,14 +48,6 @@ async function fetchDayRaw(
   }
 }
 
-function buildCracha(colaboradorId: string): number {
-  // "1410-1-35829" → empresa=1410, cadastro=35829 → cracha=141000035829
-  const parts = colaboradorId.split('-');
-  const empresa = parts[0];
-  const cadastro = parts[parts.length - 1];
-  return parseInt(empresa.padStart(4, '0') + cadastro.padStart(8, '0'), 10);
-}
-
 export async function addGpPunchAjuste(
   dateStr: string,
   horaAcesso: string,
@@ -74,7 +66,6 @@ export async function addGpPunchAjuste(
 
   const justificativa = JUSTIFICATIVAS.find(j => j.codigo === justificativaCodigo)!;
 
-  // Add selectedUse to existing punches if missing (GP frontend requirement)
   const selectedUse = { codigo: 2, descricao: 'Marcação de Ponto' };
   const existingMarcacoes = dayData.marcacoes.map(m => ({
     ...m,
@@ -83,21 +74,14 @@ export async function addGpPunchAjuste(
 
   const newPunch = {
     dataAcesso: dateStr,
-    dataApuracao: dateStr,
     horaAcesso,
     justificativa: { codigo: justificativaCodigo, descricao: justificativa.descricao, id: String(justificativaCodigo) },
     uso: 2,
     selectedUse,
     origem: 'D',
     tipoAcesso: 1,
-    tipoColaborador: 1,
     __new: true,
-    sequencia: 1,
-    funcao: { codigo: 0 },
-    fusMar: new Date().getTimezoneOffset() / -60,
-    numeroCadastro: parseInt(colaboradorId.split('-').pop()!, 10),
-    numeroEmpresa: parseInt(colaboradorId.split('-')[0], 10),
-    cracha: buildCracha(colaboradorId),
+    sequencia: existingMarcacoes.length + 1,
   };
 
   const payload = {
