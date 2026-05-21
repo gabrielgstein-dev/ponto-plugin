@@ -21,6 +21,7 @@ export interface Settings {
   customSoundDataUrl: string | null;
   soundVolume: number;
   weekdaysOnly: boolean;
+  paytrackReminder: boolean;
 }
 
 export interface PunchDetectionResult {
@@ -71,6 +72,7 @@ export const DEFAULT_SETTINGS: Settings = {
   customSoundDataUrl: null,
   soundVolume: 1,
   weekdaysOnly: true,
+  paytrackReminder: true,
 };
 
 export interface DayRecord {

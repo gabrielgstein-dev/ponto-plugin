@@ -22,6 +22,7 @@ import { useManualPunch } from './hooks/useManualPunch';
 import { Toast } from './components/Toast';
 import { PunchHistory } from './components/PunchHistory';
 import { HourBankBanner } from './components/HourBankBanner';
+import { PaytrackBanner } from './components/PaytrackBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
@@ -86,6 +87,7 @@ export function App() {
       <NextAction label={nextSlot ? LABELS[nextSlot] : ''} countdown={countdown} visible={!!nextSlot && !!countdown} />
       {ENABLE_SENIOR_PUNCH_BUTTON && <PunchButton onClick={doPunch} loading={punching} disabled={!!punchState.saida} />}
       {ENABLE_MANUAL_PUNCH && <PunchButton onClick={doManualPunch} loading={manualPunching} disabled={!!punchState.saida} />}
+      {settings.paytrackReminder && <PaytrackBanner />}
       <HourBankBanner balance={balance} estimatedExit={getDisplayTime(punchState, 'saida')} />
       {ENABLE_MANUAL_PUNCH && <PunchHistory showSeedButton />}
       <SettingsButton />
