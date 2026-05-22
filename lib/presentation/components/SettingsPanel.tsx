@@ -74,11 +74,22 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
             onChange={e => onChange({ paytrackReminder: e.target.checked })}
           />
         </div>
+        <div className="setting-row">
+          <label htmlFor="meta-x-reminder">Lembrete Meta X</label>
+          <input
+            id="meta-x-reminder"
+            type="checkbox"
+            className="setting-checkbox"
+            checked={settings.metaXReminder}
+            onChange={e => onChange({ metaXReminder: e.target.checked })}
+          />
+        </div>
         <SoundSettings settings={settings} onChange={onChange} />
         {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
         <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
         <LogsActions />
         {DEBUG && <DebugReminderTest />}
+        {DEBUG && <DebugMetaXTest />}
         {DEBUG && ENABLE_META_TIMESHEET && <DebugMetaTsDirectFetch />}
         {DEBUG && ENABLE_SENIOR_INTEGRATION && <DebugSeniorStorageDump />}
         <VersionFooter />
@@ -232,6 +243,32 @@ body:
 ${result.bodyPreview || '(empty)'}`}
         </pre>
       )}
+    </div>
+  );
+}
+
+function DebugMetaXTest() {
+  const [ctx, setCtx] = useState<'morning' | 'exit_gate' | 'snooze' | 'afternoon_notif'>('morning');
+  const handleOpenPopup = () => {
+    chrome.runtime.sendMessage({ type: 'TEST_META_X_POPUP', ctx });
+  };
+  const handleReset = () => {
+    chrome.storage.local.remove('metaXState');
+  };
+  return (
+    <div className="logs-actions">
+      <select value={ctx} onChange={e => setCtx(e.target.value as typeof ctx)}>
+        <option value="morning">manhã (1º ponto)</option>
+        <option value="exit_gate">gate da saída</option>
+        <option value="snooze">snooze (30min depois)</option>
+        <option value="afternoon_notif">16h</option>
+      </select>
+      <button className="logs-export-btn" onClick={handleOpenPopup}>
+        Testar Meta X
+      </button>
+      <button className="logs-clear-btn" onClick={handleReset}>
+        Reset semana
+      </button>
     </div>
   );
 }

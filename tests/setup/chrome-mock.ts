@@ -69,6 +69,14 @@ export const mockAlarmsClear = vi.fn().mockResolvedValue(true)
 // ── Side Panel ────────────────────────────────────────────────────────────────
 export const mockSidePanelOpen = vi.fn().mockResolvedValue(undefined)
 
+// ── Action (browser action / badge) ──────────────────────────────────────────
+export const mockActionSetBadgeText = vi.fn().mockResolvedValue(undefined)
+export const mockActionSetBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined)
+
+// ── Notifications ────────────────────────────────────────────────────────────
+export const mockNotificationsCreate = vi.fn()
+export const mockNotificationsClear = vi.fn()
+
 // ── Chrome global object ──────────────────────────────────────────────────────
 const localChangedListener = {
   addListener: vi.fn((fn: StorageListener) => _storageListeners.push(fn)),
@@ -138,6 +146,18 @@ const chromeMock = {
       removeListener: vi.fn(),
     },
   },
+  action: {
+    setBadgeText: mockActionSetBadgeText,
+    setBadgeBackgroundColor: mockActionSetBadgeBackgroundColor,
+  },
+  notifications: {
+    create: mockNotificationsCreate,
+    clear: mockNotificationsClear,
+    onClicked: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    },
+  },
 }
 
 // Expose chrome globally once
@@ -175,6 +195,10 @@ beforeEach(() => {
   mockRuntimeGetManifest.mockReturnValue({ version: '0.0.0-test' })
   mockAlarmsClear.mockResolvedValue(true)
   mockSidePanelOpen.mockResolvedValue(undefined)
+  mockActionSetBadgeText.mockResolvedValue(undefined)
+  mockActionSetBadgeBackgroundColor.mockResolvedValue(undefined)
+  mockNotificationsCreate.mockReset()
+  mockNotificationsClear.mockReset()
 
   // Drain storage listeners accumulated by previous tests
   _storageListeners.length = 0

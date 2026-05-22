@@ -23,6 +23,7 @@ import { Toast } from './components/Toast';
 import { PunchHistory } from './components/PunchHistory';
 import { HourBankBanner } from './components/HourBankBanner';
 import { PaytrackBanner } from './components/PaytrackBanner';
+import { MetaXBanner } from './components/MetaXBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
@@ -88,6 +89,7 @@ export function App() {
       {ENABLE_SENIOR_PUNCH_BUTTON && <PunchButton onClick={doPunch} loading={punching} disabled={!!punchState.saida} />}
       {ENABLE_MANUAL_PUNCH && <PunchButton onClick={doManualPunch} loading={manualPunching} disabled={!!punchState.saida} />}
       {settings.paytrackReminder && <PaytrackBanner />}
+      {settings.metaXReminder && <MetaXBanner />}
       <HourBankBanner balance={balance} estimatedExit={getDisplayTime(punchState, 'saida')} />
       {ENABLE_MANUAL_PUNCH && <PunchHistory showSeedButton />}
       <SettingsButton />
