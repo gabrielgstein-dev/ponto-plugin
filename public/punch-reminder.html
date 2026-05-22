@@ -72,6 +72,35 @@
     color: #9da7b8;
     border: 1px solid #334155;
   }
+  .snooze {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #2a3142;
+  }
+  .snooze-label {
+    font-size: 11px;
+    color: #6b7280;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .snooze-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+  }
+  .btn-snooze {
+    flex: 1;
+    background: transparent;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+  .btn-snooze:hover {
+    background: #2a3142;
+    opacity: 1;
+  }
   /* Escalated mode: warning color */
   body.escalated h1 { color: #f87171; }
   body.escalated .icon { font-size: 36px; }
@@ -83,6 +112,10 @@
     <h1 id="title"></h1>
     <p class="msg" id="msg"></p>
     <div class="actions" id="actions"></div>
+    <div class="snooze" id="snooze" style="display:none">
+      <div class="snooze-label">Lembrar daqui</div>
+      <div class="snooze-row" id="snooze-row"></div>
+    </div>
   </div>
   <script src="punch-reminder.js"></script>
 </body>

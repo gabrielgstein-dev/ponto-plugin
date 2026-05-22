@@ -2,7 +2,7 @@ import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/
 import { debugLog } from '../lib/domain/debug';
 import { installErrorHandlers } from '../lib/domain/install-error-handlers';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
-import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
+import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, snoozeReminder, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
 import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
@@ -234,6 +234,19 @@ export default defineBackground(() => {
       markSlotPunched(slot, time).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
+    if (message.type === 'SNOOZE_REMINDER') {
+      // Snooze: usuário pediu pra ser lembrado daqui X minutos. Fecha o popup
+      // atual e reagenda via mesmo caminho do alarme normal (punch_popup_<slot>).
+      const slot = message.slot as PunchReminderSlot;
+      const time = (message.time as string) || '';
+      const minutes = Number(message.minutes);
+      if (!slot || !Number.isFinite(minutes) || minutes <= 0) {
+        sendResponse({ ok: false, error: 'slot e minutes obrigatórios' });
+        return true;
+      }
+      snoozeReminder(slot, time, minutes).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'DISMISS_SLOT_REMINDERS') {
       // Modo escalado: usuário pediu pra parar de lembrar pro slot hoje.
       // Persistido até dailyReset à meia-noite.
@@ -344,7 +357,7 @@ export default defineBackground(() => {
       const slot = message.slot || 'almoco';
       const time = message.time || '12:00';
       const url = `${chrome.runtime.getURL('punch-reminder.html')}?slot=${slot}&time=${encodeURIComponent(time)}`;
-      chrome.windows.create({ url, type: 'popup', width: 420, height: 220, focused: true })
+      chrome.windows.create({ url, type: 'popup', width: 420, height: 300, focused: true })
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
       return true;
