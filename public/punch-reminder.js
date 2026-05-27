@@ -39,6 +39,7 @@ if (escalated) {
   titleEl.textContent = cfg.title;
   msgEl.innerHTML = `${cfg.msg}${time ? ` Horário previsto: <strong>${time}</strong>.` : ''}`;
   renderNormalActions();
+  renderSnoozeOptions();
   playReminderSound();
 }
 
@@ -52,6 +53,28 @@ function renderNormalActions() {
     window.close();
   });
   actionsEl.appendChild(btn);
+}
+
+function renderSnoozeOptions() {
+  const snoozeEl = document.getElementById('snooze');
+  const rowEl = document.getElementById('snooze-row');
+  const opts = [
+    { label: '+15min', minutes: 15 },
+    { label: '+30min', minutes: 30 },
+    { label: '+1h', minutes: 60 },
+  ];
+  for (const opt of opts) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-snooze';
+    btn.textContent = opt.label;
+    btn.addEventListener('click', () => {
+      stopReminderSound();
+      safeSend({ type: 'SNOOZE_REMINDER', slot, time, minutes: opt.minutes });
+      window.close();
+    });
+    rowEl.appendChild(btn);
+  }
+  snoozeEl.style.display = 'block';
 }
 
 function renderEscalatedActions() {

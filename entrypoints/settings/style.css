@@ -212,11 +212,14 @@ body {
   font-size: 11px;
   color: var(--text-dimmer);
 }
-.sound-hint {
+.sound-hint,
+.setting-hint {
   font-size: 11px;
   color: var(--text-dimmer);
   margin-bottom: 6px;
+  line-height: 1.4;
 }
+.meta-x-settings { display: contents; }
 
 .settings-version {
   margin-top: 16px;

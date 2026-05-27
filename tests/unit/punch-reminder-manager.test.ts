@@ -9,7 +9,7 @@ import {
   mockAlarmsCreate,
   mockAlarmsClear,
 } from '../setup/chrome-mock'
-import { startReminder, recheckReminder, resolveReminder } from '../../lib/application/punch-reminder-manager'
+import { startReminder, recheckReminder, resolveReminder, snoozeReminder } from '../../lib/application/punch-reminder-manager'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -300,5 +300,42 @@ describe("U15 — slot 'entrada' bypassa guard P6 (BUG 3 — sem isso, popup nun
     await resolveReminder('entrada')
     expect(mockWindowsRemove).toHaveBeenCalledWith(77)
     expect(mockAlarmsClear).toHaveBeenCalledWith('punch_recheck')
+  })
+})
+
+// ── Snooze: re-agenda popup daqui X minutos ─────────────────────────────────
+
+describe('snoozeReminder', () => {
+  it('cancela recheck, limpa estado do popup e fecha a janela atual', async () => {
+    storageWith({ punchPopupSlot: 'almoco', punchPopupWindowId: 55 })
+    await snoozeReminder('almoco', '12:00', 15)
+    expect(mockAlarmsClear).toHaveBeenCalledWith('punch_recheck')
+    expect(mockStorageRemove).toHaveBeenCalledWith(
+      expect.arrayContaining(['punchPopupSlot', 'punchPopupWindowId', 'punchPopupExpectedTime']),
+    )
+    expect(mockWindowsRemove).toHaveBeenCalledWith(55)
+  })
+
+  it('agenda alarm punch_popup_<slot> com when ~= now + minutes e persiste expectedTime', async () => {
+    storageWith({ punchPopupSlot: 'saida', punchPopupWindowId: 90 })
+    const before = Date.now()
+    await snoozeReminder('saida', '18:00', 60)
+    const after = Date.now()
+
+    expect(mockStorageSet).toHaveBeenCalledWith({ alarm_time_punch_popup_saida: '18:00' })
+
+    const call = mockAlarmsCreate.mock.calls.find(c => c[0] === 'punch_popup_saida')
+    expect(call).toBeDefined()
+    const when = (call![1] as { when: number }).when
+    expect(when).toBeGreaterThanOrEqual(before + 60 * 60 * 1000)
+    expect(when).toBeLessThanOrEqual(after + 60 * 60 * 1000 + 50)
+  })
+
+  it('é no-op se punchPopupSlot for de outro slot (proteção contra race)', async () => {
+    storageWith({ punchPopupSlot: 'almoco', punchPopupWindowId: 55 })
+    await snoozeReminder('saida', '18:00', 30)
+    expect(mockAlarmsClear).not.toHaveBeenCalledWith('punch_recheck')
+    expect(mockWindowsRemove).not.toHaveBeenCalled()
+    expect(mockAlarmsCreate).not.toHaveBeenCalledWith('punch_popup_saida', expect.anything())
   })
 })

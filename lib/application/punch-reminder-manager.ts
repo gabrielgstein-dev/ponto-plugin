@@ -160,6 +160,39 @@ export async function recheckReminder(): Promise<void> {
   await scheduleRecheck();
 }
 
+export async function snoozeReminder(
+  slot: PunchReminderSlot,
+  expectedTime: string,
+  minutes: number,
+): Promise<void> {
+  const data = await chrome.storage.local.get(['punchPopupSlot', 'punchPopupWindowId']);
+  const currentSlot = data.punchPopupSlot as PunchReminderSlot | null;
+  if (currentSlot && currentSlot !== slot) return;
+
+  await chrome.alarms.clear(RECHECK_ALARM);
+
+  // Limpa estado do popup ANTES de fechar a janela — windows.onRemoved checa
+  // punchPopupSlot pra decidir se trata como dismiss implícito; sem essa
+  // limpeza, fechar a janela do snooze viraria dismiss.
+  const windowId = data.punchPopupWindowId as number | undefined;
+  await chrome.storage.local.remove([...STORAGE_KEYS]);
+
+  // Reagenda usando o mesmo caminho de handlePunchPopupAlarm: alarm
+  // punch_popup_<slot> + alarm_time_<key> com o expectedTime preservado.
+  const alarmName = `punch_popup_${slot}`;
+  await chrome.alarms.clear(alarmName);
+  await chrome.storage.local.set({ [`alarm_time_${alarmName}`]: expectedTime });
+  chrome.alarms.create(alarmName, { when: Date.now() + minutes * 60 * 1000 });
+
+  if (windowId != null) {
+    try {
+      await chrome.windows.remove(windowId);
+    } catch {
+      // Janela já fechada — ignorar
+    }
+  }
+}
+
 export async function resolveReminder(slot: PunchReminderSlot): Promise<void> {
   const data = await chrome.storage.local.get(['punchPopupSlot', 'punchPopupWindowId']);
   const currentSlot = data.punchPopupSlot as PunchReminderSlot | null;
@@ -210,7 +243,7 @@ async function openPopupWindow(slot: PunchReminderSlot, expectedTime: string, es
     url,
     type: 'popup',
     width: 420,
-    height: escalated ? 300 : 220,
+    height: 300,
     focused: true,
   });
   if (win.id != null) {

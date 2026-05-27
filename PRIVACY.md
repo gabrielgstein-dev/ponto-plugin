@@ -94,4 +94,4 @@ Para questões sobre privacidade ou uso de dados, entre em contato através do r
 
 ---
 
-**Última atualização:** Março de 2026
+**Última atualização:** Maio de 2026

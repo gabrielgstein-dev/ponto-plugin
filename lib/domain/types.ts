@@ -22,6 +22,12 @@ export interface Settings {
   soundVolume: number;
   weekdaysOnly: boolean;
   paytrackReminder: boolean;
+  metaXReminder: boolean;
+}
+
+export interface MetaXState {
+  lastRespondedWeekKey: string | null;
+  lastRespondedAt: number | null;
 }
 
 export interface PunchDetectionResult {
@@ -73,6 +79,12 @@ export const DEFAULT_SETTINGS: Settings = {
   soundVolume: 1,
   weekdaysOnly: true,
   paytrackReminder: true,
+  metaXReminder: true,
+};
+
+export const DEFAULT_META_X_STATE: MetaXState = {
+  lastRespondedWeekKey: null,
+  lastRespondedAt: null,
 };
 
 export interface DayRecord {

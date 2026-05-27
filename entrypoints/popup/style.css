@@ -419,6 +419,151 @@ body {
   .paytrack-banner.urgent { animation: none; }
 }
 
+/* ============ Meta X banner ============ */
+.meta-x-banner {
+  position: relative;
+  margin: 8px 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+  isolation: isolate;
+}
+.meta-x-banner-content { position: relative; z-index: 2; }
+.meta-x-banner-shimmer,
+.meta-x-banner-aurora {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.meta-x-banner-header {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+}
+.meta-x-banner-title { display: flex; align-items: center; gap: 10px; }
+.meta-x-banner-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  transition: color 0.15s;
+}
+.meta-x-banner-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--text-dim);
+}
+.meta-x-banner-value {
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  color: var(--text-dim);
+  text-align: right;
+}
+.meta-x-banner-actions {
+  display: flex; gap: 6px; margin-top: 10px;
+}
+.meta-x-banner-btn {
+  flex: 1; padding: 7px 10px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: var(--sans);
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+.meta-x-banner-btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #ffffff;
+}
+.meta-x-banner-btn-primary:hover { filter: brightness(1.08); }
+.meta-x-banner-btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+.meta-x-banner-btn-ghost:hover { border-color: var(--accent2); color: var(--text); }
+
+/* ─── attention (terça) — soft azul ───────────────────────────────────────── */
+.meta-x-banner.attention {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.08);
+}
+.meta-x-banner.attention .meta-x-banner-icon,
+.meta-x-banner.attention .meta-x-banner-label,
+.meta-x-banner.attention .meta-x-banner-value { color: #1e40af; }
+.dark .meta-x-banner.attention {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(59, 130, 246, 0.1);
+}
+.dark .meta-x-banner.attention .meta-x-banner-icon,
+.dark .meta-x-banner.attention .meta-x-banner-label,
+.dark .meta-x-banner.attention .meta-x-banner-value { color: #93c5fd; }
+
+/* ─── urgent (quarta) — combo aurora + shimmer + glow azul ───────────────── */
+.meta-x-banner.urgent {
+  border-color: rgba(59, 130, 246, 0.55);
+  background: #0f1320;
+  animation: meta-x-glow 2s ease-in-out infinite;
+}
+.meta-x-banner.urgent .meta-x-banner-icon,
+.meta-x-banner.urgent .meta-x-banner-label { color: #93c5fd; }
+.meta-x-banner.urgent .meta-x-banner-value { color: #bfdbfe; }
+.meta-x-banner.urgent .meta-x-banner-aurora {
+  background: conic-gradient(
+    from 0deg at 30% 50%,
+    rgba(59, 130, 246, 0.55),
+    rgba(99, 102, 241, 0.45),
+    rgba(139, 92, 246, 0.4),
+    rgba(34, 211, 238, 0.4),
+    rgba(59, 130, 246, 0.55)
+  );
+  filter: blur(28px);
+  opacity: 0.55;
+  animation: meta-x-aurora 8s linear infinite;
+}
+.meta-x-banner.urgent .meta-x-banner-shimmer {
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 250% 100%;
+  animation: meta-x-shimmer 3.2s ease-in-out infinite;
+}
+
+/* Light mode override pra urgent */
+:root:not(.dark) .meta-x-banner.urgent { background: #eff6ff; }
+:root:not(.dark) .meta-x-banner.urgent .meta-x-banner-icon,
+:root:not(.dark) .meta-x-banner.urgent .meta-x-banner-label { color: #1e40af; }
+:root:not(.dark) .meta-x-banner.urgent .meta-x-banner-value { color: #1e3a8a; }
+:root:not(.dark) .meta-x-banner.urgent .meta-x-banner-aurora { opacity: 0.4; }
+
+/* ─── done (verde) ──────────────────────────────────────────────────────── */
+.meta-x-done-hint {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 600;
+  color: #15803d;
+  white-space: nowrap;
+}
+.meta-x-done-hint svg { flex-shrink: 0; }
+.dark .meta-x-done-hint { color: #86efac; }
+
+@keyframes meta-x-aurora {
+  0% { transform: rotate(0deg) scale(1.4); }
+  100% { transform: rotate(360deg) scale(1.4); }
+}
+@keyframes meta-x-shimmer {
+  0% { background-position: 200% 50%; }
+  100% { background-position: -100% 50%; }
+}
+@keyframes meta-x-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55), 0 0 18px rgba(99, 102, 241, 0.25); }
+  50% { box-shadow: 0 0 0 5px rgba(59, 130, 246, 0), 0 0 24px rgba(99, 102, 241, 0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meta-x-banner.urgent { animation: none; }
+  .meta-x-banner.urgent .meta-x-banner-aurora,
+  .meta-x-banner.urgent .meta-x-banner-shimmer { animation: none; }
+}
+
 .history-section { padding: 0 16px; margin-top: 8px; }
 .history-toggle {
   background: none; border: none; color: var(--text-dimmer);

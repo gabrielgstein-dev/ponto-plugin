@@ -2,7 +2,7 @@ import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/
 import { debugLog } from '../lib/domain/debug';
 import { installErrorHandlers } from '../lib/domain/install-error-handlers';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
-import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
+import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, snoozeReminder, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
 import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
@@ -23,6 +23,19 @@ import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
 import { isValidJWT } from '../lib/domain/jwt-utils';
 import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
 import { initializeStorageIfNeeded } from '../lib/application/install-init';
+import {
+  openMetaXPopup,
+  markMetaXResponded,
+  snoozeMetaXReminder,
+  handleMetaXSnoozeAlarm,
+  handleMetaXDailyNotify,
+  scheduleMetaXAfternoonAlarm,
+  META_X_SNOOZE_ALARM,
+  META_X_NOTIFY_ALARM,
+} from '../lib/application/meta-x-reminder-manager';
+import { refreshMetaXBadge } from '../lib/application/meta-x-badge';
+import { META_X_URL, hasRespondedThisWeek } from '../lib/domain/meta-x-status';
+import type { MetaXState } from '../lib/domain/types';
 
 export default defineBackground(() => {
   installErrorHandlers();
@@ -135,6 +148,19 @@ export default defineBackground(() => {
     );
   }
 
+  // Meta X: detecta conclusão do survey TeamCulture via URL da página /finish.
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.url && changeInfo.url.includes('/engagement/survey/finish')) {
+      debugLog('Meta X: página /finish detectada via tabs.onUpdated');
+      chrome.storage.local.get(['metaXState', 'pontoSettings'], (data) => {
+        if (data.pontoSettings?.metaXReminder === false) return;
+        const now = new Date();
+        if (hasRespondedThisWeek(data.metaXState as MetaXState | null, now)) return;
+        markMetaXResponded(now).then(() => resumeSaidaAfterMetaX()).catch(() => {});
+      });
+    }
+  });
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'OPEN_SIDE_PANEL') {
       const windowId = sender.tab?.windowId;
@@ -232,6 +258,19 @@ export default defineBackground(() => {
       const time = (message.time as string) || '';
       if (!slot || !time) { sendResponse({ ok: false, error: 'slot e time obrigatórios' }); return true; }
       markSlotPunched(slot, time).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'SNOOZE_REMINDER') {
+      // Snooze: usuário pediu pra ser lembrado daqui X minutos. Fecha o popup
+      // atual e reagenda via mesmo caminho do alarme normal (punch_popup_<slot>).
+      const slot = message.slot as PunchReminderSlot;
+      const time = (message.time as string) || '';
+      const minutes = Number(message.minutes);
+      if (!slot || !Number.isFinite(minutes) || minutes <= 0) {
+        sendResponse({ ok: false, error: 'slot e minutes obrigatórios' });
+        return true;
+      }
+      snoozeReminder(slot, time, minutes).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
     if (message.type === 'DISMISS_SLOT_REMINDERS') {
@@ -344,7 +383,31 @@ export default defineBackground(() => {
       const slot = message.slot || 'almoco';
       const time = message.time || '12:00';
       const url = `${chrome.runtime.getURL('punch-reminder.html')}?slot=${slot}&time=${encodeURIComponent(time)}`;
-      chrome.windows.create({ url, type: 'popup', width: 420, height: 220, focused: true })
+      chrome.windows.create({ url, type: 'popup', width: 420, height: 300, focused: true })
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'META_X_SNOOZE') {
+      (async () => {
+        await snoozeMetaXReminder();
+        // Não bloqueia o ponto de saída — dispara o punch reminder normal
+        // do slot 'saida' se houver gate pendente.
+        await resumeSaidaAfterMetaX();
+        sendResponse({ ok: true });
+      })();
+      return true;
+    }
+    if (message.type === 'OPEN_META_X_SURVEY') {
+      chrome.tabs.create({ url: META_X_URL, active: true }).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'TEST_META_X_POPUP') {
+      // Bypass dos guards de elegibilidade (dia/respondida/toggle) pra dev poder
+      // testar fora de terça/quarta. Abre direto via chrome.windows.
+      const ctx = (message.ctx as 'morning' | 'exit_gate' | 'snooze' | 'afternoon_notif') || 'morning';
+      const url = `${chrome.runtime.getURL('meta-x-reminder.html')}?ctx=${ctx}`;
+      chrome.windows.create({ url, type: 'popup', width: 460, height: 380, focused: true })
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
       return true;
@@ -386,6 +449,8 @@ export default defineBackground(() => {
       })();
       return;
     }
+    if (alarm.name === META_X_SNOOZE_ALARM) { handleMetaXSnoozeAlarm().catch(() => {}); return; }
+    if (alarm.name === META_X_NOTIFY_ALARM) { handleMetaXDailyNotify().catch(() => {}); return; }
     if (alarm.name === 'tsNotifCheck') {
       // BUG 1: alarm dedicado pra checar timesheet pendente — lê só o cache,
       // independente de sync/token. Se o usuário tem entries pendentes,
@@ -394,7 +459,10 @@ export default defineBackground(() => {
       return;
     }
     if (alarm.name === 'punch_recheck') { recheckReminder().catch(() => {}); return; }
-    if (alarm.name.startsWith('punch_popup_')) { handlePunchPopupAlarm(alarm.name, alarm.scheduledTime).catch(() => {}); return; }
+    if (alarm.name.startsWith('punch_popup_')) {
+      maybeInterceptSaidaForMetaX(alarm.name, alarm.scheduledTime).catch(() => {});
+      return;
+    }
     if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name, alarm.scheduledTime); return; }
     if (alarm.name.startsWith('notif_')) { handleNotifAlarm(alarm.name, alarm.scheduledTime); return; }
     if (alarm.name.startsWith('ts_')) { handleTsAlarm(alarm.name); }
@@ -402,12 +470,9 @@ export default defineBackground(() => {
 
   chrome.windows.onRemoved.addListener((windowId) => {
     chrome.storage.local.get(
-      ['punchPopupWindowId', 'punchPopupSlot', 'punchPopupEscalated', 'tsNotifWindowId'],
+      ['punchPopupWindowId', 'punchPopupSlot', 'punchPopupEscalated', 'tsNotifWindowId', 'metaXPopupWindowId', 'metaXState', 'pontoSettings'],
       (data) => {
         if (data.punchPopupWindowId === windowId) {
-          // Se o popup escalado fechou sem o user clicar em nenhuma das 3 ações
-          // (X da janela), tratamos como dismiss implícito — não vamos reabrir.
-          // No modo normal só limpa windowId (recheck pode reabrir depois).
           if (data.punchPopupEscalated && data.punchPopupSlot) {
             dismissSlotForToday(data.punchPopupSlot as PunchReminderSlot).catch(() => {});
           } else {
@@ -417,6 +482,18 @@ export default defineBackground(() => {
         if (data.tsNotifWindowId === windowId) {
           chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
           chrome.storage.local.remove('tsNotifWindowId');
+        }
+        if (data.metaXPopupWindowId === windowId) {
+          chrome.storage.local.remove(['metaXPopupWindowId', 'metaXPopupContext']);
+          const now = new Date();
+          const isWed = now.getDay() === 3;
+          const past17 = now.getHours() >= 17;
+          const enabled = data.pontoSettings?.metaXReminder !== false;
+          const pending = !hasRespondedThisWeek(data.metaXState as MetaXState | null, now);
+          if (isWed && past17 && enabled && pending) {
+            debugLog('Meta X: popup fechado após 17h sem resposta — reabrindo');
+            setTimeout(() => openMetaXPopup('afternoon_notif').catch(() => {}), 2000);
+          }
         }
     });
   });
@@ -450,6 +527,54 @@ export default defineBackground(() => {
     await chrome.tabs.create({ url: COMPANY_PUNCH_URL, active: true });
   }
 
+  const META_X_GATE_SAIDA_KEY = 'metaXGateSaidaExpectedTime';
+
+  async function maybeInterceptSaidaForMetaX(alarmName: string, scheduledTime: number): Promise<void> {
+    if (alarmName !== 'punch_popup_saida') {
+      await handlePunchPopupAlarm(alarmName, scheduledTime);
+      return;
+    }
+    const now = new Date();
+    const data = await chrome.storage.local.get(['pontoSettings', 'metaXState', `alarm_time_${alarmName}`]);
+    const isWed = now.getDay() === 3;
+    const enabled = data.pontoSettings?.metaXReminder !== false;
+    const pending = !hasRespondedThisWeek(data.metaXState as MetaXState | null, now);
+    if (!isWed || !enabled || !pending) {
+      await handlePunchPopupAlarm(alarmName, scheduledTime);
+      return;
+    }
+    // Gate: salva expectedTime, abre meta-x popup ('exit_gate'). O punch
+    // popup de saída só dispara depois que o user responder/snoozar.
+    const expectedTime = (data[`alarm_time_${alarmName}`] as string) || '';
+    await chrome.storage.local.set({ [META_X_GATE_SAIDA_KEY]: expectedTime });
+    await openMetaXPopup('exit_gate');
+  }
+
+  async function resumeSaidaAfterMetaX(): Promise<void> {
+    const data = await chrome.storage.local.get(META_X_GATE_SAIDA_KEY);
+    const expectedTime = data[META_X_GATE_SAIDA_KEY] as string | undefined;
+    if (!expectedTime) return;
+    await chrome.storage.local.remove(META_X_GATE_SAIDA_KEY);
+    await chrome.storage.local.set({ alarm_time_punch_popup_saida: expectedTime });
+    chrome.alarms.create('punch_popup_saida', { when: Date.now() + 1000 });
+  }
+
+  async function maybeTriggerMetaXOnEntrada(): Promise<void> {
+    const now = new Date();
+    const day = now.getDay();
+    if (day !== 2 && day !== 3) return;
+    const data = await chrome.storage.local.get(['pontoSettings', 'metaXState']);
+    if (data.pontoSettings?.metaXReminder === false) return;
+    if (hasRespondedThisWeek(data.metaXState as MetaXState | null, now)) return;
+    if (day === 2) {
+      await openMetaXPopup('tuesday_preview');
+      return;
+    }
+    await openMetaXPopup('morning');
+    await refreshMetaXBadge(now);
+    await scheduleMetaXAfternoonAlarm(now);
+  }
+
   function resetAllCaches() {
     resetGpPunchCache();
     resetSeniorApiCache();
@@ -474,6 +599,7 @@ export default defineBackground(() => {
     if (area !== 'local') return;
     if (changes.pontoState) {
       const newState = changes.pontoState.newValue;
+      const oldState = changes.pontoState.oldValue;
       chrome.storage.local.get('punchPopupSlot', (data) => {
         const slot = data.punchPopupSlot as PunchReminderSlot | null;
         if (!slot) return;
@@ -481,6 +607,10 @@ export default defineBackground(() => {
           resolveReminder(slot).catch(() => {});
         }
       });
+      // Camada 3: 1ª batida do dia na quarta dispara popup Meta X (uma vez)
+      if (!oldState?.entrada && newState?.entrada) {
+        maybeTriggerMetaXOnEntrada().catch(() => {});
+      }
     }
     if (changes.punchSuccessTs) {
       const punchTime = changes.punchSuccessTime?.newValue as string | undefined;
@@ -539,4 +669,7 @@ export default defineBackground(() => {
   loadPendingPunches().then(() => {
     backgroundDetect().catch(() => {});
   }).catch(() => {});
+
+  refreshMetaXBadge().catch(() => {});
+  scheduleMetaXAfternoonAlarm().catch(() => {});
 });
