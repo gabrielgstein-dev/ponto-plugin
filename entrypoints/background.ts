@@ -148,6 +148,17 @@ export default defineBackground(() => {
     );
   }
 
+  // Meta X: detecta submissão do survey TeamCulture via webRequest.
+  // POST api-engagement.teamculture.com.br/engagement/survey com 200 = respondeu.
+  chrome.webRequest.onCompleted.addListener(
+    (details) => {
+      if (details.method !== 'POST' || details.statusCode !== 200) return;
+      debugLog('Meta X: survey POST 200 detectado — marcando como respondida');
+      markMetaXResponded(new Date()).catch(() => {});
+    },
+    { urls: ['https://api-engagement.teamculture.com.br/engagement/survey'] }
+  );
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'OPEN_SIDE_PANEL') {
       const windowId = sender.tab?.windowId;
@@ -405,13 +416,6 @@ export default defineBackground(() => {
       chrome.windows.create({ url, type: 'popup', width: 460, height: 380, focused: true })
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
-      return true;
-    }
-    if (message.type === 'TC_SPY') {
-      const p = message.payload;
-      debugLog(`[TC_SPY] ${p.type?.toUpperCase()} ${p.method || ''} ${p.url || p.tag || ''} status=${p.status || ''}`);
-      debugLog(`[TC_SPY] body/text: ${(p.body || p.text || '').slice(0, 500)}`);
-      sendResponse({ ok: true });
       return true;
     }
     if (message.type === 'SHOW_NOTIFICATION') {
