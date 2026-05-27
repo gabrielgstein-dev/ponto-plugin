@@ -407,6 +407,13 @@ export default defineBackground(() => {
         .catch(() => sendResponse({ ok: false }));
       return true;
     }
+    if (message.type === 'TC_SPY') {
+      const p = message.payload;
+      debugLog(`[TC_SPY] ${p.type?.toUpperCase()} ${p.method || ''} ${p.url || p.tag || ''} status=${p.status || ''}`);
+      debugLog(`[TC_SPY] body/text: ${(p.body || p.text || '').slice(0, 500)}`);
+      sendResponse({ ok: true });
+      return true;
+    }
     if (message.type === 'SHOW_NOTIFICATION') {
       chrome.notifications.create(message.id || '', {
         type: 'basic',
