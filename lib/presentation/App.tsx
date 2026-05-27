@@ -23,7 +23,7 @@ import { Toast } from './components/Toast';
 import { PunchHistory } from './components/PunchHistory';
 import { HourBankBanner } from './components/HourBankBanner';
 import { PaytrackBanner } from './components/PaytrackBanner';
-import { MetaXBanner } from './components/MetaXBanner';
+import { MetaXBanner, MetaXDoneHint } from './components/MetaXBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
@@ -63,6 +63,7 @@ export function App() {
       <div className="token-status-row">
         {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} />}
         {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
+        {settings.metaXReminder && <MetaXDoneHint />}
         <ResyncButton />
       </div>
       {settings.metaXReminder && <MetaXBanner />}

@@ -24,6 +24,17 @@ function openSurvey() {
   window.open(META_X_URL, '_blank', 'noopener,noreferrer');
 }
 
+export function MetaXDoneHint({ now }: { now?: Date }) {
+  const { metaXState } = useMetaXState();
+  const status = getMetaXStatus(now ?? new Date(), metaXState);
+  if (status.tone !== 'done') return null;
+  return (
+    <span className="meta-x-done-hint">
+      <CheckIcon /> Meta X respondida
+    </span>
+  );
+}
+
 interface MetaXBannerProps {
   now?: Date;
 }
@@ -34,16 +45,7 @@ export function MetaXBanner({ now }: MetaXBannerProps) {
 
   if (!status.shouldShow) return null;
 
-  if (status.tone === 'done') {
-    return (
-      <div className="meta-x-chip-row">
-        <div className="meta-x-chip done">
-          <CheckIcon />
-          <span>Meta X respondida</span>
-        </div>
-      </div>
-    );
-  }
+  if (status.tone === 'done') return null;
 
   return (
     <div className={`meta-x-banner ${status.tone}`}>

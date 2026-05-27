@@ -536,27 +536,14 @@ body {
 :root:not(.dark) .meta-x-banner.urgent .meta-x-banner-aurora { opacity: 0.4; }
 
 /* ─── done (verde) ──────────────────────────────────────────────────────── */
-.meta-x-chip-row {
-  display: flex; justify-content: flex-end;
-  margin: 4px 16px 0;
-}
-.meta-x-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.meta-x-chip.done {
-  background: rgba(34, 197, 94, 0.1);
+.meta-x-done-hint {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 600;
   color: #15803d;
-  border: 1px solid rgba(34, 197, 94, 0.35);
+  white-space: nowrap;
 }
-.dark .meta-x-chip.done {
-  background: rgba(34, 197, 94, 0.12);
-  color: #86efac;
-  border-color: rgba(74, 222, 128, 0.35);
-}
+.meta-x-done-hint svg { flex-shrink: 0; }
+.dark .meta-x-done-hint { color: #86efac; }
 
 @keyframes meta-x-aurora {
   0% { transform: rotate(0deg) scale(1.4); }
