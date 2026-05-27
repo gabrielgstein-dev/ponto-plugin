@@ -273,9 +273,12 @@ async function restoreWidgetPosition(widget: HTMLElement) {
 async function updateWidgetFromStorage() {
   if (!isContextValid()) { cleanup(); return; }
   try {
-    const data = await chrome.storage.local.get(['pontoState', 'pontoDate', 'timesheetSummaryCache']);
+    const data = await chrome.storage.local.get(['pontoState', 'pontoDate', 'timesheetSummaryCache', 'userProfile']);
     const today = new Date().toDateString();
     if (data.pontoDate !== today || !data.pontoState) return;
+
+    const profile = data.userProfile as { hasTimesheet?: boolean | null } | undefined;
+    const showTimesheet = ENABLE_META_TIMESHEET && profile?.hasTimesheet !== false;
 
     const s = data.pontoState;
     const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
@@ -302,7 +305,7 @@ async function updateWidgetFromStorage() {
     set('spw-volta', s.volta ?? s._voltaSugerida ?? null, !s.volta);
     set('spw-saida', s.saida ?? s._saidaEstimada ?? null, !s.saida);
 
-    if (ENABLE_META_TIMESHEET && data.timesheetSummaryCache) {
+    if (showTimesheet && data.timesheetSummaryCache) {
       const summary = data.timesheetSummaryCache as TimesheetSummary;
       const pendingNoObs = (summary.entries || []).filter(e => e.status === 'PENDING' && !e.observation);
       const count = pendingNoObs.length;

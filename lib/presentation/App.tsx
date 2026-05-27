@@ -26,6 +26,8 @@ import { PaytrackBanner } from './components/PaytrackBanner';
 import { MetaXBanner, MetaXDoneHint } from './components/MetaXBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
+import { useFeatureFlags } from './hooks/useFeatureFlags';
+import { OnboardingOverlay } from './components/OnboardingOverlay';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
 import { COMPANY_LOGIN_URL } from '#company/providers';
 
@@ -95,6 +97,7 @@ export function App() {
       <SettingsButton />
       <PopupVersion />
       <Toast message={toast} onDismiss={() => setToast(null)} />
+      <OnboardingOverlay />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatDiff, formatDateShort, todayDateStr } from '../domain/time-utils';
 import { useSidePanelData } from './hooks/useSidePanelData';
+import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { DayRow } from './components/DayRow';
 import { TimesheetPanel } from './components/TimesheetPanel';
 import { ThemeToggle } from './components/ThemeToggle';
@@ -13,6 +14,7 @@ type SidePanelTab = 'ponto' | 'timesheet';
 
 export function SidePanelApp() {
   const [activeTab, setActiveTab] = useState<SidePanelTab>('ponto');
+  const { showTimesheet } = useFeatureFlags();
   const { balance, records, source, loadingRecords, isCurrentPeriod, goToPrev, goToNext, goToCurrent, editPunch, removePunch, addPunch, addGpPunch } = useSidePanelData();
 
   useEffect(() => {
@@ -23,6 +25,10 @@ export function SidePanelApp() {
       }
     });
   }, []);
+
+  useEffect(() => {
+    if (!showTimesheet && activeTab === 'timesheet') setActiveTab('ponto');
+  }, [showTimesheet, activeTab]);
 
   // Quando o popup pede pra trocar pro settings com o sidepanel já aberto
   // aqui, open() do popup é no-op — recebemos via mensagem e navegamos.
@@ -101,7 +107,7 @@ export function SidePanelApp() {
         </>
       )}
 
-      {activeTab === 'timesheet' && <TimesheetPanel />}
+      {activeTab === 'timesheet' && showTimesheet && <TimesheetPanel />}
     </div>
   );
 }
