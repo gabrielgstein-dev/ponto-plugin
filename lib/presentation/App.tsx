@@ -61,10 +61,9 @@ export function App() {
     <div className="popup-container">
       <LiveClock time={time} date={date} />
       <div className="token-status-row">
-        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText={status} hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} />}
+        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText="" hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} />}
         {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
         {settings.metaXReminder && <MetaXDoneHint />}
-        <ResyncButton />
       </div>
       {settings.metaXReminder && <MetaXBanner />}
       <div className="cards-grid">

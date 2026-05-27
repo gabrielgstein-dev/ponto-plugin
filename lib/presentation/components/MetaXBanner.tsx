@@ -30,7 +30,7 @@ export function MetaXDoneHint({ now }: { now?: Date }) {
   if (status.tone !== 'done') return null;
   return (
     <span className="meta-x-done-hint">
-      <CheckIcon /> Meta X respondida
+      <CheckIcon /> Meta X respondido
     </span>
   );
 }

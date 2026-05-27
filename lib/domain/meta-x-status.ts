@@ -30,7 +30,7 @@ export function getMetaXStatus(now: Date, state: MetaXState | null | undefined):
 
   if (responded) {
     if (day >= 2 && day <= 5) {
-      return { tone: 'done', label: 'Respondida ✓', shouldShow: true };
+      return { tone: 'done', label: 'Respondido ✓', shouldShow: true };
     }
     return { tone: 'idle', label: '', shouldShow: false };
   }
