@@ -152,11 +152,12 @@ export default defineBackground(() => {
   // POST api-engagement.teamculture.com.br/engagement/survey com 200 = respondeu.
   chrome.webRequest.onCompleted.addListener(
     (details) => {
+      debugLog(`Meta X webRequest: ${details.method} ${details.url} status=${details.statusCode}`);
       if (details.method !== 'POST' || details.statusCode !== 200) return;
       debugLog('Meta X: survey POST 200 detectado — marcando como respondida');
       markMetaXResponded(new Date()).then(() => resumeSaidaAfterMetaX()).catch(() => {});
     },
-    { urls: ['https://api-engagement.teamculture.com.br/engagement/survey'] }
+    { urls: ['https://api-engagement.teamculture.com.br/engagement/survey*'] }
   );
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
