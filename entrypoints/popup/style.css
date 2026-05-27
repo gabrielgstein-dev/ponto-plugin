@@ -542,6 +542,7 @@ body {
   border-radius: 20px;
   font-size: 11px; font-weight: 600;
   letter-spacing: 0.02em;
+  float: right;
 }
 .meta-x-chip.done {
   background: rgba(34, 197, 94, 0.1);

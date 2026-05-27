@@ -65,6 +65,7 @@ export function App() {
         {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
         <ResyncButton />
       </div>
+      {settings.metaXReminder && <MetaXBanner />}
       <div className="cards-grid">
         {PUNCH_SLOTS.map(slot => {
           const display = getDisplayTime(punchState, slot);
@@ -89,7 +90,6 @@ export function App() {
       {ENABLE_SENIOR_PUNCH_BUTTON && <PunchButton onClick={doPunch} loading={punching} disabled={!!punchState.saida} />}
       {ENABLE_MANUAL_PUNCH && <PunchButton onClick={doManualPunch} loading={manualPunching} disabled={!!punchState.saida} />}
       {settings.paytrackReminder && <PaytrackBanner />}
-      {settings.metaXReminder && <MetaXBanner />}
       <HourBankBanner balance={balance} estimatedExit={getDisplayTime(punchState, 'saida')} />
       {ENABLE_MANUAL_PUNCH && <PunchHistory showSeedButton />}
       <SettingsButton />
