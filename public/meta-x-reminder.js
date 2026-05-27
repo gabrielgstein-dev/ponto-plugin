@@ -22,9 +22,9 @@ const CONTEXT_COPY = {
     hint: '',
   },
   afternoon_notif: {
-    badge: 'Quarta · 16h',
+    badge: 'Quarta · Meta X',
     title: 'Última chamada — Meta X',
-    msg: 'O dia tá acabando e sua Meta X ainda não foi respondida. <strong>2min</strong> garantem semana completa.',
+    msg: 'O dia está acabando e a sua pesquisa ainda não foi respondida. Vamos responder agora? Leva apenas <strong>2 minutinhos</strong>.',
     hint: '',
   },
   tuesday_preview: {
@@ -63,13 +63,18 @@ if (new Date().getDay() === 3) {
     const audio = new Audio(src);
     const maxVol = Math.max(0, Math.min(1, settings.soundVolume ?? 0.7));
     audio.volume = maxVol;
-    const FADE_DURATION = 1.5;
-    audio.addEventListener('timeupdate', () => {
-      const remaining = audio.duration - audio.currentTime;
-      if (remaining < FADE_DURATION) {
-        audio.volume = Math.max(0, maxVol * (remaining / FADE_DURATION));
-      }
-    });
+    const past17 = new Date().getHours() >= 17;
+    if (past17) {
+      audio.loop = true;
+    } else {
+      const FADE_DURATION = 1.5;
+      audio.addEventListener('timeupdate', () => {
+        const remaining = audio.duration - audio.currentTime;
+        if (remaining < FADE_DURATION) {
+          audio.volume = Math.max(0, maxVol * (remaining / FADE_DURATION));
+        }
+      });
+    }
     audio.play().catch(() => {});
   });
 }
