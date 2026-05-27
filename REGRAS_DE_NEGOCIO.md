@@ -315,7 +315,7 @@ As permissões são condicionais via build flags em `wxt.config.ts`.
 | `scripting` | Injetar scripts nas abas (executeScript) | `ENABLE_SENIOR_INTEGRATION` ou `ENABLE_META_TIMESHEET` |
 | `webRequest` | Capturar headers de Authorization no background | `ENABLE_SENIOR_INTEGRATION` ou `ENABLE_META_TIMESHEET` |
 | `cookies` | Ler `com.senior.token` do domínio `.senior.com.br` | `ENABLE_SENIOR_INTEGRATION` ou `ENABLE_META_TIMESHEET` |
-| `host_permissions` (5 domínios) | Senior X, GestãoPonto, plataforma Meta, API Meta, API TeamCulture | `ENABLE_SENIOR_INTEGRATION`, `ENABLE_WIDGET` ou `ENABLE_META_TIMESHEET` |
+| `host_permissions` (4 domínios) | Senior X, GestãoPonto, plataforma Meta, API Meta | `ENABLE_SENIOR_INTEGRATION`, `ENABLE_WIDGET` ou `ENABLE_META_TIMESHEET` |
 
 ---
 

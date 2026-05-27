@@ -16,15 +16,14 @@ A extensão Senior Ponto tem como **único propósito** auxiliar colaboradores C
 **Justificativa:** Permite exibir notificações nativas do sistema operacional para alertar o usuário sobre horários importantes (saída para almoço, retorno, fim do expediente, fechamento de período). As notificações são geradas localmente e não envolvem comunicação externa.
 
 ### Host Permissions (domínios autorizados)
-**Justificativa:** A extensão acessa apenas 5 domínios corporativos específicos do sistema de ponto eletrônico e da pesquisa de engajamento:
+**Justificativa:** A extensão acessa apenas 4 domínios corporativos específicos do sistema de ponto eletrônico:
 
 1. `platform.senior.com.br` — sistema Senior X, onde o usuário faz login (SSO) e onde fica a API de batimentos de ponto.
 2. `gestaoponto.meta.com.br` — sistema GestãoPonto da empresa Meta, utilizado para consulta e ajuste dos batimentos.
 3. `plataforma.meta.com.br` — portal corporativo Meta, de onde é acessado o módulo de banco de horas (timesheet).
 4. `api.meta.com.br` — API consultada diretamente para obter o banco de horas calculado, com a sessão já autenticada do usuário.
-5. `api-engagement.teamculture.com.br` — API da plataforma TeamCulture, utilizada exclusivamente para detectar quando o colaborador concluiu a pesquisa semanal de engajamento (Meta X). A extensão observa apenas o status HTTP da resposta da submissão — não lê, armazena ou transmite o conteúdo das respostas do questionário.
 
-A extensão **não utiliza `<all_urls>`** nem qualquer permissão ampla. Não há leitura, injeção de script ou monitoramento de navegação em outras páginas além desses 5 domínios.
+A extensão **não utiliza `<all_urls>`** nem qualquer permissão ampla. Não há leitura, injeção de script ou monitoramento de navegação em outras páginas além desses 4 domínios.
 
 ### Código Remoto
 **Justificativa:** A extensão **não utiliza código remoto**. Todo o código executado está empacotado localmente na extensão. Os únicos recursos externos acessados são:
@@ -61,11 +60,9 @@ Todos os dados são armazenados apenas no dispositivo local usando `chrome.stora
 A extensão não acessa o conteúdo de abas de outras páginas.
 
 ### webRequest
-**Justificativa:** Utilizada para:
-1. Observar os cabeçalhos de autenticação das próprias requisições que o sistema Senior X e a plataforma Meta já fazem quando o usuário está logado nesses sistemas. Isso permite reaproveitar a sessão já autenticada do usuário sem pedir login adicional na extensão.
-2. Detectar quando o colaborador concluiu a pesquisa semanal de engajamento (Meta X) na plataforma TeamCulture, observando apenas o status HTTP (200) da submissão. A extensão não lê nem armazena o conteúdo das respostas.
+**Justificativa:** Utilizada para observar os cabeçalhos de autenticação das próprias requisições que o sistema Senior X e a plataforma Meta já fazem quando o usuário está logado nesses sistemas. Isso permite reaproveitar a sessão já autenticada do usuário sem pedir login adicional na extensão.
 
-A observação é restrita aos domínios autorizados (`host_permissions`), e os dados nunca são enviados a servidores externos da extensão.
+A observação é restrita aos domínios autorizados (`host_permissions`), não envolve a leitura do corpo das requisições, e os dados nunca são enviados a servidores externos da extensão.
 
 ## Coleta e Uso de Dados
 
