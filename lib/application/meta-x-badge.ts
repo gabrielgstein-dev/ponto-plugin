@@ -1,7 +1,7 @@
 import type { MetaXState } from '../domain/types';
 import { getMetaXStatus } from '../domain/meta-x-status';
 
-const BADGE_BG_URGENT = '#ef4444';
+const BADGE_BG_URGENT = '#3b82f6';
 
 export async function refreshMetaXBadge(now: Date = new Date()): Promise<void> {
   if (typeof chrome === 'undefined' || !chrome.action) return;

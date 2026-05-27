@@ -466,7 +466,7 @@ body {
   border: 1px solid transparent;
 }
 .meta-x-banner-btn-primary {
-  background: linear-gradient(135deg, #f97316, #ef4444);
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
   color: #ffffff;
 }
 .meta-x-banner-btn-primary:hover { filter: brightness(1.08); }
@@ -477,39 +477,39 @@ body {
 }
 .meta-x-banner-btn-ghost:hover { border-color: var(--accent2); color: var(--text); }
 
-/* ─── attention (terça) — soft amarelo ────────────────────────────────────── */
+/* ─── attention (terça) — soft azul ───────────────────────────────────────── */
 .meta-x-banner.attention {
-  border-color: rgba(202, 138, 4, 0.55);
-  background: rgba(234, 179, 8, 0.1);
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.08);
 }
 .meta-x-banner.attention .meta-x-banner-icon,
 .meta-x-banner.attention .meta-x-banner-label,
-.meta-x-banner.attention .meta-x-banner-value { color: #92400e; }
+.meta-x-banner.attention .meta-x-banner-value { color: #1e40af; }
 .dark .meta-x-banner.attention {
-  border-color: rgba(250, 204, 21, 0.5);
-  background: rgba(234, 179, 8, 0.08);
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(59, 130, 246, 0.1);
 }
 .dark .meta-x-banner.attention .meta-x-banner-icon,
 .dark .meta-x-banner.attention .meta-x-banner-label,
-.dark .meta-x-banner.attention .meta-x-banner-value { color: #fde047; }
+.dark .meta-x-banner.attention .meta-x-banner-value { color: #93c5fd; }
 
-/* ─── urgent (quarta) — combo aurora + shimmer + glow ─────────────────────── */
+/* ─── urgent (quarta) — combo aurora + shimmer + glow azul ───────────────── */
 .meta-x-banner.urgent {
-  border-color: rgba(239, 68, 68, 0.55);
-  background: #1a0f10;
+  border-color: rgba(59, 130, 246, 0.55);
+  background: #0f1320;
   animation: meta-x-glow 2s ease-in-out infinite;
 }
 .meta-x-banner.urgent .meta-x-banner-icon,
-.meta-x-banner.urgent .meta-x-banner-label { color: #fda4af; }
-.meta-x-banner.urgent .meta-x-banner-value { color: #fecaca; }
+.meta-x-banner.urgent .meta-x-banner-label { color: #93c5fd; }
+.meta-x-banner.urgent .meta-x-banner-value { color: #bfdbfe; }
 .meta-x-banner.urgent .meta-x-banner-aurora {
   background: conic-gradient(
     from 0deg at 30% 50%,
-    rgba(249, 115, 22, 0.55),
-    rgba(236, 72, 153, 0.45),
+    rgba(59, 130, 246, 0.55),
+    rgba(99, 102, 241, 0.45),
     rgba(139, 92, 246, 0.4),
     rgba(34, 211, 238, 0.4),
-    rgba(249, 115, 22, 0.55)
+    rgba(59, 130, 246, 0.55)
   );
   filter: blur(28px);
   opacity: 0.55;
@@ -528,11 +528,11 @@ body {
   animation: meta-x-shimmer 3.2s ease-in-out infinite;
 }
 
-/* Light mode override pra urgent — fundo claro com tom quente */
-:root:not(.dark) .meta-x-banner.urgent { background: #fff7ed; }
+/* Light mode override pra urgent */
+:root:not(.dark) .meta-x-banner.urgent { background: #eff6ff; }
 :root:not(.dark) .meta-x-banner.urgent .meta-x-banner-icon,
-:root:not(.dark) .meta-x-banner.urgent .meta-x-banner-label { color: #9a3412; }
-:root:not(.dark) .meta-x-banner.urgent .meta-x-banner-value { color: #7c2d12; }
+:root:not(.dark) .meta-x-banner.urgent .meta-x-banner-label { color: #1e40af; }
+:root:not(.dark) .meta-x-banner.urgent .meta-x-banner-value { color: #1e3a8a; }
 :root:not(.dark) .meta-x-banner.urgent .meta-x-banner-aurora { opacity: 0.4; }
 
 /* ─── done (verde) ──────────────────────────────────────────────────────── */
@@ -554,8 +554,8 @@ body {
   100% { background-position: -100% 50%; }
 }
 @keyframes meta-x-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55), 0 0 18px rgba(249, 115, 22, 0.25); }
-  50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0), 0 0 24px rgba(249, 115, 22, 0.4); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.55), 0 0 18px rgba(99, 102, 241, 0.25); }
+  50% { box-shadow: 0 0 0 5px rgba(59, 130, 246, 0), 0 0 24px rgba(99, 102, 241, 0.4); }
 }
 
 @media (prefers-reduced-motion: reduce) {
