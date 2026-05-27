@@ -1,5 +1,5 @@
 export default defineContentScript({
-  matches: ['*://app.teamculture.com.br/*'],
+  matches: ['*://app.teamculture.com.br/*', '*://beta.teamculture.com.br/*'],
   world: 'MAIN',
   runAt: 'document_start',
 

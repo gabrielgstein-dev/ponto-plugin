@@ -17,7 +17,7 @@ const permissions = Array.from(new Set([
 ]));
 
 const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET || ENABLE_META_TIMESHEET
-  ? ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*', '*://api.meta.com.br/*', '*://app.teamculture.com.br/*']
+  ? ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*', '*://api.meta.com.br/*', '*://app.teamculture.com.br/*', '*://beta.teamculture.com.br/*']
   : [];
 
 function injectThemeCSS() {
