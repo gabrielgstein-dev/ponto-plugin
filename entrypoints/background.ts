@@ -148,8 +148,8 @@ export default defineBackground(() => {
     );
   }
 
-  // Meta X: detecta submissão do survey TeamCulture via webRequest.
-  // POST api-engagement.teamculture.com.br/engagement/survey com 200 = respondeu.
+  // Meta X: detecta submissão do survey TeamCulture.
+  // Método 1: webRequest no POST da API.
   chrome.webRequest.onCompleted.addListener(
     (details) => {
       debugLog(`Meta X webRequest: ${details.method} ${details.url} status=${details.statusCode}`);
@@ -159,6 +159,19 @@ export default defineBackground(() => {
     },
     { urls: ['https://api-engagement.teamculture.com.br/engagement/survey*'] }
   );
+
+  // Método 2: detecta navegação na página de conclusão do survey.
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.url && changeInfo.url.includes('/engagement/survey/finish')) {
+      debugLog('Meta X: página /finish detectada via tabs.onUpdated');
+      chrome.storage.local.get(['metaXState', 'pontoSettings'], (data) => {
+        if (data.pontoSettings?.metaXReminder === false) return;
+        const now = new Date();
+        if (hasRespondedThisWeek(data.metaXState as MetaXState | null, now)) return;
+        markMetaXResponded(now).then(() => resumeSaidaAfterMetaX()).catch(() => {});
+      });
+    }
+  });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'OPEN_SIDE_PANEL') {
