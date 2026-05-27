@@ -468,12 +468,9 @@ export default defineBackground(() => {
 
   chrome.windows.onRemoved.addListener((windowId) => {
     chrome.storage.local.get(
-      ['punchPopupWindowId', 'punchPopupSlot', 'punchPopupEscalated', 'tsNotifWindowId'],
+      ['punchPopupWindowId', 'punchPopupSlot', 'punchPopupEscalated', 'tsNotifWindowId', 'metaXPopupWindowId', 'metaXState', 'pontoSettings'],
       (data) => {
         if (data.punchPopupWindowId === windowId) {
-          // Se o popup escalado fechou sem o user clicar em nenhuma das 3 ações
-          // (X da janela), tratamos como dismiss implícito — não vamos reabrir.
-          // No modo normal só limpa windowId (recheck pode reabrir depois).
           if (data.punchPopupEscalated && data.punchPopupSlot) {
             dismissSlotForToday(data.punchPopupSlot as PunchReminderSlot).catch(() => {});
           } else {
@@ -483,6 +480,18 @@ export default defineBackground(() => {
         if (data.tsNotifWindowId === windowId) {
           chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
           chrome.storage.local.remove('tsNotifWindowId');
+        }
+        if (data.metaXPopupWindowId === windowId) {
+          chrome.storage.local.remove(['metaXPopupWindowId', 'metaXPopupContext']);
+          const now = new Date();
+          const isWed = now.getDay() === 3;
+          const past17 = now.getHours() >= 17;
+          const enabled = data.pontoSettings?.metaXReminder !== false;
+          const pending = !hasRespondedThisWeek(data.metaXState as MetaXState | null, now);
+          if (isWed && past17 && enabled && pending) {
+            debugLog('Meta X: popup fechado após 17h sem resposta — reabrindo');
+            setTimeout(() => openMetaXPopup('afternoon_notif').catch(() => {}), 2000);
+          }
         }
     });
   });
