@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { MetaXState } from '../../domain/types';
 import { DEFAULT_META_X_STATE } from '../../domain/types';
 
-export function useMetaXState(): { metaXState: MetaXState; markResponded: () => void } {
+export function useMetaXState(): { metaXState: MetaXState } {
   const [metaXState, setMetaXState] = useState<MetaXState>({ ...DEFAULT_META_X_STATE });
 
   useEffect(() => {
@@ -23,9 +23,5 @@ export function useMetaXState(): { metaXState: MetaXState; markResponded: () => 
     };
   }, []);
 
-  const markResponded = () => {
-    chrome.runtime.sendMessage({ type: 'META_X_RESPONDED' });
-  };
-
-  return { metaXState, markResponded };
+  return { metaXState };
 }

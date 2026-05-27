@@ -154,7 +154,7 @@ export default defineBackground(() => {
     (details) => {
       if (details.method !== 'POST' || details.statusCode !== 200) return;
       debugLog('Meta X: survey POST 200 detectado — marcando como respondida');
-      markMetaXResponded(new Date()).catch(() => {});
+      markMetaXResponded(new Date()).then(() => resumeSaidaAfterMetaX()).catch(() => {});
     },
     { urls: ['https://api-engagement.teamculture.com.br/engagement/survey'] }
   );
@@ -384,14 +384,6 @@ export default defineBackground(() => {
       chrome.windows.create({ url, type: 'popup', width: 420, height: 300, focused: true })
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
-      return true;
-    }
-    if (message.type === 'META_X_RESPONDED') {
-      (async () => {
-        await markMetaXResponded(new Date());
-        await resumeSaidaAfterMetaX();
-        sendResponse({ ok: true });
-      })();
       return true;
     }
     if (message.type === 'META_X_SNOOZE') {

@@ -21,7 +21,7 @@ interface MetaXBannerProps {
 }
 
 export function MetaXBanner({ now }: MetaXBannerProps) {
-  const { metaXState, markResponded } = useMetaXState();
+  const { metaXState } = useMetaXState();
   const status = getMetaXStatus(now ?? new Date(), metaXState);
 
   if (!status.shouldShow) return null;
@@ -48,13 +48,6 @@ export function MetaXBanner({ now }: MetaXBannerProps) {
               onClick={openSurvey}
             >
               Responder agora
-            </button>
-            <button
-              type="button"
-              className="meta-x-banner-btn meta-x-banner-btn-ghost"
-              onClick={markResponded}
-            >
-              Já respondi
             </button>
           </div>
         )}

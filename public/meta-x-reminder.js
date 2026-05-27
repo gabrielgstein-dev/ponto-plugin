@@ -40,11 +40,6 @@ document.getElementById('btn-respond').addEventListener('click', () => {
   safeSend({ type: 'OPEN_META_X_SURVEY' });
 });
 
-document.getElementById('btn-done').addEventListener('click', () => {
-  safeSend({ type: 'META_X_RESPONDED' });
-  window.close();
-});
-
 document.getElementById('btn-snooze').addEventListener('click', () => {
   safeSend({ type: 'META_X_SNOOZE' });
   window.close();
