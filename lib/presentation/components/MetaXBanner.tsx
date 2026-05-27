@@ -36,9 +36,11 @@ export function MetaXBanner({ now }: MetaXBannerProps) {
 
   if (status.tone === 'done') {
     return (
-      <div className="meta-x-chip done">
-        <CheckIcon />
-        <span>Meta X respondida</span>
+      <div className="meta-x-chip-row">
+        <div className="meta-x-chip done">
+          <CheckIcon />
+          <span>Meta X respondida</span>
+        </div>
       </div>
     );
   }

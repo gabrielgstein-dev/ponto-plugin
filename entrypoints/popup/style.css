@@ -536,13 +536,16 @@ body {
 :root:not(.dark) .meta-x-banner.urgent .meta-x-banner-aurora { opacity: 0.4; }
 
 /* ─── done (verde) ──────────────────────────────────────────────────────── */
+.meta-x-chip-row {
+  display: flex; justify-content: flex-end;
+  margin: 4px 16px 0;
+}
 .meta-x-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  margin: 6px 16px; padding: 4px 10px;
+  padding: 4px 10px;
   border-radius: 20px;
   font-size: 11px; font-weight: 600;
   letter-spacing: 0.02em;
-  float: right;
 }
 .meta-x-chip.done {
   background: rgba(34, 197, 94, 0.1);
