@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.11.0...senior-ponto-v0.12.0) (2026-05-27)
+
+
+### Novidades
+
+* áudio Meta X em loop após 17h + copy atualizado ([5579f89](https://github.com/gabrielgstein-dev/ponto-plugin/commit/5579f899c20a3013da79000c053312e2bab46b93))
+* lembrete Meta X com detecção real de resposta ([6fd2a2c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/6fd2a2c9ea6cdd309cf505408eee0ae896302953))
+
 ## [0.11.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.10.0...senior-ponto-v0.11.0) (2026-05-21)
 
 
