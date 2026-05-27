@@ -12,6 +12,14 @@ function SparkleIcon() {
   );
 }
 
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 function openSurvey() {
   window.open(META_X_URL, '_blank', 'noopener,noreferrer');
 }
@@ -26,7 +34,14 @@ export function MetaXBanner({ now }: MetaXBannerProps) {
 
   if (!status.shouldShow) return null;
 
-  const showActions = status.tone === 'urgent' || status.tone === 'attention';
+  if (status.tone === 'done') {
+    return (
+      <div className="meta-x-chip done">
+        <CheckIcon />
+        <span>Meta X respondida</span>
+      </div>
+    );
+  }
 
   return (
     <div className={`meta-x-banner ${status.tone}`}>
@@ -40,17 +55,15 @@ export function MetaXBanner({ now }: MetaXBannerProps) {
           </div>
           <span className="meta-x-banner-value">{status.label}</span>
         </div>
-        {showActions && (
-          <div className="meta-x-banner-actions">
-            <button
-              type="button"
-              className="meta-x-banner-btn meta-x-banner-btn-primary"
-              onClick={openSurvey}
-            >
-              Responder agora
-            </button>
-          </div>
-        )}
+        <div className="meta-x-banner-actions">
+          <button
+            type="button"
+            className="meta-x-banner-btn meta-x-banner-btn-primary"
+            onClick={openSurvey}
+          >
+            Responder agora
+          </button>
+        </div>
       </div>
     </div>
   );

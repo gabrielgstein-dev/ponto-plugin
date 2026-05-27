@@ -536,20 +536,23 @@ body {
 :root:not(.dark) .meta-x-banner.urgent .meta-x-banner-aurora { opacity: 0.4; }
 
 /* ─── done (verde) ──────────────────────────────────────────────────────── */
-.meta-x-banner.done {
-  border-color: rgba(34, 197, 94, 0.5);
-  background: rgba(34, 197, 94, 0.08);
+.meta-x-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 6px 16px; padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.02em;
 }
-.meta-x-banner.done .meta-x-banner-icon,
-.meta-x-banner.done .meta-x-banner-label,
-.meta-x-banner.done .meta-x-banner-value { color: #15803d; }
-.dark .meta-x-banner.done {
-  border-color: rgba(74, 222, 128, 0.5);
+.meta-x-chip.done {
   background: rgba(34, 197, 94, 0.1);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.35);
 }
-.dark .meta-x-banner.done .meta-x-banner-icon,
-.dark .meta-x-banner.done .meta-x-banner-label,
-.dark .meta-x-banner.done .meta-x-banner-value { color: #86efac; }
+.dark .meta-x-chip.done {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+  border-color: rgba(74, 222, 128, 0.35);
+}
 
 @keyframes meta-x-aurora {
   0% { transform: rotate(0deg) scale(1.4); }
