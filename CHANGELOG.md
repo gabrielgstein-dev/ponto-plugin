@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.12.0...senior-ponto-v0.12.1) (2026-05-27)
+
+
+### Correções
+
+* alinha testes Meta X com alterações de copy e badge ([fd25436](https://github.com/gabrielgstein-dev/ponto-plugin/commit/fd25436748810c784158728c2812f4798ed99373))
+
 ## [0.12.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.11.0...senior-ponto-v0.12.0) (2026-05-27)
 
 
