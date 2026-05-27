@@ -5,8 +5,8 @@ const ctx = params.get('ctx') || 'morning';
 const CONTEXT_COPY = {
   morning: {
     badge: 'Quarta · Meta X',
-    title: 'Hora da Meta X 🚀',
-    msg: 'Bora começar a semana respondendo a Meta X de hoje? Leva uns <strong>2min</strong>.',
+    title: 'Hora do Meta X 🚀',
+    msg: 'Bora começar essa quarta respondendo o Meta X. Leva apenas <strong>2 min</strong>.',
     hint: '',
   },
   exit_gate: {
