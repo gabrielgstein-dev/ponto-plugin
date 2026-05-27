@@ -51,7 +51,15 @@ if (new Date().getDay() === 3) {
     if (settings.soundEnabled === false) return;
     const src = chrome.runtime.getURL('sounds/metax-reminder.mp3');
     const audio = new Audio(src);
-    audio.volume = Math.max(0, Math.min(1, settings.soundVolume ?? 0.7));
+    const maxVol = Math.max(0, Math.min(1, settings.soundVolume ?? 0.7));
+    audio.volume = maxVol;
+    const FADE_DURATION = 1.5;
+    audio.addEventListener('timeupdate', () => {
+      const remaining = audio.duration - audio.currentTime;
+      if (remaining < FADE_DURATION) {
+        audio.volume = Math.max(0, maxVol * (remaining / FADE_DURATION));
+      }
+    });
     audio.play().catch(() => {});
   });
 }
