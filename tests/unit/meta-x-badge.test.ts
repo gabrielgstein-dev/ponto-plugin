@@ -12,21 +12,20 @@ const tue = new Date(2026, 4, 19);
 const thu = new Date(2026, 4, 21);
 
 describe('refreshMetaXBadge', () => {
-  it('quarta + não respondida → badge "!" vermelho', async () => {
+  it('quarta + não respondida → badge "!" azul', async () => {
     mockStorageGet.mockResolvedValueOnce({ pontoSettings: { metaXReminder: true }, metaXState: null });
     await refreshMetaXBadge(wed);
     expect(mockActionSetBadgeText).toHaveBeenCalledWith({ text: '!' });
-    expect(mockActionSetBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#ef4444' });
+    expect(mockActionSetBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#3b82f6' });
   });
 
-  it('quarta + respondida → badge "✓" verde', async () => {
+  it('quarta + respondida → badge limpo', async () => {
     mockStorageGet.mockResolvedValueOnce({
       pontoSettings: { metaXReminder: true },
       metaXState: { lastRespondedWeekKey: getIsoWeekKey(wed), lastRespondedAt: Date.now() },
     });
     await refreshMetaXBadge(wed);
-    expect(mockActionSetBadgeText).toHaveBeenCalledWith({ text: '✓' });
-    expect(mockActionSetBadgeBackgroundColor).toHaveBeenCalledWith({ color: '#22c55e' });
+    expect(mockActionSetBadgeText).toHaveBeenCalledWith({ text: '' });
   });
 
   it('terça → badge limpo (urgent só na quarta)', async () => {

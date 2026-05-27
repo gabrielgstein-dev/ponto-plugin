@@ -68,19 +68,19 @@ describe('getMetaXStatus', () => {
   it('terça respondida na semana: done', () => {
     const now = new Date(2026, 4, 19);
     const state: MetaXState = { lastRespondedWeekKey: getIsoWeekKey(now), lastRespondedAt: Date.now() };
-    expect(getMetaXStatus(now, state)).toEqual({ tone: 'done', label: 'Respondida ✓', shouldShow: true });
+    expect(getMetaXStatus(now, state)).toEqual({ tone: 'done', label: 'Respondido ✓', shouldShow: true });
   });
 
   it('quarta respondida: done', () => {
     const now = new Date(2026, 4, 20);
     const state: MetaXState = { lastRespondedWeekKey: getIsoWeekKey(now), lastRespondedAt: Date.now() };
-    expect(getMetaXStatus(now, state)).toEqual({ tone: 'done', label: 'Respondida ✓', shouldShow: true });
+    expect(getMetaXStatus(now, state)).toEqual({ tone: 'done', label: 'Respondido ✓', shouldShow: true });
   });
 
-  it('sexta respondida: done (continua visível verde)', () => {
+  it('sexta respondida: idle (some após quarta)', () => {
     const now = new Date(2026, 4, 22);
     const state: MetaXState = { lastRespondedWeekKey: getIsoWeekKey(now), lastRespondedAt: Date.now() };
-    expect(getMetaXStatus(now, state)).toEqual({ tone: 'done', label: 'Respondida ✓', shouldShow: true });
+    expect(getMetaXStatus(now, state)).toEqual({ tone: 'idle', label: '', shouldShow: false });
   });
 
   it('sábado respondido: idle (some)', () => {
