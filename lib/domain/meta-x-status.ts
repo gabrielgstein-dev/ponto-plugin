@@ -29,7 +29,7 @@ export function getMetaXStatus(now: Date, state: MetaXState | null | undefined):
   const responded = hasRespondedThisWeek(state, now);
 
   if (responded) {
-    if (day >= 2 && day <= 5) {
+    if (day === 2 || day === 3) {
       return { tone: 'done', label: 'Respondido ✓', shouldShow: true };
     }
     return { tone: 'idle', label: '', shouldShow: false };

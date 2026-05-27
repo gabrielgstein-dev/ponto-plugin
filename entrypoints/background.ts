@@ -573,10 +573,15 @@ export default defineBackground(() => {
 
   async function maybeTriggerMetaXOnEntrada(): Promise<void> {
     const now = new Date();
-    if (now.getDay() !== 3) return;
+    const day = now.getDay();
+    if (day !== 2 && day !== 3) return;
     const data = await chrome.storage.local.get(['pontoSettings', 'metaXState']);
     if (data.pontoSettings?.metaXReminder === false) return;
     if (hasRespondedThisWeek(data.metaXState as MetaXState | null, now)) return;
+    if (day === 2) {
+      await openMetaXPopup('tuesday_preview');
+      return;
+    }
     await openMetaXPopup('morning');
     await refreshMetaXBadge(now);
     await scheduleMetaXAfternoonAlarm(now);

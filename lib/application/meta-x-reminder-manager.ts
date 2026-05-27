@@ -7,7 +7,7 @@ const RECURRING_SNOOZE_ALARM = 'meta_x_snooze';
 const DAILY_NOTIFY_ALARM = 'meta_x_notify';
 const SNOOZE_MINUTES = 30;
 
-export type MetaXPopupContext = 'morning' | 'exit_gate' | 'snooze' | 'afternoon_notif';
+export type MetaXPopupContext = 'morning' | 'exit_gate' | 'snooze' | 'afternoon_notif' | 'tuesday_preview';
 
 export async function openMetaXPopup(context: MetaXPopupContext): Promise<void> {
   if (!(await isReminderEligible())) return;

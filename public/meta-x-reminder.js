@@ -27,6 +27,12 @@ const CONTEXT_COPY = {
     msg: 'O dia tá acabando e sua Meta X ainda não foi respondida. <strong>2min</strong> garantem semana completa.',
     hint: '',
   },
+  tuesday_preview: {
+    badge: 'Terça · Lembrete',
+    title: 'Amanhã é dia de Meta X',
+    msg: 'Quarta tem Meta X — quer adiantar e já responder agora? Leva apenas <strong>2 min</strong>.',
+    hint: '',
+  },
 };
 
 const cfg = CONTEXT_COPY[ctx] || CONTEXT_COPY.morning;
@@ -40,10 +46,14 @@ document.getElementById('btn-respond').addEventListener('click', () => {
   safeSend({ type: 'OPEN_META_X_SURVEY' });
 });
 
-document.getElementById('btn-snooze').addEventListener('click', () => {
-  safeSend({ type: 'META_X_SNOOZE' });
-  window.close();
-});
+if (ctx === 'tuesday_preview') {
+  document.getElementById('btn-snooze').style.display = 'none';
+} else {
+  document.getElementById('btn-snooze').addEventListener('click', () => {
+    safeSend({ type: 'META_X_SNOOZE' });
+    window.close();
+  });
+}
 
 if (new Date().getDay() === 3) {
   chrome.storage.local.get('pontoSettings', (data) => {
