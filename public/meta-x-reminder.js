@@ -45,6 +45,15 @@ document.getElementById('btn-snooze').addEventListener('click', () => {
   window.close();
 });
 
+chrome.storage.local.get('pontoSettings', (data) => {
+  const settings = data.pontoSettings || {};
+  if (settings.soundEnabled === false) return;
+  const src = chrome.runtime.getURL('sounds/metax-reminder.mp3');
+  const audio = new Audio(src);
+  audio.volume = Math.max(0, Math.min(1, settings.soundVolume ?? 0.7));
+  audio.play().catch(() => {});
+});
+
 function safeSend(msg) {
   try {
     chrome.runtime.sendMessage(msg, () => { void chrome.runtime.lastError; });
