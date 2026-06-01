@@ -10,9 +10,20 @@ export default defineContentScript({
     if (window.top !== window) return;
     captureMetaTokens();
     captureTimesheetMutations();
+    captureNetLog();
     autoClickColaborador();
   },
 });
+
+function captureNetLog() {
+  window.addEventListener('__sponto_meta_netlog', ((e: CustomEvent) => {
+    if (!isContextValid()) return;
+    try {
+      const entry = typeof e.detail === 'string' ? JSON.parse(e.detail) : e.detail;
+      chrome.runtime.sendMessage({ type: 'META_NETLOG_APPEND', entry }).catch(() => {});
+    } catch (_) { /* ignore */ }
+  }) as EventListener);
+}
 
 function captureMetaTokens() {
   window.addEventListener('__sponto_meta_token', ((e: CustomEvent) => {

@@ -35,6 +35,7 @@ import {
 } from '../lib/application/meta-x-reminder-manager';
 import { refreshMetaXBadge } from '../lib/application/meta-x-badge';
 import { META_X_URL, hasRespondedThisWeek } from '../lib/domain/meta-x-status';
+import { appendNetEntry, getNetEntries, clearNetEntries, type MetaNetEntry } from '../lib/domain/meta-net-log';
 import type { MetaXState } from '../lib/domain/types';
 
 export default defineBackground(() => {
@@ -162,6 +163,20 @@ export default defineBackground(() => {
   });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'META_NETLOG_APPEND') {
+      const entry = message.entry as MetaNetEntry | undefined;
+      if (!entry || typeof entry !== 'object') { sendResponse({ ok: false }); return true; }
+      appendNetEntry(entry).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'META_NETLOG_GET') {
+      getNetEntries().then(entries => sendResponse({ ok: true, entries })).catch(() => sendResponse({ ok: false, entries: [] }));
+      return true;
+    }
+    if (message.type === 'META_NETLOG_CLEAR') {
+      clearNetEntries().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'OPEN_SIDE_PANEL') {
       const windowId = sender.tab?.windowId;
       if (windowId) {
