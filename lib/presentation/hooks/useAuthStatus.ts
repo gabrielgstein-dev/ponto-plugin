@@ -1,26 +1,26 @@
 import { useState, useEffect } from 'react';
-import { SENIOR_TOKEN_MAX_AGE_MS } from '../../infrastructure/senior/constants';
+import { checkAuthStatus, COMPANY_AUTH_STORAGE_KEYS } from '#company/providers';
 
 export function useAuthStatus() {
   const [hasAuth, setHasAuth] = useState<boolean | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const check = () => {
-      chrome.storage.local.get(['gpAssertion', 'gpAssertionTs', 'seniorToken', 'seniorTokenTs'], (data) => {
-        const gpOk = !!data.gpAssertion && !!data.gpAssertionTs;
-        const tokenOk = !!data.seniorToken && !!data.seniorTokenTs && Date.now() - data.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS;
-        setHasAuth(gpOk || tokenOk);
-      });
+      checkAuthStatus().then(ok => { if (!cancelled) setHasAuth(ok); });
     };
 
     check();
 
     const onChange = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== 'local') return;
-      if (changes.gpAssertion || changes.seniorToken) check();
+      if (COMPANY_AUTH_STORAGE_KEYS.some(k => changes[k])) check();
     };
     chrome.storage.local.onChanged.addListener(onChange);
-    return () => chrome.storage.local.onChanged.removeListener(onChange);
+    return () => {
+      cancelled = true;
+      chrome.storage.local.onChanged.removeListener(onChange);
+    };
   }, []);
 
   return hasAuth;

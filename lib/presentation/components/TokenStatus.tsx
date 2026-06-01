@@ -4,9 +4,10 @@ interface TokenStatusProps {
   statusText?: string;
   hasAuth?: boolean | null;
   loginUrl?: string;
+  companyLabel?: string;
 }
 
-export function TokenStatus({ hasToken, loading, statusText, hasAuth, loginUrl = 'https://platform.senior.com.br' }: TokenStatusProps) {
+export function TokenStatus({ hasToken, loading, statusText, hasAuth, loginUrl = 'https://platform.senior.com.br', companyLabel = 'plataforma' }: TokenStatusProps) {
   if (loading) {
     return <div className="token-status loading">Verificando token...</div>;
   }
@@ -17,7 +18,7 @@ export function TokenStatus({ hasToken, loading, statusText, hasAuth, loginUrl =
         <span className="token-dot" />
         Desconectado
         <span className="token-status-text">
-          — <a href={loginUrl} target="_blank" rel="noreferrer" className="token-login-link">Conecte-se ao Senior</a> para sincronizar
+          — <a href={loginUrl} target="_blank" rel="noreferrer" className="token-login-link">Conecte-se ao {companyLabel}</a> para sincronizar
         </span>
       </div>
     );
