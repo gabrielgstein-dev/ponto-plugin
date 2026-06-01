@@ -97,13 +97,53 @@ describe('exportLogs', () => {
 
     ;(globalThis as any).Blob = RealBlob
     expect(captured).not.toBeNull()
-    expect(captured!.opts?.type).toBe('application/json')
-    const text = (captured!.parts[0] as string)
+    expect(captured!.opts?.type).toBe('application/json;charset=utf-8')
+    const bytes = captured!.parts[0] as Uint8Array
+    const text = new TextDecoder('utf-8').decode(bytes)
     const parsed = JSON.parse(text)
     expect(parsed.appName).toBe('Ponto Test')
     expect(parsed.exportedAt).toMatch(/^2026-04-28/)
+    expect(parsed.pluginVersion).toBeTypeOf('string')
+    expect(parsed.summary).toEqual({
+      total: 1,
+      byLevel: { log: 1, warn: 0, error: 0 },
+      span: { from: new Date(100).toISOString(), to: new Date(100).toISOString() },
+    })
     expect(parsed.entries).toEqual([
       { ts: 100, level: 'log', ctx: 'popup', msg: 'a' },
     ])
+  })
+
+  it('preserves UTF-8 characters (não, ç, ã) without mojibake', async () => {
+    getLogsSpy.mockResolvedValue([
+      { ts: 1, level: 'log', ctx: 'background', msg: 'sessão não encontrada' },
+    ])
+    const RealBlob = globalThis.Blob
+    let captured: { parts: BlobPart[]; opts?: BlobPropertyBag } | null = null
+    class SpyBlob extends RealBlob {
+      constructor(parts: BlobPart[], opts?: BlobPropertyBag) {
+        super(parts, opts)
+        captured = { parts, opts }
+      }
+    }
+    ;(globalThis as any).Blob = SpyBlob
+    const originalCreate = document.createElement.bind(document)
+    vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+      const el = originalCreate(tag) as HTMLAnchorElement
+      if (tag === 'a') el.click = vi.fn()
+      return el
+    })
+
+    await exportLogs()
+
+    ;(globalThis as any).Blob = RealBlob
+    const bytes = captured!.parts[0] as ArrayBufferView
+    // Cross-realm: o Uint8Array vem de outro contexto, então não vale
+    // .toBeInstanceOf — checamos a estrutura (buffer + byte access).
+    expect(bytes).toHaveProperty('byteLength')
+    expect((bytes as Uint8Array).length).toBeGreaterThan(0)
+    const text = new TextDecoder('utf-8').decode(bytes as Uint8Array)
+    expect(text).toContain('sessão não encontrada')
+    expect(text).not.toContain('sessÃ£o')
   })
 })

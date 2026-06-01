@@ -19,9 +19,9 @@
 import type { TimesheetConfig } from '../../timesheet/timesheet-config';
 import type { TimesheetAuth } from '../../timesheet/timesheet-auth';
 import { ENABLE_SILENT_REFRESH } from '../../../domain/build-flags';
-import { debugLog } from '../../../domain/debug';
+import { debugLog, errorLog } from '../../../domain/debug';
 import { logError } from '../../../domain/error-logger';
-import { fetchWithTimeout } from '../../../domain/fetch-utils';
+import { fetchWithTimeout, summarizeResponse } from '../../../domain/fetch-utils';
 import { isValidJWT } from '../../../domain/jwt-utils';
 
 const REFRESH_TIMEOUT_MS = 5000;
@@ -56,18 +56,32 @@ async function doRefresh(config: TimesheetConfig, auth: TimesheetAuth): Promise<
       timeoutMs: REFRESH_TIMEOUT_MS,
     });
     if (!r.ok) {
+      const summary = await summarizeResponse(r);
       logError(new Error(`session endpoint returned ${r.status}`), {
         category: 'auth',
         severity: r.status === 401 ? 'medium' : 'high',
         operation: 'meta-ts-session.refresh',
-        metadata: { status: r.status, url },
+        metadata: { url, ...summary },
       });
       return null;
     }
-    const data = await r.json() as { accessToken?: string };
-    const token = data?.accessToken;
+    // Importante: lemos como text e depois fazemos parse — assim conseguimos
+    // logar o body real quando a resposta vier sem accessToken.
+    const rawBody = await r.text();
+    let token: string | undefined;
+    try {
+      token = (JSON.parse(rawBody) as { accessToken?: string })?.accessToken;
+    } catch (_) {
+      /* parse falha cai no branch abaixo */
+    }
     if (typeof token !== 'string' || !isValidJWT(token)) {
-      debugLog('meta-ts-session: resposta sem accessToken válido (sessão expirada?)');
+      const preview = rawBody.length > 500 ? rawBody.slice(0, 500) + `…[+${rawBody.length - 500}]` : rawBody;
+      errorLog('meta-ts-session: resposta sem accessToken válido (sessão expirada?)', JSON.stringify({
+        status: r.status,
+        contentType: r.headers.get('content-type'),
+        bodyLength: rawBody.length,
+        bodyPreview: preview,
+      }));
       return null;
     }
     auth.saveToken(token);

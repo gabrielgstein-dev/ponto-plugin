@@ -5,6 +5,11 @@ import { logError } from '../../domain/error-logger';
 
 export class SeniorCookieAuth implements IAuthProvider {
   readonly name = 'cookie';
+  // Dump completo de getAll attempts é caro e quase sempre idêntico — em
+  // sessões deslogadas, todas 4 estratégias retornam 0 e o JSON repete por
+  // centenas de ciclos. Logamos detalhado só na primeira vez por sessão SW;
+  // dali em diante uma linha enxuta basta.
+  private static diagDumpedOnce = false;
 
   async getAccessToken(): Promise<string | null> {
     try {
@@ -75,7 +80,18 @@ export class SeniorCookieAuth implements IAuthProvider {
         results.push({ label, error: (e as Error).message });
       }
     }
-    debugLog('[diag] SeniorCookieAuth getAll attempts:', JSON.stringify(results));
+    const totalFound = results.reduce((sum, r) => sum + (typeof r.count === 'number' ? r.count : 0), 0);
+    if (!SeniorCookieAuth.diagDumpedOnce) {
+      SeniorCookieAuth.diagDumpedOnce = true;
+      debugLog('[diag] SeniorCookieAuth getAll attempts:', JSON.stringify(results));
+    } else {
+      debugLog(`[diag] SeniorCookieAuth cookie absent (${results.length} strategies tried, ${totalFound} matches)`);
+    }
+  }
+
+  /* v8 ignore next 3 -- helper apenas para testes */
+  static _resetDiagFlagForTests(): void {
+    SeniorCookieAuth.diagDumpedOnce = false;
   }
 
   private extractToken(obj: Record<string, unknown>): string | null {

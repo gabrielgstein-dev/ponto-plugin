@@ -20,19 +20,27 @@ async function fetchEntries(): Promise<MetaNetEntry[]> {
   return [];
 }
 
+function getPluginVersion(): string {
+  /* v8 ignore next 3 -- runtime nem manifest existem em testes */
+  const rt = (typeof chrome !== 'undefined' ? chrome.runtime : undefined) as
+    | { getManifest?: () => { version?: string } }
+    | undefined;
+  return rt?.getManifest?.()?.version ?? 'unknown';
+}
+
 export async function exportMetaNetLog(): Promise<number> {
   const entries = await fetchEntries();
   const payload = {
     exportedAt: new Date().toISOString(),
     appName: APP_NAME,
+    pluginVersion: getPluginVersion(),
     /* v8 ignore next -- navigator é sempre definido em popup/sidepanel */
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
     count: entries.length,
     entries,
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], {
-    type: 'application/json',
-  });
+  const bytes = new TextEncoder().encode(JSON.stringify(payload, null, 2));
+  const blob = new Blob([bytes], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

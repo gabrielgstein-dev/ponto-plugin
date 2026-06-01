@@ -1,5 +1,6 @@
 import type { TimesheetConfig } from './timesheet-config';
-import { debugLog } from '../../domain/debug';
+import { debugLog, debugWarn } from '../../domain/debug';
+import { formatJwtExp, formatDuration } from '../../domain/jwt-utils';
 
 export interface TimesheetAuth {
   getToken(): Promise<string | null>;
@@ -44,14 +45,14 @@ export function createTimesheetAuth(config: TimesheetConfig): TimesheetAuth {
     if (exp !== null) {
       // Buffer de 30s: renova antes de expirar para evitar 401
       if (Date.now() >= (exp - 30) * 1000) {
-        debugLog(`${config.name} auth: JWT expira em <30s (exp=${exp}), renovação necessária`);
+        debugWarn(`${config.name} auth: JWT vencido — exp=${formatJwtExp(exp)}, renovação necessária`);
         return null;
       }
     } else {
       // Fallback para tokens sem exp: usa tempo de armazenamento
       const age = Date.now() - (stored[KEY_TS] || 0);
       if (age >= config.tokenMaxAgeMs) {
-        debugLog(`${config.name} auth: token expirado (${Math.round(age / 1000)}s)`);
+        debugWarn(`${config.name} auth: token expirado (idade ${formatDuration(age)})`);
         return null;
       }
     }

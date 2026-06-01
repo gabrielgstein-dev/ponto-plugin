@@ -18,6 +18,12 @@ export interface LogEntry {
   level: LogLevel
   ctx: LogContext
   msg: string
+  // Quando uma mesma entry (level+ctx+msg) é registrada N>1 vezes em sequência,
+  // a entry mantém o PRIMEIRO ts visto e ganha `repeat` com a contagem total
+  // e `lastTs` com o último ts observado. Evita encher o buffer com a mesma
+  // linha em loops de polling.
+  repeat?: number
+  lastTs?: number
 }
 
 const STORAGE_KEY = 'appLogs'
@@ -26,6 +32,10 @@ const FLUSH_DEBOUNCE_MS = 500
 
 let buffer: LogEntry[] = []
 let flushTimer: ReturnType<typeof setTimeout> | null = null
+
+function entriesMatchForDedupe(a: LogEntry, b: { level: LogLevel; ctx: LogContext; msg: string }): boolean {
+  return a.level === b.level && a.ctx === b.ctx && a.msg === b.msg
+}
 
 function detectContext(): LogContext {
   if (typeof window === 'undefined' || typeof location === 'undefined') return 'background'
@@ -53,15 +63,17 @@ async function mergeFromStorage(): Promise<void> {
 }
 
 function dedupe(entries: LogEntry[]): LogEntry[] {
-  const seen = new Set<string>()
-  const out: LogEntry[] = []
+  // Quando dois contextos (popup/background) flush concorrente do mesmo
+  // evento, ambos vêm com mesma chave mas potencialmente `repeat` diferentes
+  // (cada contexto agrega independente antes de gravar). Preserva a versão
+  // com maior contagem pra não perder a agregação mais recente.
+  const winners = new Map<string, LogEntry>()
   for (const e of entries) {
     const key = `${e.ts}|${e.ctx}|${e.level}|${e.msg}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push(e)
+    const prev = winners.get(key)
+    if (!prev || (e.repeat ?? 1) > (prev.repeat ?? 1)) winners.set(key, e)
   }
-  return out.sort((a, b) => a.ts - b.ts).slice(-MAX_ENTRIES)
+  return Array.from(winners.values()).sort((a, b) => a.ts - b.ts).slice(-MAX_ENTRIES)
 }
 
 function scheduleFlush(): void {
@@ -103,8 +115,16 @@ export function stringifyArgs(args: unknown[]): string {
 export function appendLog(level: LogLevel, args: unknown[]): void {
   // Não toca em chrome.storage no caminho quente: tudo em memória + flush
   // debounced. A leitura do estado anterior só ocorre em getLogs/clearLogs.
-  buffer.push({ ts: Date.now(), level, ctx, msg: stringifyArgs(args) })
-  if (buffer.length > MAX_ENTRIES) buffer = buffer.slice(-MAX_ENTRIES)
+  const msg = stringifyArgs(args)
+  const now = Date.now()
+  const last = buffer[buffer.length - 1]
+  if (last && entriesMatchForDedupe(last, { level, ctx, msg })) {
+    last.repeat = (last.repeat ?? 1) + 1
+    last.lastTs = now
+  } else {
+    buffer.push({ ts: now, level, ctx, msg })
+    if (buffer.length > MAX_ENTRIES) buffer = buffer.slice(-MAX_ENTRIES)
+  }
   scheduleFlush()
 }
 

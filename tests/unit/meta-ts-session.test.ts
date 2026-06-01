@@ -36,6 +36,20 @@ function makeJwt(): string {
   return `${header}.${body}.signature`
 }
 
+// Response que cobre tanto json() quanto text() — a impl atual lê text()
+// pra também poder logar o corpo em casos de falha.
+function makeResponse(opts: { ok: boolean; status: number; body?: unknown }): Response {
+  const bodyText = opts.body === undefined ? '' : (typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body))
+  return {
+    ok: opts.ok,
+    status: opts.status,
+    statusText: opts.ok ? 'OK' : 'Error',
+    headers: { get: (_: string) => 'application/json' } as unknown as Headers,
+    text: async () => bodyText,
+    json: async () => JSON.parse(bodyText || '{}'),
+  } as unknown as Response
+}
+
 describe('getMetaTsTokenSilently', () => {
   beforeEach(async () => {
     vi.resetModules()
@@ -73,11 +87,7 @@ describe('getMetaTsTokenSilently', () => {
 
   it('faz fetch direto pra platformUrl + sessionEndpoint com credentials:include', async () => {
     const jwt = makeJwt()
-    const fetchSpy = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ accessToken: jwt }),
-    }) as Response)
+    const fetchSpy = vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } }))
     vi.stubGlobal('fetch', fetchSpy)
 
     const { getMetaTsTokenSilently } = await import(
@@ -94,11 +104,7 @@ describe('getMetaTsTokenSilently', () => {
 
   it('persiste o accessToken JWT válido', async () => {
     const jwt = makeJwt()
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ accessToken: jwt }),
-    }) as Response))
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
 
     const { getMetaTsTokenSilently } = await import(
       '../../lib/infrastructure/meta/timesheet/meta-ts-session'
@@ -115,11 +121,7 @@ describe('getMetaTsTokenSilently', () => {
     const header = btoa(JSON.stringify({ alg: 'RS256' })).replace(/=/g, '')
     const body = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 100 })).replace(/=/g, '')
     const expiredJwt = `${header}.${body}.sig`
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ accessToken: expiredJwt }),
-    }) as Response))
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: expiredJwt } })))
 
     const { getMetaTsTokenSilently } = await import(
       '../../lib/infrastructure/meta/timesheet/meta-ts-session'
@@ -130,11 +132,7 @@ describe('getMetaTsTokenSilently', () => {
   })
 
   it('retorna null com 401 (cookie expirado)', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: false,
-      status: 401,
-      json: async () => ({}),
-    }) as Response))
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: false, status: 401, body: { error: 'unauthorized' } })))
 
     const { getMetaTsTokenSilently } = await import(
       '../../lib/infrastructure/meta/timesheet/meta-ts-session'
@@ -149,7 +147,7 @@ describe('getMetaTsTokenSilently', () => {
     vi.stubGlobal('fetch', vi.fn(async () => {
       fetchCalls++
       await new Promise(r => setTimeout(r, 10))
-      return { ok: true, status: 200, json: async () => ({ accessToken: jwt }) } as Response
+      return makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })
     }))
 
     const { getMetaTsTokenSilently } = await import(
