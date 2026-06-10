@@ -121,14 +121,20 @@ async function getSeniorAccessToken(): Promise<string | null> {
   // não rotaciona de forma confiável). Cookie só é fallback inicial pra primeira
   // captura — depois disso, storage manda.
   try {
-    const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
+    const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs', 'seniorRefreshToken']);
     if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS) {
       debugLog('getSeniorAccessToken: usando seniorToken do storage (age:', Math.round((Date.now() - stored.seniorTokenTs) / 3600000), 'h)');
       return stored.seniorToken;
     }
-    if (stored.seniorToken) {
-      // Token expirado — tenta refresh silencioso antes de cair pro cookie
-      debugLog('getSeniorAccessToken: seniorToken expirado, tentando refresh silencioso...');
+    // Tenta refresh silencioso em duas situações: (a) seniorToken existe mas
+    // está velho, (b) seniorToken sumiu (cleanup antigo, install limpo, etc)
+    // mas ainda temos refresh_token. Sem (b), users que perdem o seniorToken
+    // por qualquer razão ficam deslogados eternamente mesmo com refresh_token
+    // válido — bug histórico: o dailyReset zerava seniorToken e quebrava esse
+    // caminho. Defesa redundante: protege contra qualquer outro caminho futuro
+    // que possa zerar seniorToken.
+    if (stored.seniorToken || stored.seniorRefreshToken) {
+      debugLog('getSeniorAccessToken: seniorToken ausente/expirado, tentando refresh silencioso...');
       const refreshed = await refreshSeniorTokenSilently();
       if (refreshed) return refreshed;
     }

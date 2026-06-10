@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { decodeJwtPayload, isValidJWT } from '../../lib/domain/jwt-utils'
+import { decodeJwtPayload, isValidJWT, formatJwtExp, formatDuration } from '../../lib/domain/jwt-utils'
 
 function makeJwt(payload: Record<string, unknown>): string {
   const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).replace(/=/g, '')
@@ -64,5 +64,33 @@ describe('isValidJWT', () => {
 
   it('false pra token opaque (não-JWT)', () => {
     expect(isValidJWT('fwdTz4x13iOICCOZSfkNfV8KuV0Eocvg')).toBe(false)
+  })
+})
+
+describe('formatDuration', () => {
+  it('segundos pra <1min', () => {
+    expect(formatDuration(45_000)).toBe('45s')
+  })
+  it('minutos pra <1h', () => {
+    expect(formatDuration(12 * 60_000)).toBe('12m')
+  })
+  it('horas pra <48h', () => {
+    expect(formatDuration(3 * 3600_000)).toBe('3h')
+  })
+  it('dias quando >=48h', () => {
+    expect(formatDuration(64 * 24 * 3600_000)).toBe('64d')
+  })
+})
+
+describe('formatJwtExp', () => {
+  it('formata exp futuro como "expira em"', () => {
+    const now = 1_000_000_000_000
+    const exp = Math.floor(now / 1000) + 600 // +10min
+    expect(formatJwtExp(exp, now)).toBe(`${exp} (expira em 10m)`)
+  })
+  it('formata exp passado como "expirou há"', () => {
+    const now = 1_000_000_000_000
+    const exp = Math.floor(now / 1000) - 64 * 24 * 3600 // -64d
+    expect(formatJwtExp(exp, now)).toBe(`${exp} (expirou há 64d)`)
   })
 })

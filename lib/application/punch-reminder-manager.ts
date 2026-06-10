@@ -40,7 +40,7 @@ async function preFlightDetect(): Promise<void> {
   resetSeniorStorageCache();
   resetSeniorActiveUserCache();
   resetBackgroundHash();
-  await backgroundDetect().catch(() => {});
+  await backgroundDetect('reminder-pre-flight').catch(() => {});
 }
 
 export async function startReminder(slot: PunchReminderSlot, expectedTime: string): Promise<void> {

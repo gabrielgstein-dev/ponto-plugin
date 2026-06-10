@@ -27,7 +27,7 @@ import { MetaXBanner, MetaXDoneHint } from './components/MetaXBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
-import { COMPANY_LOGIN_URL } from '#company/providers';
+import { COMPANY_LOGIN_URL, COMPANY_NAME } from '#company/providers';
 
 const LABELS: Record<string, string> = { entrada: 'Entrada', almoco: 'Almoço', volta: 'Volta', saida: 'Saída' };
 const ICONS: Record<string, string> = { entrada: '🌅', almoco: '🍽️', volta: '🔄', saida: '🏠' };
@@ -61,7 +61,7 @@ export function App() {
     <div className="popup-container">
       <LiveClock time={time} date={date} />
       <div className="token-status-row">
-        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText="" hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} />}
+        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText="" hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} companyLabel={COMPANY_NAME} />}
         {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
         {settings.metaXReminder && <MetaXDoneHint />}
       </div>

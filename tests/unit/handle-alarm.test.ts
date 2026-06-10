@@ -36,6 +36,7 @@ import {
   mockAlarmsClear,
   mockStorageGet,
   mockStorageGetForHandler,
+  mockStorageSet,
 } from '../setup/chrome-mock'
 
 beforeEach(() => {
@@ -113,5 +114,32 @@ describe('handleDailyReset — reagenda entrada após reset', () => {
     mockStorageGet.mockResolvedValue({})
     await handleDailyReset()
     expect(scheduleNotificationsSpy).toHaveBeenCalledWith(null, null, null, null)
+  })
+
+  // Anti-regressão: o reset diário NUNCA pode zerar seniorToken/seniorTokenTs.
+  // Esses têm TTL nativo (SENIOR_TOKEN_MAX_AGE_MS=6.5d) + refresh silencioso
+  // via seniorRefreshToken. Limpar a cada noite quebrava o caminho de refresh
+  // em getSeniorAccessToken (que só dispara refresh se seniorToken existe),
+  // deixando users que batem só pelo celular eternamente deslogados após a
+  // primeira meia-noite. Mantemos seniorBearerToken/seniorBearerTs aqui
+  // porque vêm de content script sem refresh próprio.
+  it('NÃO zera seniorToken nem seniorRefreshToken no reset diário', async () => {
+    mockStorageGet.mockResolvedValue({})
+    mockStorageSet.mockClear()
+    await handleDailyReset()
+
+    const setCalls = mockStorageSet.mock.calls
+    const allKeysWritten = new Set<string>()
+    for (const [arg] of setCalls) {
+      if (arg && typeof arg === 'object') {
+        for (const k of Object.keys(arg)) allKeysWritten.add(k)
+      }
+    }
+    expect(allKeysWritten.has('seniorToken')).toBe(false)
+    expect(allKeysWritten.has('seniorTokenTs')).toBe(false)
+    expect(allKeysWritten.has('seniorRefreshToken')).toBe(false)
+    // Sanity: o reset ainda zera o que deve zerar
+    expect(allKeysWritten.has('seniorBearerToken')).toBe(true)
+    expect(allKeysWritten.has('seniorBearerTs')).toBe(true)
   })
 })

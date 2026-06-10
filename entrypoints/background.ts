@@ -20,7 +20,7 @@ import { SeniorCookieAuth } from '../lib/infrastructure/senior/senior-cookie-aut
 import { SENIOR_TOKEN_MAX_AGE_MS } from '../lib/infrastructure/senior/constants';
 import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/meta/timesheet/constants';
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
-import { isValidJWT } from '../lib/domain/jwt-utils';
+import { isValidJWT, decodeJwtPayload, formatJwtExp } from '../lib/domain/jwt-utils';
 import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
 import { initializeStorageIfNeeded } from '../lib/application/install-init';
 import {
@@ -35,6 +35,7 @@ import {
 } from '../lib/application/meta-x-reminder-manager';
 import { refreshMetaXBadge } from '../lib/application/meta-x-badge';
 import { META_X_URL, hasRespondedThisWeek } from '../lib/domain/meta-x-status';
+import { appendNetEntry, getNetEntries, clearNetEntries, type MetaNetEntry } from '../lib/domain/meta-net-log';
 import type { MetaXState } from '../lib/domain/types';
 
 export default defineBackground(() => {
@@ -141,6 +142,11 @@ export default defineBackground(() => {
             return;
           }
           chrome.storage.local.set({ metaTsToken: token, metaTsTokenTs: Date.now() });
+          // Happy-path: registra a captura pra que o log mostre "último estado bom"
+          // mesmo em casos onde tudo passa a falhar depois. O dedupe do log-store
+          // colapsa capturas idênticas seguidas (mesma string vira repeat++).
+          const exp = decodeJwtPayload(token)?.exp;
+          debugLog(`metaTsToken capturado via webRequest${exp ? ` (${formatJwtExp(exp)})` : ''}`);
         }
       },
       { urls: ['https://api.meta.com.br/*'] },
@@ -162,6 +168,20 @@ export default defineBackground(() => {
   });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'META_NETLOG_APPEND') {
+      const entry = message.entry as MetaNetEntry | undefined;
+      if (!entry || typeof entry !== 'object') { sendResponse({ ok: false }); return true; }
+      appendNetEntry(entry).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'META_NETLOG_GET') {
+      getNetEntries().then(entries => sendResponse({ ok: true, entries })).catch(() => sendResponse({ ok: false, entries: [] }));
+      return true;
+    }
+    if (message.type === 'META_NETLOG_CLEAR') {
+      clearNetEntries().then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'OPEN_SIDE_PANEL') {
       const windowId = sender.tab?.windowId;
       if (windowId) {
@@ -287,7 +307,7 @@ export default defineBackground(() => {
       // Sidepanel chama via botão "↻ Sincronizar" — substitui o anti-padrão
       // "abrir aba do Senior pra destravar".
       resetAllCaches();
-      backgroundDetect()
+      backgroundDetect('force-redetect')
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
       return true;
@@ -444,7 +464,7 @@ export default defineBackground(() => {
       // não devem disputar a abertura de abas — ambos rodam em modo silencioso
       // (sem aggressive=true / sem tsAutoConnect automático).
       (async () => {
-        try { await backgroundDetect(); } catch (_) { /* ignore */ }
+        try { await backgroundDetect('alarm:bgDetect'); } catch (_) { /* ignore */ }
         try { await backgroundTimesheetSync(); } catch (_) { /* ignore */ }
       })();
       return;
@@ -586,11 +606,11 @@ export default defineBackground(() => {
   function triggerReDetection(time: string) {
     addPendingPunch(time);
     resetAllCaches();
-    backgroundDetect().catch(() => {});
+    backgroundDetect('punch-success').catch(() => {});
     [5000, 12000, 25000].forEach(delay => {
       setTimeout(() => {
         resetAllCaches();
-        backgroundDetect().catch(() => {});
+        backgroundDetect(`punch-success:retry${delay}ms`).catch(() => {});
       }, delay);
     });
   }
@@ -626,7 +646,7 @@ export default defineBackground(() => {
         if (auth) {
           debugLog('Background: GP assertion renovado (colab:', auth.colaboradorId, 'calc:', auth.codigoCalculo, ')');
           resetAllCaches();
-          backgroundDetect().catch(() => {});
+          backgroundDetect('senior-token-captured').catch(() => {});
         } else {
           debugLog('Background: falha ao renovar GP assertion');
         }
@@ -667,7 +687,7 @@ export default defineBackground(() => {
   // abrir aba pra renovar token. Agora o sync só acontece pelo alarm bgDetect
   // (a cada 10min, em modo silencioso) ou por trigger explícito.
   loadPendingPunches().then(() => {
-    backgroundDetect().catch(() => {});
+    backgroundDetect('startup').catch(() => {});
   }).catch(() => {});
 
   refreshMetaXBadge().catch(() => {});

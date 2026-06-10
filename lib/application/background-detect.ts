@@ -5,6 +5,7 @@ import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
 import { isReminderBlockedToday } from '../domain/weekday-gate';
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, ENABLE_META_TIMESHEET } from '../domain/build-flags';
 import { debugLog, debugWarn } from '../domain/debug';
+import { formatDuration, formatJwtExp, decodeJwtPayload } from '../domain/jwt-utils';
 import { getCurrentTimesheetPeriod } from '../domain/timesheet-period';
 import { PunchDetector } from './detect-punches';
 import { getCompanyPunchProviders, getTimesheetProvider } from '#company/providers';
@@ -40,9 +41,42 @@ function buildProviders(): IPunchProvider[] {
 
 const detector = new PunchDetector(buildProviders());
 let _lastHash = '';
+let _execCounter = 0;
 
-export async function backgroundDetect(): Promise<boolean> {
-  debugLog('backgroundDetect: iniciando...');
+/**
+ * Snapshot enxuto de auth no momento do detect — vai pro log junto com o
+ * "iniciando" pra que, quando o detect termina sem dados, dê pra saber
+ * qual caminho estava (não) disponível. Sem isso o log só diz "todos
+ * providers falharam", sem dizer por quê.
+ */
+async function snapshotAuthState(now: number): Promise<Record<string, string>> {
+  try {
+    const data = await chrome.storage.local.get([
+      'metaTsToken', 'metaTsTokenTs',
+      'gpAssertion', 'gpAssertionTs',
+      'seniorToken', 'seniorTokenTs',
+    ]);
+    const snap: Record<string, string> = {};
+    if (typeof data.metaTsToken === 'string') {
+      const payload = decodeJwtPayload(data.metaTsToken);
+      snap.metaTsToken = payload?.exp ? formatJwtExp(payload.exp, now) : 'opaque';
+    } else {
+      snap.metaTsToken = 'absent';
+    }
+    snap.gpAssertion = data.gpAssertionTs ? `age=${formatDuration(now - data.gpAssertionTs)}` : 'absent';
+    snap.seniorToken = data.seniorTokenTs ? `age=${formatDuration(now - data.seniorTokenTs)}` : 'absent';
+    return snap;
+  } catch (_) {
+    return { error: 'snapshot failed' };
+  }
+}
+
+export async function backgroundDetect(trigger: string = 'unknown'): Promise<boolean> {
+  const execId = ++_execCounter;
+  const startedAt = Date.now();
+  const auth = await snapshotAuthState(startedAt);
+  const tag = `backgroundDetect[#${execId}]`;
+  debugLog(`${tag}: iniciando (trigger=${trigger}, auth=${JSON.stringify(auth)})`);
   const data = await chrome.storage.local.get(['pontoState', 'pontoSettings', 'pontoDate']);
   const today = new Date().toDateString();
 
@@ -67,7 +101,7 @@ export async function backgroundDetect(): Promise<boolean> {
   // GpPunchProvider chamando fetchGpViaTabs(true) e abrindo gestaoponto sozinho.
   const result = await detector.detect(new Date(), false);
   if (!result || result.times.length === 0) {
-    debugLog('backgroundDetect: detector não retornou batimentos');
+    debugLog(`${tag}: detector não retornou batimentos (durationMs=${Date.now() - startedAt})`);
     // Sem batimentos detectados ainda é o caminho típico da manhã (Chrome
     // aberto antes da entrada). Agenda os alarmes baseado no estado salvo —
     // garante que `punch_popup_entrada` exista quando state.entrada é null.
@@ -81,30 +115,30 @@ export async function backgroundDetect(): Promise<boolean> {
     }
     return false;
   }
-  debugLog(`backgroundDetect: detector retornou ${result.times.length} batimentos de ${result.source}`);
+  debugLog(`${tag}: detector retornou ${result.times.length} batimentos de ${result.source}`);
 
   const hash = result.times.join(',');
   if (hash === _lastHash) {
-    debugLog('backgroundDetect: hash igual ao anterior, sem mudanças');
+    debugLog(`${tag}: hash igual ao anterior, sem mudanças`);
     return false;
   }
-  debugLog(`backgroundDetect: hash mudou (anterior: ${_lastHash.substring(0, 30)}, novo: ${hash.substring(0, 30)})`);
+  debugLog(`${tag}: hash mudou (anterior: ${_lastHash.substring(0, 30)}, novo: ${hash.substring(0, 30)})`);
   _lastHash = hash;
 
   const nowMin = getNowMinutes();
   const past = result.times.filter(t => (timeToMinutes(t) ?? 9999) <= nowMin + 5);
   if (past.length === 0) {
-    debugLog('backgroundDetect: nenhum batimento no passado');
+    debugLog(`${tag}: nenhum batimento no passado`);
     return false;
   }
-  debugLog(`backgroundDetect: ${past.length} batimentos no passado: ${past.join(', ')}`);
+  debugLog(`${tag}: ${past.length} batimentos no passado: ${past.join(', ')}`);
 
   const currentSlots = [state.entrada, state.almoco, state.volta, state.saida].filter(Boolean).length;
   if (past.length < currentSlots) {
-    debugLog(`backgroundDetect: past.length (${past.length}) < currentSlots (${currentSlots}), ignorando`);
+    debugLog(`${tag}: past.length (${past.length}) < currentSlots (${currentSlots}), ignorando`);
     return false;
   }
-  debugLog(`backgroundDetect: aplicando ${past.length} batimentos ao estado...`);
+  debugLog(`${tag}: aplicando ${past.length} batimentos ao estado...`);
 
   state.entrada = past[0];
   state.almoco = past.length >= 2 ? past[1] : null;
@@ -112,7 +146,7 @@ export async function backgroundDetect(): Promise<boolean> {
   state.saida = past.length >= 4 ? past[3] : null;
 
   calcHorarios();
-  debugLog(`backgroundDetect: estado calculado - entrada=${state.entrada}, almoco=${state.almoco}, volta=${state.volta}, saida=${state.saida}`);
+  debugLog(`${tag}: estado calculado - entrada=${state.entrada}, almoco=${state.almoco}, volta=${state.volta}, saida=${state.saida}`);
 
   await chrome.storage.local.set({ pontoState: state, pontoDate: today });
   resetNotifScheduled();
@@ -126,7 +160,7 @@ export async function backgroundDetect(): Promise<boolean> {
     );
   }
 
-  debugLog('Background detect: state atualizado', {
+  debugLog(`${tag}: state atualizado (durationMs=${Date.now() - startedAt})`, {
     entrada: state.entrada, almoco: state.almoco, volta: state.volta, saida: state.saida,
   });
 
@@ -255,7 +289,8 @@ async function doBackgroundTimesheetSync(allowInteractive: boolean): Promise<voi
       const silentToken = await getMetaTsTokenSilently(META_TIMESHEET_CONFIG, metaTsAuth);
       if (silentToken) {
         isOk = await provider.isAvailable();
-        debugLog('TS sync: refresh silencioso', isOk ? 'OK' : 'falhou (token inválido?)');
+        if (isOk) debugLog('TS sync: refresh silencioso OK');
+        else debugWarn('TS sync: refresh silencioso retornou token mas provider segue indisponível (token inválido?)');
       }
       if (!isOk && allowInteractive) {
         // Só abre aba via SSO se foi explicitamente pedido (sidepanel).
@@ -265,7 +300,7 @@ async function doBackgroundTimesheetSync(allowInteractive: boolean): Promise<voi
         if (connected) isOk = await provider.isAvailable();
       }
       if (!isOk) {
-        debugLog('TS sync: sem auth — cache stale, mas notificação de pendentes segue lendo o último estado');
+        debugWarn('TS sync: sem auth — cache stale, mas notificação de pendentes segue lendo o último estado');
         return;
       }
     }

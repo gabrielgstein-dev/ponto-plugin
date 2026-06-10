@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { fetchWithTimeout, FetchTimeoutError } from '../../lib/domain/fetch-utils'
+import { fetchWithTimeout, FetchTimeoutError, summarizeResponse } from '../../lib/domain/fetch-utils'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -73,5 +73,49 @@ describe('fetchWithTimeout', () => {
     }))
     await fetchWithTimeout('https://example.com')
     expect(receivedSignal).toBeDefined()
+  })
+})
+
+describe('summarizeResponse', () => {
+  function makeRes(opts: { status: number; statusText?: string; contentType?: string | null; body: string }): Response {
+    return {
+      status: opts.status,
+      statusText: opts.statusText ?? '',
+      headers: { get: (k: string) => (k.toLowerCase() === 'content-type' ? (opts.contentType ?? null) : null) } as unknown as Headers,
+      text: async () => opts.body,
+    } as unknown as Response
+  }
+
+  it('extrai status, statusText, contentType e bodyPreview pequeno integral', async () => {
+    const r = makeRes({ status: 401, statusText: 'Unauthorized', contentType: 'application/json', body: '{"err":"x"}' })
+    const s = await summarizeResponse(r)
+    expect(s).toEqual({
+      status: 401,
+      statusText: 'Unauthorized',
+      contentType: 'application/json',
+      bodyPreview: '{"err":"x"}',
+      bodyLength: 11,
+    })
+  })
+
+  it('trunca body acima de 500 chars adicionando marcador', async () => {
+    const big = 'a'.repeat(750)
+    const s = await summarizeResponse(makeRes({ status: 500, body: big }))
+    expect(s.bodyLength).toBe(750)
+    expect(s.bodyPreview!.length).toBeGreaterThan(500)
+    expect(s.bodyPreview).toMatch(/…\[\+250\]$/)
+  })
+
+  it('não quebra se r.text() lançar', async () => {
+    const r = {
+      status: 502,
+      statusText: 'Bad Gateway',
+      headers: { get: () => null } as unknown as Headers,
+      text: async () => { throw new Error('boom') },
+    } as unknown as Response
+    const s = await summarizeResponse(r)
+    expect(s.status).toBe(502)
+    expect(s.bodyPreview).toContain('<read error: boom>')
+    expect(s.bodyLength).toBeNull()
   })
 })

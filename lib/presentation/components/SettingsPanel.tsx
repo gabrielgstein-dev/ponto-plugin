@@ -3,6 +3,7 @@ import type { Settings } from '../../domain/types';
 import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../../domain/build-flags';
 import { exportLogs } from '../export-logs';
 import { clearLogs } from '../../domain/log-store';
+import { exportMetaNetLog, clearMetaNetLog } from '../export-meta-net-log';
 
 interface StorageEntry {
   key: string;
@@ -88,6 +89,7 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
         {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
         <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
         <LogsActions />
+        {DEBUG && ENABLE_META_TIMESHEET && <MetaNetLogActions />}
         {DEBUG && <DebugReminderTest />}
         {DEBUG && <DebugMetaXTest />}
         {DEBUG && ENABLE_META_TIMESHEET && <DebugMetaTsDirectFetch />}
@@ -336,6 +338,55 @@ function LogsActions() {
         disabled={busy !== null}
       >
         {busy === 'clear' ? 'Limpando...' : 'Limpar logs'}
+      </button>
+      {feedback && <span className="logs-feedback">{feedback}</span>}
+    </div>
+  );
+}
+
+function MetaNetLogActions() {
+  const [busy, setBusy] = useState<'export' | 'clear' | null>(null);
+  const [feedback, setFeedback] = useState<string>('');
+
+  const handleExport = async () => {
+    setBusy('export');
+    setFeedback('');
+    try {
+      const n = await exportMetaNetLog();
+      setFeedback(`Tráfego exportado (${n} requests).`);
+    } catch (_) {
+      setFeedback('Falha ao exportar tráfego.');
+    }
+    setBusy(null);
+  };
+
+  const handleClear = async () => {
+    setBusy('clear');
+    setFeedback('');
+    try {
+      await clearMetaNetLog();
+      setFeedback('Tráfego limpo.');
+    } catch (_) {
+      setFeedback('Falha ao limpar tráfego.');
+    }
+    setBusy(null);
+  };
+
+  return (
+    <div className="logs-actions">
+      <button
+        className="logs-export-btn"
+        onClick={handleExport}
+        disabled={busy !== null}
+      >
+        {busy === 'export' ? 'Exportando...' : 'Exportar tráfego Meta'}
+      </button>
+      <button
+        className="logs-clear-btn"
+        onClick={handleClear}
+        disabled={busy !== null}
+      >
+        {busy === 'clear' ? 'Limpando...' : 'Limpar tráfego Meta'}
       </button>
       {feedback && <span className="logs-feedback">{feedback}</span>}
     </div>

@@ -1,5 +1,5 @@
 {
-  "DEBUG": false,
+  "DEBUG": true,
   "ACTIVE_COMPANY": "meta",
   "APP_NAME": "Ponto Meta",
   "ENABLE_SENIOR_INTEGRATION": true,

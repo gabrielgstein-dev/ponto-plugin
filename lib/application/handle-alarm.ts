@@ -69,8 +69,14 @@ export async function handleDailyReset(): Promise<void> {
     pontoDate: new Date().toDateString(),
   };
   if (ENABLE_SENIOR_INTEGRATION) {
-    resetData.seniorToken = null;
-    resetData.seniorTokenTs = null;
+    // seniorBearerToken vem do content script injetado em *.senior.com.br —
+    // sem refresh próprio, então limpar a cada noite força nova captura
+    // quando o user voltar à plataforma. seniorToken NÃO entra aqui: tem TTL
+    // nativo (SENIOR_TOKEN_MAX_AGE_MS=6.5d) + refresh silencioso via
+    // seniorRefreshToken, e o cleanup diário derrubava o caminho B do
+    // getSeniorAccessToken (só dispara refresh se seniorToken existe), deixando
+    // users que batem só pelo celular eternamente deslogados após a primeira
+    // meia-noite.
     resetData.seniorBearerToken = null;
     resetData.seniorBearerTs = null;
   }

@@ -114,7 +114,11 @@ export class PunchDetector implements IPunchDetector {
       return { times: sortTimes([...new Set(pending)]), source: 'pending' };
     }
 
-    debugLog('PunchDetector: nenhum provider retornou dados');
+    if (aggressive) {
+      debugWarn('PunchDetector: nenhum provider retornou dados (aggressive=true)');
+    } else {
+      debugLog('PunchDetector: nenhum provider retornou dados');
+    }
     return null;
   }
 
