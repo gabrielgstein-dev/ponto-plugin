@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.13.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.12.1...senior-ponto-v0.13.0) (2026-06-10)
+
+
+### Novidades
+
+* **logs:** observabilidade — encoding, severidade, contexto e dedupe ([782d7ad](https://github.com/gabrielgstein-dev/ponto-plugin/commit/782d7ad956a51c1c3579103d2c9470f1c595eaf3))
+* **meta-net-log:** captura HTTP + auth company-aware + observabilidade dos logs ([8b7ec4a](https://github.com/gabrielgstein-dev/ponto-plugin/commit/8b7ec4a5e1949ab7b1b9bff54b7697101b41b66e))
+* **meta-net-log:** captura tráfego HTTP da SPA Meta pra diagnóstico ([aeac089](https://github.com/gabrielgstein-dev/ponto-plugin/commit/aeac0890a6a1a99372192a299f0136ccb99cbb91))
+
+
+### Correções
+
+* **auth:** dailyReset deixa de zerar seniorToken e quebra refresh silencioso ([429da3e](https://github.com/gabrielgstein-dev/ponto-plugin/commit/429da3e17e106ca2c458f7bb33d0ead9e207cbef))
+* **auth:** useAuthStatus company-aware, sem texto Senior hardcoded ([82f980a](https://github.com/gabrielgstein-dev/ponto-plugin/commit/82f980ae06f020062c358575c97a0e674a5b5915))
+
 ## [0.12.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.12.0...senior-ponto-v0.12.1) (2026-05-27)
 
 
