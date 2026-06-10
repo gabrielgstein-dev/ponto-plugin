@@ -122,7 +122,9 @@ test('LOG-4: botão "Limpar logs" remove os marcadores pré-existentes', async (
     { a: markerA, b: markerB },
   )
 
-  await page.locator('button.logs-clear-btn').click()
+  // Específico: existem 3 botões com a classe logs-clear-btn (Limpar logs,
+  // Limpar tráfego Meta, Reset semana). O alvo aqui é o de logs gerais.
+  await page.getByRole('button', { name: 'Limpar logs', exact: true }).click()
   await expect(page.locator('.logs-feedback')).toHaveText('Logs limpos.')
 
   // Pode haver entradas novas do SW após o clear, mas as nossas tem que sumir.
