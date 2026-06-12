@@ -2,6 +2,7 @@ import type { HourBankBalance } from '../../domain/types';
 import { formatDiff, formatDateShort } from '../../domain/time-utils';
 import { calcZeroBankExitTime } from '../../application/calc-hour-bank';
 import { openMainSidePanel } from '../sidepanel-switch';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 
 interface HourBankBannerProps {
   balance: HourBankBalance | null;
@@ -13,7 +14,7 @@ async function openSidePanel() {
   window.close();
 }
 
-function BannerTitle() {
+function BannerTitle({ showTimesheet }: { showTimesheet: boolean }) {
   return (
     <div className="hour-bank-title">
       <span className="hour-bank-icon" aria-hidden="true">
@@ -24,17 +25,18 @@ function BannerTitle() {
           <path d="M17 16v-3" />
         </svg>
       </span>
-      <span className="hour-bank-label">Histórico & Timesheet</span>
+      <span className="hour-bank-label">{showTimesheet ? 'Histórico & Timesheet' : 'Histórico'}</span>
     </div>
   );
 }
 
 export function HourBankBanner({ balance, estimatedExit }: HourBankBannerProps) {
+  const { showTimesheet } = useFeatureFlags();
   if (!balance) {
     return (
       <div className="hour-bank-banner" onClick={openSidePanel}>
         <div className="hour-bank-header">
-          <BannerTitle />
+          <BannerTitle showTimesheet={showTimesheet} />
         </div>
       </div>
     );
@@ -47,7 +49,7 @@ export function HourBankBanner({ balance, estimatedExit }: HourBankBannerProps) 
   return (
     <div className={className} onClick={openSidePanel}>
       <div className="hour-bank-header">
-        <BannerTitle />
+        <BannerTitle showTimesheet={showTimesheet} />
         <span className="hour-bank-value">{formatDiff(balance.totalMinutes)}</span>
       </div>
       {zeroBankExit && (

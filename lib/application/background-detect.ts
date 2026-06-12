@@ -4,6 +4,7 @@ import { DEFAULT_STATE, DEFAULT_SETTINGS } from '../domain/types';
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
 import { isReminderBlockedToday } from '../domain/weekday-gate';
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_MANUAL_PUNCH, ENABLE_NOTIFICATIONS, ENABLE_META_TIMESHEET } from '../domain/build-flags';
+import { isTimesheetEnabled } from '../domain/timesheet-gate';
 import { debugLog, debugWarn } from '../domain/debug';
 import { formatDuration, formatJwtExp, decodeJwtPayload } from '../domain/jwt-utils';
 import { getCurrentTimesheetPeriod } from '../domain/timesheet-period';
@@ -164,7 +165,7 @@ export async function backgroundDetect(trigger: string = 'unknown'): Promise<boo
     entrada: state.entrada, almoco: state.almoco, volta: state.volta, saida: state.saida,
   });
 
-  if (ENABLE_META_TIMESHEET) {
+  if (ENABLE_META_TIMESHEET && (await isTimesheetEnabled())) {
     const saidaEstMin = timeToMinutes(state._saidaEstimada);
     scheduleTsNotifications(
       timeToMinutes(state.entrada),
@@ -260,6 +261,7 @@ let inflightSyncInteractive = false;
 
 export async function backgroundTimesheetSync(allowInteractive = false): Promise<void> {
   if (!ENABLE_META_TIMESHEET) return;
+  if (!(await isTimesheetEnabled())) return;
 
   if (inflightSync) {
     // Em curso cobre nosso requisito (ela é interactive, ou nós aceitamos passiva)
@@ -352,8 +354,12 @@ export async function notifyPendingTimesheet(): Promise<void> {
     // sobre o último estado conhecido. O sync acontece em outros gatilhos
     // (webRequest captura novo token, sidepanel onMount, edição manual).
     const stored = await chrome.storage.local.get([
-      'timesheetSummaryCache', 'tsNotifWindowId', 'pontoState', 'tsNotifDismissedTs',
+      'timesheetSummaryCache', 'tsNotifWindowId', 'pontoState', 'tsNotifDismissedTs', 'userProfile',
     ]);
+    // Gate via onboarding: se user disse que não preenche timesheet, ignora.
+    // Lido nesta mesma chamada batch pra não acrescentar I/O extra.
+    const profile = stored.userProfile as { hasTimesheet?: boolean | null } | undefined;
+    if (profile?.hasTimesheet === false) return;
     const ps = stored.pontoState as { entrada?: string | null; saida?: string | null } | null;
 
     // Só exibe dentro da janela de trabalho: entrada registrada e saída ainda não batida

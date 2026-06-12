@@ -1,4 +1,4 @@
-import { ENABLE_META_TIMESHEET } from '../../domain/build-flags';
+import { useFeatureFlags } from '../hooks/useFeatureFlags';
 import { navigateToMain, navigateToSettings } from '../sidepanel-switch';
 
 type Tab = 'ponto' | 'timesheet' | 'settings';
@@ -9,6 +9,7 @@ interface SidePanelNavProps {
 }
 
 export function SidePanelNav({ active, onLocalChange }: SidePanelNavProps) {
+  const { showTimesheet } = useFeatureFlags();
   const handleClick = (tab: Tab) => {
     if (tab === active) return;
 
@@ -36,7 +37,7 @@ export function SidePanelNav({ active, onLocalChange }: SidePanelNavProps) {
       >
         Ponto
       </button>
-      {ENABLE_META_TIMESHEET && (
+      {showTimesheet && (
         <button
           className={`sp-tab ${active === 'timesheet' ? 'active' : ''}`}
           onClick={() => handleClick('timesheet')}
