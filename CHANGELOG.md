@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.13.0...senior-ponto-v0.13.1) (2026-06-12)
+
+
+### Correções
+
+* **e2e:** zera as 6 falhas da suíte — merge do onboarding + baselines ([2e1175b](https://github.com/gabrielgstein-dev/ponto-plugin/commit/2e1175b28de49779a56bd05462e912138986c3a1))
+* **reminder:** fecha popup só após ack do SW — snooze perdido em MV3 ([b07df0c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/b07df0c3f4f533fbf52cc909ede2cc93bb984f72))
+* **reminder:** fecha popup só após ack do SW — snooze perdido em MV3 ([ae608fd](https://github.com/gabrielgstein-dev/ponto-plugin/commit/ae608fd46caf8c5dfa883640c4ce41bb1015bd64))
+
 ## [0.13.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.12.1...senior-ponto-v0.13.0) (2026-06-10)
 
 
