@@ -50,8 +50,22 @@ if (ctx === 'tuesday_preview') {
   document.getElementById('btn-snooze').style.display = 'none';
 } else {
   document.getElementById('btn-snooze').addEventListener('click', () => {
+    // NÃO fecha a janela aqui. Quem fecha é o background (snoozeMetaXReminder →
+    // closePopup), que remove `metaXPopupWindowId` do storage ANTES de remover a
+    // janela. Se o popup fechasse sozinho com window.close() síncrono, dois bugs
+    // aconteciam:
+    //   1. `windows.onRemoved` disparava com `metaXPopupWindowId` ainda setado →
+    //      a lógica de "reabrir após 17h" reabria o popup ~2s depois (o sintoma
+    //      "fecho e abre de novo na sequência").
+    //   2. Em MV3, fechar a página na mesma volta do sendMessage podia descartar
+    //      a IPC antes de chegar no service worker dormente — o snooze de 30min
+    //      nunca era agendado.
+    // Mantendo a página viva, a mensagem é entregue e o background fecha a janela
+    // pelo caminho seguro. O botão fica desabilitado pra evitar duplo-clique.
+    const btn = document.getElementById('btn-snooze');
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
     safeSend({ type: 'META_X_SNOOZE' });
-    window.close();
   });
 }
 

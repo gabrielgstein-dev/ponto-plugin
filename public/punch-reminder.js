@@ -49,8 +49,7 @@ function renderNormalActions() {
   btn.textContent = 'Registrar agora';
   btn.addEventListener('click', () => {
     stopReminderSound();
-    safeSend({ type: 'OPEN_PUNCH_PAGE' });
-    window.close();
+    sendThenClose({ type: 'OPEN_PUNCH_PAGE' });
   });
   actionsEl.appendChild(btn);
 }
@@ -69,8 +68,7 @@ function renderSnoozeOptions() {
     btn.textContent = opt.label;
     btn.addEventListener('click', () => {
       stopReminderSound();
-      safeSend({ type: 'SNOOZE_REMINDER', slot, time, minutes: opt.minutes });
-      window.close();
+      sendThenClose({ type: 'SNOOZE_REMINDER', slot, time, minutes: opt.minutes });
     });
     rowEl.appendChild(btn);
   }
@@ -82,26 +80,17 @@ function renderEscalatedActions() {
     {
       label: 'Já bati — registrar manualmente',
       cls: 'btn-primary',
-      handler: () => {
-        safeSend({ type: 'MARK_SLOT_PUNCHED', slot, time });
-        window.close();
-      },
+      handler: () => sendThenClose({ type: 'MARK_SLOT_PUNCHED', slot, time }),
     },
     {
       label: 'Abrir Senior pra sincronizar',
       cls: 'btn-secondary',
-      handler: () => {
-        safeSend({ type: 'OPEN_PUNCH_PAGE' });
-        window.close();
-      },
+      handler: () => sendThenClose({ type: 'OPEN_PUNCH_PAGE' }),
     },
     {
       label: 'Parar de lembrar hoje',
       cls: 'btn-tertiary',
-      handler: () => {
-        safeSend({ type: 'DISMISS_SLOT_REMINDERS', slot });
-        window.close();
-      },
+      handler: () => sendThenClose({ type: 'DISMISS_SLOT_REMINDERS', slot }),
     },
   ];
   for (const a of actions) {
@@ -113,10 +102,31 @@ function renderEscalatedActions() {
   }
 }
 
-function safeSend(msg) {
+// Envia a mensagem ao service worker e SÓ fecha a janela depois do ack. Antes
+// o código chamava `window.close()` na mesma volta síncrona do sendMessage —
+// isso destruía a página do popup antes da IPC ser entregue. Em MV3, com o
+// service worker dormente, a mensagem se perdia silenciosamente: o snooze
+// nunca rodava, o alarm `punch_recheck` (5min) nunca era cancelado, e o popup
+// reabria a cada 5min independente do botão clicado (+15/+30/+1h). Fechar no
+// callback garante que o SW recebeu a mensagem antes da janela sumir.
+function sendThenClose(msg) {
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    window.close();
+  };
   try {
-    chrome.runtime.sendMessage(msg, () => { void chrome.runtime.lastError; });
-  } catch {}
+    chrome.runtime.sendMessage(msg, () => {
+      void chrome.runtime.lastError;
+      close();
+    });
+  } catch {
+    close();
+  }
+  // Fallback: se o SW demorar a responder, fecha mesmo assim. Nesse ponto a
+  // mensagem já foi entregue — só o ack que pode atrasar.
+  setTimeout(close, 1500);
 }
 
 function clampVolume(v) {

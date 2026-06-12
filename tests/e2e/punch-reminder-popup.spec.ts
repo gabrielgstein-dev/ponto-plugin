@@ -210,6 +210,66 @@ test('click → redirect funciona pros 4 slots (entrada, almoco, volta, saida)',
   }
 })
 
+// ── Snooze (+15/+30/+1h) ─────────────────────────────────────────────────────
+
+test('snooze envia minutes corretos (15/30/60) por botão', async () => {
+  const cases = [
+    { idx: 0, minutes: 15 },
+    { idx: 1, minutes: 30 },
+    { idx: 2, minutes: 60 },
+  ]
+  for (const c of cases) {
+    const page = await ctx.newPage()
+    await page.goto(reminderUrl('saida', '17:31'))
+    await page.waitForLoadState('domcontentloaded')
+
+    await page.evaluate(() => {
+      const captured: unknown[] = [];
+      (chrome.runtime as { sendMessage: unknown }).sendMessage = ((msg: unknown, cb?: () => void) => {
+        captured.push(msg);
+        if (typeof cb === 'function') cb();
+      }) as typeof chrome.runtime.sendMessage;
+      (window as unknown as { __captured: unknown[] }).__captured = captured;
+      window.close = () => {};
+    })
+
+    await page.locator('#snooze-row button.btn-snooze').nth(c.idx).click()
+    const messages = await page.evaluate(() => (window as unknown as { __captured: unknown[] }).__captured)
+    expect(messages, `minutes=${c.minutes}`).toContainEqual({
+      type: 'SNOOZE_REMINDER', slot: 'saida', time: '17:31', minutes: c.minutes,
+    })
+    await page.close()
+  }
+})
+
+// Regressão: a janela só pode fechar DEPOIS do ack do service worker. Fechar
+// na mesma volta síncrona do sendMessage perdia a mensagem em MV3 (SW
+// dormente) — o snooze nunca rodava e o popup reabria a cada 5min (recheck).
+test('snooze NÃO fecha a janela antes do ack do service worker', async () => {
+  const page = await ctx.newPage()
+  await page.goto(reminderUrl('saida', '17:31'))
+  await page.waitForLoadState('domcontentloaded')
+
+  await page.evaluate(() => {
+    (window as unknown as { __closeCalled: boolean }).__closeCalled = false;
+    window.close = () => { (window as unknown as { __closeCalled: boolean }).__closeCalled = true; };
+    // Segura o ack: guarda o callback sem chamá-lo.
+    (chrome.runtime as { sendMessage: unknown }).sendMessage = ((_msg: unknown, cb?: () => void) => {
+      (window as unknown as { __ack?: () => void }).__ack = cb;
+    }) as typeof chrome.runtime.sendMessage;
+  })
+
+  await page.locator('#snooze-row button.btn-snooze').first().click()
+
+  // Sem ack, a janela ainda não fechou.
+  expect(await page.evaluate(() => (window as unknown as { __closeCalled: boolean }).__closeCalled)).toBe(false)
+
+  // Dispara o ack → agora fecha.
+  await page.evaluate(() => (window as unknown as { __ack?: () => void }).__ack?.())
+  expect(await page.evaluate(() => (window as unknown as { __closeCalled: boolean }).__closeCalled)).toBe(true)
+  await page.close()
+})
+
 // ── Escalated mode (após 20 min sem detectar) ────────────────────────────────
 
 function escalatedUrl(slot: string, time: string) {
