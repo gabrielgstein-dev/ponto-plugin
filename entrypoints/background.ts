@@ -1,4 +1,5 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/build-flags';
+import { isTimesheetEnabled } from '../lib/domain/timesheet-gate';
 import { debugLog } from '../lib/domain/debug';
 import { installErrorHandlers } from '../lib/domain/install-error-handlers';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
@@ -230,6 +231,10 @@ export default defineBackground(() => {
       if (!period) { sendResponse({ ok: false, error: 'period required' }); return true; }
       (async () => {
         try {
+          if (!(await isTimesheetEnabled())) {
+            sendResponse({ ok: false, error: 'timesheet disabled' });
+            return;
+          }
           const provider = getTimesheetProvider();
           const summary = await provider.getSummary(period);
           if (summary) {
@@ -250,6 +255,10 @@ export default defineBackground(() => {
       };
       (async () => {
         try {
+          if (!(await isTimesheetEnabled())) {
+            sendResponse({ ok: false, error: 'timesheet disabled' });
+            return;
+          }
           const provider = getTimesheetProvider();
           const ok = await provider.updateEntry(entryId, entry, body);
           sendResponse({ ok });

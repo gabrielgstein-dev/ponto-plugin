@@ -55,6 +55,27 @@ export async function launchExtension(profileDir = ''): Promise<ExtensionFixture
 }
 
 /**
+ * Marca o onboarding como completo no storage da extensão.
+ *
+ * Specs que interagem com o popup (cliques) e não testam o onboarding em si
+ * DEVEM chamar isso no beforeAll: sem userProfile, o OnboardingOverlay cobre
+ * o popup e intercepta qualquer clique (timeout de 45s no locator.click).
+ */
+export async function completeOnboarding(context: BrowserContext): Promise<void> {
+  const sw = context.serviceWorkers()[0]
+  if (!sw) throw new Error('Service worker não disponível pra seedar onboarding')
+  await sw.evaluate(async () => {
+    await chrome.storage.local.set({
+      userProfile: {
+        hasTimesheet: true,
+        onboardingCompleted: true,
+        completedAt: new Date().toISOString(),
+      },
+    })
+  })
+}
+
+/**
  * Cria uma página que intercepta chamadas às APIs Senior e Meta.
  * Útil para simular respostas sem depender de servidores reais.
  *

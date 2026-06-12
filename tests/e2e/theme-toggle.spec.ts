@@ -8,7 +8,7 @@
  * - A escolha é replicada via chrome.storage.local
  */
 import { test, expect } from '@playwright/test'
-import { launchExtension } from './helpers/extension'
+import { launchExtension, completeOnboarding } from './helpers/extension'
 import type { BrowserContext } from '@playwright/test'
 import path from 'path'
 import os from 'os'
@@ -27,6 +27,7 @@ test.beforeAll(async () => {
   ctx = fixture.context
   popupUrl = fixture.popupUrl
   sidepanelUrl = fixture.sidepanelUrl
+  await completeOnboarding(ctx)
 })
 
 test.afterAll(async () => {

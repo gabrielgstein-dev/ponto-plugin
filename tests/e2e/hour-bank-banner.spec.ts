@@ -6,7 +6,7 @@
  * - Clicar dispara chrome.sidePanel.open com windowId atual
  */
 import { test, expect } from '@playwright/test'
-import { launchExtension } from './helpers/extension'
+import { launchExtension, completeOnboarding } from './helpers/extension'
 import type { BrowserContext } from '@playwright/test'
 import path from 'path'
 import os from 'os'
@@ -21,6 +21,7 @@ test.beforeAll(async () => {
   const fixture = await launchExtension(tmpDir)
   ctx = fixture.context
   popupUrl = fixture.popupUrl
+  await completeOnboarding(ctx)
 })
 
 test.afterAll(async () => {
