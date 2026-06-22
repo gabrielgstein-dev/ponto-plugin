@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Settings } from '../../domain/types';
-import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../../domain/build-flags';
+import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET, ENABLE_NETLOG_CAPTURE } from '../../domain/build-flags';
 import { exportLogs } from '../export-logs';
 import { clearLogs } from '../../domain/log-store';
 import { exportMetaNetLog, clearMetaNetLog } from '../export-meta-net-log';
@@ -89,7 +89,7 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
         {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
         <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
         <LogsActions />
-        {DEBUG && ENABLE_META_TIMESHEET && <MetaNetLogActions />}
+        {DEBUG && ENABLE_NETLOG_CAPTURE && <MetaNetLogActions />}
         {DEBUG && <DebugReminderTest />}
         {DEBUG && <DebugMetaXTest />}
         {DEBUG && ENABLE_META_TIMESHEET && <DebugMetaTsDirectFetch />}
@@ -379,14 +379,14 @@ function MetaNetLogActions() {
         onClick={handleExport}
         disabled={busy !== null}
       >
-        {busy === 'export' ? 'Exportando...' : 'Exportar tráfego Meta'}
+        {busy === 'export' ? 'Exportando...' : 'Exportar tráfego'}
       </button>
       <button
         className="logs-clear-btn"
         onClick={handleClear}
         disabled={busy !== null}
       >
-        {busy === 'clear' ? 'Limpando...' : 'Limpar tráfego Meta'}
+        {busy === 'clear' ? 'Limpando...' : 'Limpar tráfego'}
       </button>
       {feedback && <span className="logs-feedback">{feedback}</span>}
     </div>
