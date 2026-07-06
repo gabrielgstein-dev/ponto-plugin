@@ -23,21 +23,21 @@ import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/meta/timesheet/cons
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
 import { isValidJWT, decodeJwtPayload, formatJwtExp } from '../lib/domain/jwt-utils';
 import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
-import { initializeStorageIfNeeded } from '../lib/application/install-init';
+import { initializeStorageIfNeeded, migrateInsiXStorageKeys } from '../lib/application/install-init';
 import {
-  openMetaXPopup,
-  markMetaXResponded,
-  snoozeMetaXReminder,
-  handleMetaXSnoozeAlarm,
-  handleMetaXDailyNotify,
-  scheduleMetaXAfternoonAlarm,
-  META_X_SNOOZE_ALARM,
-  META_X_NOTIFY_ALARM,
-} from '../lib/application/meta-x-reminder-manager';
-import { refreshMetaXBadge } from '../lib/application/meta-x-badge';
-import { META_X_URL, hasRespondedThisWeek } from '../lib/domain/meta-x-status';
+  openInsiXPopup,
+  markInsiXResponded,
+  snoozeInsiXReminder,
+  handleInsiXSnoozeAlarm,
+  handleInsiXDailyNotify,
+  scheduleInsiXAfternoonAlarm,
+  INSI_X_SNOOZE_ALARM,
+  INSI_X_NOTIFY_ALARM,
+} from '../lib/application/insi-x-reminder-manager';
+import { refreshInsiXBadge } from '../lib/application/insi-x-badge';
+import { INSI_X_URL, hasRespondedThisWeek } from '../lib/domain/insi-x-status';
 import { appendNetEntry, getNetEntries, clearNetEntries, type MetaNetEntry } from '../lib/domain/meta-net-log';
-import type { MetaXState } from '../lib/domain/types';
+import type { InsiXState } from '../lib/domain/types';
 
 export default defineBackground(() => {
   installErrorHandlers();
@@ -49,6 +49,7 @@ export default defineBackground(() => {
   // single source of truth com os tests pra evitar divergência.
   chrome.runtime.onInstalled.addListener(() => {
     initializeStorageIfNeeded().catch(() => {});
+    migrateInsiXStorageKeys().catch(() => {});
   });
 
   if (ENABLE_SENIOR_INTEGRATION) {
@@ -155,15 +156,15 @@ export default defineBackground(() => {
     );
   }
 
-  // Meta X: detecta conclusão do survey TeamCulture via URL da página /finish.
+  // Insi X: detecta conclusão do survey TeamCulture via URL da página /finish.
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     if (changeInfo.url && changeInfo.url.includes('/engagement/survey/finish')) {
-      debugLog('Meta X: página /finish detectada via tabs.onUpdated');
-      chrome.storage.local.get(['metaXState', 'pontoSettings'], (data) => {
-        if (data.pontoSettings?.metaXReminder === false) return;
+      debugLog('Insi X: página /finish detectada via tabs.onUpdated');
+      chrome.storage.local.get(['insiXState', 'pontoSettings'], (data) => {
+        if (data.pontoSettings?.insiXReminder === false) return;
         const now = new Date();
-        if (hasRespondedThisWeek(data.metaXState as MetaXState | null, now)) return;
-        markMetaXResponded(now).then(() => resumeSaidaAfterMetaX()).catch(() => {});
+        if (hasRespondedThisWeek(data.insiXState as InsiXState | null, now)) return;
+        markInsiXResponded(now).then(() => resumeSaidaAfterInsiX()).catch(() => {});
       });
     }
   });
@@ -417,25 +418,25 @@ export default defineBackground(() => {
         .catch(() => sendResponse({ ok: false }));
       return true;
     }
-    if (message.type === 'META_X_SNOOZE') {
+    if (message.type === 'INSI_X_SNOOZE') {
       (async () => {
-        await snoozeMetaXReminder();
+        await snoozeInsiXReminder();
         // Não bloqueia o ponto de saída — dispara o punch reminder normal
         // do slot 'saida' se houver gate pendente.
-        await resumeSaidaAfterMetaX();
+        await resumeSaidaAfterInsiX();
         sendResponse({ ok: true });
       })();
       return true;
     }
-    if (message.type === 'OPEN_META_X_SURVEY') {
-      chrome.tabs.create({ url: META_X_URL, active: true }).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+    if (message.type === 'OPEN_INSI_X_SURVEY') {
+      chrome.tabs.create({ url: INSI_X_URL, active: true }).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
       return true;
     }
-    if (message.type === 'TEST_META_X_POPUP') {
+    if (message.type === 'TEST_INSI_X_POPUP') {
       // Bypass dos guards de elegibilidade (dia/respondida/toggle) pra dev poder
       // testar fora de terça/quarta. Abre direto via chrome.windows.
       const ctx = (message.ctx as 'morning' | 'exit_gate' | 'snooze' | 'afternoon_notif') || 'morning';
-      const url = `${chrome.runtime.getURL('meta-x-reminder.html')}?ctx=${ctx}`;
+      const url = `${chrome.runtime.getURL('insi-x-reminder.html')}?ctx=${ctx}`;
       chrome.windows.create({ url, type: 'popup', width: 460, height: 380, focused: true })
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
@@ -445,7 +446,7 @@ export default defineBackground(() => {
       chrome.notifications.create(message.id || '', {
         type: 'basic',
         iconUrl: 'icons/icon128.png',
-        title: message.title || 'Senior Ponto',
+        title: message.title || 'Ponto Insi',
         message: message.message || '',
         priority: 2,
       }, (id: string) => {
@@ -478,8 +479,8 @@ export default defineBackground(() => {
       })();
       return;
     }
-    if (alarm.name === META_X_SNOOZE_ALARM) { handleMetaXSnoozeAlarm().catch(() => {}); return; }
-    if (alarm.name === META_X_NOTIFY_ALARM) { handleMetaXDailyNotify().catch(() => {}); return; }
+    if (alarm.name === INSI_X_SNOOZE_ALARM) { handleInsiXSnoozeAlarm().catch(() => {}); return; }
+    if (alarm.name === INSI_X_NOTIFY_ALARM) { handleInsiXDailyNotify().catch(() => {}); return; }
     if (alarm.name === 'tsNotifCheck') {
       // BUG 1: alarm dedicado pra checar timesheet pendente — lê só o cache,
       // independente de sync/token. Se o usuário tem entries pendentes,
@@ -489,7 +490,7 @@ export default defineBackground(() => {
     }
     if (alarm.name === 'punch_recheck') { recheckReminder().catch(() => {}); return; }
     if (alarm.name.startsWith('punch_popup_')) {
-      maybeInterceptSaidaForMetaX(alarm.name, alarm.scheduledTime).catch(() => {});
+      maybeInterceptSaidaForInsiX(alarm.name, alarm.scheduledTime).catch(() => {});
       return;
     }
     if (alarm.name.startsWith('reminder_')) { handleReminderAlarm(alarm.name, alarm.scheduledTime); return; }
@@ -499,7 +500,7 @@ export default defineBackground(() => {
 
   chrome.windows.onRemoved.addListener((windowId) => {
     chrome.storage.local.get(
-      ['punchPopupWindowId', 'punchPopupSlot', 'punchPopupEscalated', 'tsNotifWindowId', 'metaXPopupWindowId', 'metaXState', 'pontoSettings'],
+      ['punchPopupWindowId', 'punchPopupSlot', 'punchPopupEscalated', 'tsNotifWindowId', 'insiXPopupWindowId', 'insiXState', 'pontoSettings'],
       (data) => {
         if (data.punchPopupWindowId === windowId) {
           if (data.punchPopupEscalated && data.punchPopupSlot) {
@@ -512,16 +513,16 @@ export default defineBackground(() => {
           chrome.storage.local.set({ tsNotifDismissedTs: Date.now() });
           chrome.storage.local.remove('tsNotifWindowId');
         }
-        if (data.metaXPopupWindowId === windowId) {
-          chrome.storage.local.remove(['metaXPopupWindowId', 'metaXPopupContext']);
+        if (data.insiXPopupWindowId === windowId) {
+          chrome.storage.local.remove(['insiXPopupWindowId', 'insiXPopupContext']);
           const now = new Date();
           const isWed = now.getDay() === 3;
           const past17 = now.getHours() >= 17;
-          const enabled = data.pontoSettings?.metaXReminder !== false;
-          const pending = !hasRespondedThisWeek(data.metaXState as MetaXState | null, now);
+          const enabled = data.pontoSettings?.insiXReminder !== false;
+          const pending = !hasRespondedThisWeek(data.insiXState as InsiXState | null, now);
           if (isWed && past17 && enabled && pending) {
-            debugLog('Meta X: popup fechado após 17h sem resposta — reabrindo');
-            setTimeout(() => openMetaXPopup('afternoon_notif').catch(() => {}), 2000);
+            debugLog('Insi X: popup fechado após 17h sem resposta — reabrindo');
+            setTimeout(() => openInsiXPopup('afternoon_notif').catch(() => {}), 2000);
           }
         }
     });
@@ -556,52 +557,52 @@ export default defineBackground(() => {
     await chrome.tabs.create({ url: COMPANY_PUNCH_URL, active: true });
   }
 
-  const META_X_GATE_SAIDA_KEY = 'metaXGateSaidaExpectedTime';
+  const INSI_X_GATE_SAIDA_KEY = 'insiXGateSaidaExpectedTime';
 
-  async function maybeInterceptSaidaForMetaX(alarmName: string, scheduledTime: number): Promise<void> {
+  async function maybeInterceptSaidaForInsiX(alarmName: string, scheduledTime: number): Promise<void> {
     if (alarmName !== 'punch_popup_saida') {
       await handlePunchPopupAlarm(alarmName, scheduledTime);
       return;
     }
     const now = new Date();
-    const data = await chrome.storage.local.get(['pontoSettings', 'metaXState', `alarm_time_${alarmName}`]);
+    const data = await chrome.storage.local.get(['pontoSettings', 'insiXState', `alarm_time_${alarmName}`]);
     const isWed = now.getDay() === 3;
-    const enabled = data.pontoSettings?.metaXReminder !== false;
-    const pending = !hasRespondedThisWeek(data.metaXState as MetaXState | null, now);
+    const enabled = data.pontoSettings?.insiXReminder !== false;
+    const pending = !hasRespondedThisWeek(data.insiXState as InsiXState | null, now);
     if (!isWed || !enabled || !pending) {
       await handlePunchPopupAlarm(alarmName, scheduledTime);
       return;
     }
-    // Gate: salva expectedTime, abre meta-x popup ('exit_gate'). O punch
+    // Gate: salva expectedTime, abre insi-x popup ('exit_gate'). O punch
     // popup de saída só dispara depois que o user responder/snoozar.
     const expectedTime = (data[`alarm_time_${alarmName}`] as string) || '';
-    await chrome.storage.local.set({ [META_X_GATE_SAIDA_KEY]: expectedTime });
-    await openMetaXPopup('exit_gate');
+    await chrome.storage.local.set({ [INSI_X_GATE_SAIDA_KEY]: expectedTime });
+    await openInsiXPopup('exit_gate');
   }
 
-  async function resumeSaidaAfterMetaX(): Promise<void> {
-    const data = await chrome.storage.local.get(META_X_GATE_SAIDA_KEY);
-    const expectedTime = data[META_X_GATE_SAIDA_KEY] as string | undefined;
+  async function resumeSaidaAfterInsiX(): Promise<void> {
+    const data = await chrome.storage.local.get(INSI_X_GATE_SAIDA_KEY);
+    const expectedTime = data[INSI_X_GATE_SAIDA_KEY] as string | undefined;
     if (!expectedTime) return;
-    await chrome.storage.local.remove(META_X_GATE_SAIDA_KEY);
+    await chrome.storage.local.remove(INSI_X_GATE_SAIDA_KEY);
     await chrome.storage.local.set({ alarm_time_punch_popup_saida: expectedTime });
     chrome.alarms.create('punch_popup_saida', { when: Date.now() + 1000 });
   }
 
-  async function maybeTriggerMetaXOnEntrada(): Promise<void> {
+  async function maybeTriggerInsiXOnEntrada(): Promise<void> {
     const now = new Date();
     const day = now.getDay();
     if (day !== 2 && day !== 3) return;
-    const data = await chrome.storage.local.get(['pontoSettings', 'metaXState']);
-    if (data.pontoSettings?.metaXReminder === false) return;
-    if (hasRespondedThisWeek(data.metaXState as MetaXState | null, now)) return;
+    const data = await chrome.storage.local.get(['pontoSettings', 'insiXState']);
+    if (data.pontoSettings?.insiXReminder === false) return;
+    if (hasRespondedThisWeek(data.insiXState as InsiXState | null, now)) return;
     if (day === 2) {
-      await openMetaXPopup('tuesday_preview');
+      await openInsiXPopup('tuesday_preview');
       return;
     }
-    await openMetaXPopup('morning');
-    await refreshMetaXBadge(now);
-    await scheduleMetaXAfternoonAlarm(now);
+    await openInsiXPopup('morning');
+    await refreshInsiXBadge(now);
+    await scheduleInsiXAfternoonAlarm(now);
   }
 
   function resetAllCaches() {
@@ -636,9 +637,9 @@ export default defineBackground(() => {
           resolveReminder(slot).catch(() => {});
         }
       });
-      // Camada 3: 1ª batida do dia na quarta dispara popup Meta X (uma vez)
+      // Camada 3: 1ª batida do dia na quarta dispara popup Insi X (uma vez)
       if (!oldState?.entrada && newState?.entrada) {
-        maybeTriggerMetaXOnEntrada().catch(() => {});
+        maybeTriggerInsiXOnEntrada().catch(() => {});
       }
     }
     if (changes.punchSuccessTs) {
@@ -699,6 +700,6 @@ export default defineBackground(() => {
     backgroundDetect('startup').catch(() => {});
   }).catch(() => {});
 
-  refreshMetaXBadge().catch(() => {});
-  scheduleMetaXAfternoonAlarm().catch(() => {});
+  refreshInsiXBadge().catch(() => {});
+  scheduleInsiXAfternoonAlarm().catch(() => {});
 });

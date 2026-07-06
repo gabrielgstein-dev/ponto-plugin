@@ -28,7 +28,7 @@ export interface RealExtensionFixture {
 export async function launchRealExtension(): Promise<RealExtensionFixture> {
   if (!fs.existsSync(EXTENSION_PATH)) {
     throw new Error(
-      `Extensão não compilada. Execute 'pnpm build:meta' antes.\nEsperado em: ${EXTENSION_PATH}`,
+      `Extensão não compilada. Execute 'pnpm build:insi' antes.\nEsperado em: ${EXTENSION_PATH}`,
     )
   }
   if (!fs.existsSync(PROFILE_DIR)) fs.mkdirSync(PROFILE_DIR, { recursive: true })

@@ -3,6 +3,7 @@ import { resetTsScheduled } from './schedule-ts-notifications';
 import { scheduleNotifications } from './schedule-notifications';
 import { applySettings, resetNotifScheduled } from './state';
 import { startReminder, resolveReminder, DISMISSED_SLOTS_KEY } from './punch-reminder-manager';
+import { isSlotPunchedToday } from './punch-state';
 import { DEFAULT_SETTINGS } from '../domain/types';
 import type { PunchReminderSlot, Settings } from '../domain/types';
 import { isReminderBlockedToday } from '../domain/weekday-gate';
@@ -19,6 +20,17 @@ const PUNCH_POPUP_SLOT_MAP: Record<string, PunchReminderSlot> = {
   punch_popup_almoco: 'almoco',
   punch_popup_volta: 'volta',
   punch_popup_saida: 'saida',
+};
+
+const NOTIF_SLOT_MAP: Record<string, PunchReminderSlot> = {
+  notif_entrada: 'entrada',
+  notif_entrada_5: 'entrada',
+  notif_almoco: 'almoco',
+  notif_almoco_5: 'almoco',
+  notif_volta: 'volta',
+  notif_volta_5: 'volta',
+  notif_saida: 'saida',
+  notif_saida_5: 'saida',
 };
 
 // Alarmes do Chrome são persistidos e disparam imediatamente quando o SO
@@ -124,21 +136,19 @@ export async function handleReminderAlarm(alarmName: string, scheduledTime = Dat
     await chrome.storage.local.remove(msgKey);
     return;
   }
-  const data = await chrome.storage.local.get(['pontoState', msgKey]);
-
-  const ps = data.pontoState;
-  if (ps && ps[slot]) {
+  if (await isSlotPunchedToday(slot)) {
     await chrome.storage.local.remove(msgKey);
     return;
   }
 
+  const data = await chrome.storage.local.get(msgKey);
   const msg = data[msgKey];
   if (!msg) return;
 
   chrome.notifications.create(alarmName, {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
-    title: 'Senior Ponto — Lembrete',
+    title: 'Ponto Insi — Lembrete',
     message: msg,
     priority: 2,
   }, (id: string) => {
@@ -153,6 +163,13 @@ export async function handleNotifAlarm(alarmName: string, scheduledTime = Date.n
     await chrome.storage.local.remove(msgKey);
     return;
   }
+  // Batimento adiantado: quem bate antes do aviso de antecipação não deve
+  // ouvir "hora de bater em X minutos" de um ponto que já registrou.
+  const slot = NOTIF_SLOT_MAP[alarmName];
+  if (slot && await isSlotPunchedToday(slot)) {
+    await chrome.storage.local.remove(msgKey);
+    return;
+  }
   const data = await chrome.storage.local.get([msgKey]);
   const msg = data[msgKey];
   if (!msg) return;
@@ -160,7 +177,7 @@ export async function handleNotifAlarm(alarmName: string, scheduledTime = Date.n
   chrome.notifications.create(alarmName, {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
-    title: 'Senior Ponto',
+    title: 'Ponto Insi',
     message: msg,
     priority: 2,
   }, (id: string) => {

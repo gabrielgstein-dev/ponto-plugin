@@ -155,7 +155,9 @@ test('LOG-5: botão "Exportar logs" dispara download de arquivo .json', async ()
   await page.locator('button.logs-export-btn', { hasText: 'Exportar logs' }).click()
   const download = await downloadPromise
 
-  expect(download.suggestedFilename()).toMatch(/^ponto-meta-logs-.*\.json$/)
+  // Slug deriva do APP_NAME (rebrand "Ponto Insi" em b304a27) — ver
+  // lib/presentation/export-logs.ts buildFilename().
+  expect(download.suggestedFilename()).toMatch(/^ponto-insi-logs-.*\.json$/)
   await expect(page.locator('.logs-feedback')).toHaveText('Logs exportados.')
   await page.close()
 })

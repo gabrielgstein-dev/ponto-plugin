@@ -18,7 +18,7 @@ worker, captura de token, cache de tabs, fetch via tab — funciona.
 ## Como rodar
 
 ```bash
-pnpm build:meta       # 1ª vez ou após mudanças no código da extensão
+pnpm build:insi       # 1ª vez ou após mudanças no código da extensão
 pnpm test:e2e:real
 ```
 

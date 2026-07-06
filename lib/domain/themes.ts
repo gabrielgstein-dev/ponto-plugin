@@ -50,7 +50,7 @@ export const themes: Record<string, Theme> = {
     },
     fonts: {
       mono: "'Space Mono', monospace",
-      sans: "'DM Sans', sans-serif",
+      sans: "'Figtree', sans-serif",
     },
   },
   light: {
@@ -70,40 +70,44 @@ export const themes: Record<string, Theme> = {
     },
     fonts: {
       mono: "'Space Mono', monospace",
-      sans: "'DM Sans', sans-serif",
+      sans: "'Figtree', sans-serif",
     },
   },
-  meta: {
-    name: 'Meta',
+  insi: {
+    name: 'insi',
     colors: {
-      bg: '#f4f7fb',
+      bg: '#f5f5f7',
       surface: '#ffffff',
-      surface2: '#eaf0f8',
-      border: '#ccd8e8',
-      accent: '#0044dd',
-      accent2: '#0035b0',
-      warn: '#d97706',
-      danger: '#dc2626',
-      text: '#18243a',
-      textDim: '#3d5470',
-      textDimmer: '#6b83a0',
+      surface2: '#ebebf0',
+      border: '#d9d9e3',
+      accent: '#421589',
+      accent2: '#320078',
+      warn: '#b96800',
+      danger: '#a8215f',
+      text: '#1a1b3a',
+      textDim: '#4a4b5c',
+      textDimmer: '#6b6d7d',
     },
     darkColors: {
-      bg: '#161b27',
-      surface: '#1e2535',
-      surface2: '#263044',
-      border: '#2e3d56',
-      accent: '#4d84f5',
-      accent2: '#2b68e8',
-      warn: '#f0a030',
-      danger: '#e05555',
-      text: '#dde6f0',
-      textDim: '#8fa3be',
-      textDimmer: '#556f8f',
+      bg: '#14101e',
+      surface: '#1d1730',
+      surface2: '#271f3d',
+      border: '#36294f',
+      accent: '#9d7bf0',
+      accent2: '#7e5ce6',
+      warn: '#e0a030',
+      danger: '#e0558f',
+      text: '#ece8f5',
+      textDim: '#b3a9c9',
+      textDimmer: '#7e7099',
     },
     fonts: {
       mono: "'Space Mono', monospace",
-      sans: "'DM Sans', sans-serif",
+      sans: "'Figtree', sans-serif",
     },
   },
 };
+
+// Alias retrocompatível: builds/configs antigas que usam THEME='meta'
+// continuam resolvendo para a paleta insi (rebrand de marca, mesma identidade).
+themes.meta = themes.insi;

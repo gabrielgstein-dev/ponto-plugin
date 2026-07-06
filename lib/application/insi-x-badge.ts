@@ -1,17 +1,17 @@
-import type { MetaXState } from '../domain/types';
-import { getMetaXStatus } from '../domain/meta-x-status';
+import type { InsiXState } from '../domain/types';
+import { getInsiXStatus } from '../domain/insi-x-status';
 
-const BADGE_BG_URGENT = '#3b82f6';
+const BADGE_BG_URGENT = '#ca2d7e';
 
-export async function refreshMetaXBadge(now: Date = new Date()): Promise<void> {
+export async function refreshInsiXBadge(now: Date = new Date()): Promise<void> {
   if (typeof chrome === 'undefined' || !chrome.action) return;
-  const data = await chrome.storage.local.get(['pontoSettings', 'metaXState']);
-  const enabled = data.pontoSettings?.metaXReminder !== false;
+  const data = await chrome.storage.local.get(['pontoSettings', 'insiXState']);
+  const enabled = data.pontoSettings?.insiXReminder !== false;
   if (!enabled) {
     await clearBadge();
     return;
   }
-  const status = getMetaXStatus(now, data.metaXState as MetaXState | null);
+  const status = getInsiXStatus(now, data.insiXState as InsiXState | null);
   if (status.tone === 'urgent') {
     await setBadge('!', BADGE_BG_URGENT);
     return;

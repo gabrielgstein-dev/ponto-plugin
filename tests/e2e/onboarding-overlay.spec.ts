@@ -81,7 +81,7 @@ test('OB-2: user já instalado (sem userProfile) → overlay aparece', async () 
   await resetStorage({
     pontoState: { entrada: '09:00', almoco: null, volta: null, saida: null },
     pontoDate: new Date().toDateString(),
-    pontoSettings: { jornada: 480, metaXReminder: true, weekdaysOnly: true },
+    pontoSettings: { jornada: 480, insiXReminder: true, weekdaysOnly: true },
   })
 
   const page = await openPopup()

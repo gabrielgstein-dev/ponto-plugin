@@ -3,7 +3,7 @@
 import { writeFileSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
-const themes = ['dark', 'light', 'meta'] as const;
+const themes = ['dark', 'light', 'insi', 'meta'] as const;
 type Theme = typeof themes[number];
 
 const buildFlagsPath = resolve(__dirname, '../lib/domain/build-flags.json');

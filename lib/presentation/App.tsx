@@ -23,7 +23,7 @@ import { Toast } from './components/Toast';
 import { PunchHistory } from './components/PunchHistory';
 import { HourBankBanner } from './components/HourBankBanner';
 import { PaytrackBanner } from './components/PaytrackBanner';
-import { MetaXBanner, MetaXDoneHint } from './components/MetaXBanner';
+import { InsiXBanner, InsiXDoneHint } from './components/InsiXBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
@@ -65,9 +65,9 @@ export function App() {
       <div className="token-status-row">
         {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText="" hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} companyLabel={COMPANY_NAME} />}
         {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
-        {settings.metaXReminder && <MetaXDoneHint />}
+        {settings.insiXReminder && <InsiXDoneHint />}
       </div>
-      {settings.metaXReminder && <MetaXBanner />}
+      {settings.insiXReminder && <InsiXBanner />}
       <div className="cards-grid">
         {PUNCH_SLOTS.map(slot => {
           const display = getDisplayTime(punchState, slot);

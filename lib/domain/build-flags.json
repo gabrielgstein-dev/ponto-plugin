@@ -1,7 +1,7 @@
 {
-  "DEBUG": true,
+  "DEBUG": false,
   "ACTIVE_COMPANY": "meta",
-  "APP_NAME": "Ponto Meta",
+  "APP_NAME": "Ponto Insi",
   "ENABLE_SENIOR_INTEGRATION": true,
   "ENABLE_SENIOR_PUNCH_BUTTON": false,
   "ENABLE_MANUAL_PUNCH": false,
@@ -9,6 +9,7 @@
   "ENABLE_YESTERDAY": false,
   "ENABLE_NOTIFICATIONS": true,
   "ENABLE_META_TIMESHEET": true,
+  "ENABLE_NETLOG_CAPTURE": false,
   "ENABLE_SILENT_REFRESH": true,
-  "THEME": "meta"
+  "THEME": "insi"
 }

@@ -1,0 +1,17 @@
+name: Prod Flags Gate
+
+# Bloqueia merge em master com flags dev-only ativas (DEBUG,
+# ENABLE_NETLOG_CAPTURE). O zip publicado pelo release-please sai direto de
+# master — flag dev ligada lá vira flag dev em produção.
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  check-prod-flags:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verifica flags dev-only em build-flags.json
+        run: node scripts/check-prod-flags.mjs

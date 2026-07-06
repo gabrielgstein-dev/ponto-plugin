@@ -29,6 +29,7 @@ vi.mock('../../lib/application/schedule-notifications', () => ({
 import {
   handlePunchPopupAlarm,
   handleReminderAlarm,
+  handleNotifAlarm,
   handleDailyReset,
 } from '../../lib/application/handle-alarm'
 import { startReminder } from '../../lib/application/punch-reminder-manager'
@@ -71,19 +72,26 @@ describe("handlePunchPopupAlarm — slot 'entrada' (BUG 3)", () => {
   })
 })
 
+// handleReminderAlarm/handleNotifAlarm fazem múltiplas leituras de storage
+// (pontoSettings do gate, pontoState+pontoDate do punch-state, alarm_msg_*) —
+// mockResolvedValue responde todas com o mesmo objeto merged.
+function notifMock() {
+  return (globalThis as { chrome: { notifications: { create: ReturnType<typeof vi.fn> } } })
+    .chrome.notifications.create
+}
+
 describe("handleReminderAlarm — slot 'entrada' (BUG 3)", () => {
   it('dispara notification para reminder_entrada quando entrada ainda não foi batida', async () => {
-    mockStorageGetForHandler({
+    mockStorageGet.mockResolvedValue({
       pontoState: { entrada: null, almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
       alarm_msg_reminder_entrada: 'Você ainda não bateu a entrada! (30 min em atraso)',
     })
     await handleReminderAlarm('reminder_entrada')
-    const notif = (globalThis as { chrome: { notifications: { create: ReturnType<typeof vi.fn> } } })
-      .chrome.notifications.create
-    expect(notif).toHaveBeenCalledWith(
+    expect(notifMock()).toHaveBeenCalledWith(
       'reminder_entrada',
       expect.objectContaining({
-        title: 'Senior Ponto — Lembrete',
+        title: 'Ponto Insi — Lembrete',
         message: 'Você ainda não bateu a entrada! (30 min em atraso)',
       }),
       expect.any(Function),
@@ -91,14 +99,69 @@ describe("handleReminderAlarm — slot 'entrada' (BUG 3)", () => {
   })
 
   it('NÃO dispara notification para reminder_entrada quando entrada já foi batida', async () => {
-    mockStorageGetForHandler({
+    mockStorageGet.mockResolvedValue({
       pontoState: { entrada: '07:58', almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
       alarm_msg_reminder_entrada: 'Você ainda não bateu a entrada! (30 min em atraso)',
     })
     await handleReminderAlarm('reminder_entrada')
-    const notif = (globalThis as { chrome: { notifications: { create: ReturnType<typeof vi.fn> } } })
-      .chrome.notifications.create
-    expect(notif).not.toHaveBeenCalled()
+    expect(notifMock()).not.toHaveBeenCalled()
+  })
+
+  it('dispara notification quando pontoState é de ONTEM (não suprime com estado stale)', async () => {
+    mockStorageGet.mockResolvedValue({
+      pontoState: { entrada: '07:58', almoco: '12:00', volta: '13:00', saida: '18:00' },
+      pontoDate: new Date(2026, 4, 12).toDateString(), // ontem em relação a FAKE_NOW
+      alarm_msg_reminder_entrada: 'Você ainda não bateu a entrada! (30 min em atraso)',
+    })
+    await handleReminderAlarm('reminder_entrada')
+    expect(notifMock()).toHaveBeenCalled()
+  })
+})
+
+describe('handleNotifAlarm — aviso de antecipação respeita ponto já batido', () => {
+  it('dispara notification quando o slot ainda não foi batido', async () => {
+    mockStorageGet.mockResolvedValue({
+      pontoState: { entrada: null, almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
+      alarm_msg_notif_entrada: 'Hora de bater entrada em 10 minutos!',
+    })
+    await handleNotifAlarm('notif_entrada')
+    expect(notifMock()).toHaveBeenCalledWith(
+      'notif_entrada',
+      expect.objectContaining({ message: 'Hora de bater entrada em 10 minutos!' }),
+      expect.any(Function),
+    )
+  })
+
+  it('NÃO dispara quando o slot já foi batido (batimento adiantado, ex. 08:17 numa entrada 08:30)', async () => {
+    mockStorageGet.mockResolvedValue({
+      pontoState: { entrada: '08:17', almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
+      alarm_msg_notif_entrada: 'Hora de bater entrada em 10 minutos!',
+    })
+    await handleNotifAlarm('notif_entrada')
+    expect(notifMock()).not.toHaveBeenCalled()
+  })
+
+  it('NÃO dispara o 2º aviso (notif_<slot>_5) quando o slot já foi batido', async () => {
+    mockStorageGet.mockResolvedValue({
+      pontoState: { entrada: '08:17', almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
+      alarm_msg_notif_entrada_5: 'Hora de bater entrada em 5 minutos!',
+    })
+    await handleNotifAlarm('notif_entrada_5')
+    expect(notifMock()).not.toHaveBeenCalled()
+  })
+
+  it('dispara quando pontoState é de ONTEM (estado stale não suprime)', async () => {
+    mockStorageGet.mockResolvedValue({
+      pontoState: { entrada: '08:00', almoco: null, volta: null, saida: null },
+      pontoDate: new Date(2026, 4, 12).toDateString(), // ontem em relação a FAKE_NOW
+      alarm_msg_notif_entrada: 'Hora de bater entrada em 10 minutos!',
+    })
+    await handleNotifAlarm('notif_entrada')
+    expect(notifMock()).toHaveBeenCalled()
   })
 })
 

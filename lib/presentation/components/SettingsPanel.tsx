@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Settings } from '../../domain/types';
-import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../../domain/build-flags';
+import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET, ENABLE_NETLOG_CAPTURE } from '../../domain/build-flags';
 import { exportLogs } from '../export-logs';
 import { clearLogs } from '../../domain/log-store';
 import { exportMetaNetLog, clearMetaNetLog } from '../export-meta-net-log';
@@ -76,22 +76,22 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
           />
         </div>
         <div className="setting-row">
-          <label htmlFor="meta-x-reminder">Lembrete Meta X</label>
+          <label htmlFor="insi-x-reminder">Lembrete Insi X</label>
           <input
-            id="meta-x-reminder"
+            id="insi-x-reminder"
             type="checkbox"
             className="setting-checkbox"
-            checked={settings.metaXReminder}
-            onChange={e => onChange({ metaXReminder: e.target.checked })}
+            checked={settings.insiXReminder}
+            onChange={e => onChange({ insiXReminder: e.target.checked })}
           />
         </div>
         <SoundSettings settings={settings} onChange={onChange} />
         {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
         <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
         <LogsActions />
-        {DEBUG && ENABLE_META_TIMESHEET && <MetaNetLogActions />}
+        {DEBUG && ENABLE_NETLOG_CAPTURE && <MetaNetLogActions />}
         {DEBUG && <DebugReminderTest />}
-        {DEBUG && <DebugMetaXTest />}
+        {DEBUG && <DebugInsiXTest />}
         {DEBUG && ENABLE_META_TIMESHEET && <DebugMetaTsDirectFetch />}
         {DEBUG && ENABLE_SENIOR_INTEGRATION && <DebugSeniorStorageDump />}
         <VersionFooter />
@@ -249,13 +249,13 @@ ${result.bodyPreview || '(empty)'}`}
   );
 }
 
-function DebugMetaXTest() {
+function DebugInsiXTest() {
   const [ctx, setCtx] = useState<'morning' | 'exit_gate' | 'snooze' | 'afternoon_notif'>('morning');
   const handleOpenPopup = () => {
-    chrome.runtime.sendMessage({ type: 'TEST_META_X_POPUP', ctx });
+    chrome.runtime.sendMessage({ type: 'TEST_INSI_X_POPUP', ctx });
   };
   const handleReset = () => {
-    chrome.storage.local.remove('metaXState');
+    chrome.storage.local.remove('insiXState');
   };
   return (
     <div className="logs-actions">
@@ -266,7 +266,7 @@ function DebugMetaXTest() {
         <option value="afternoon_notif">16h</option>
       </select>
       <button className="logs-export-btn" onClick={handleOpenPopup}>
-        Testar Meta X
+        Testar Insi X
       </button>
       <button className="logs-clear-btn" onClick={handleReset}>
         Reset semana
@@ -379,14 +379,14 @@ function MetaNetLogActions() {
         onClick={handleExport}
         disabled={busy !== null}
       >
-        {busy === 'export' ? 'Exportando...' : 'Exportar tráfego Meta'}
+        {busy === 'export' ? 'Exportando...' : 'Exportar tráfego'}
       </button>
       <button
         className="logs-clear-btn"
         onClick={handleClear}
         disabled={busy !== null}
       >
-        {busy === 'clear' ? 'Limpando...' : 'Limpar tráfego Meta'}
+        {busy === 'clear' ? 'Limpando...' : 'Limpar tráfego'}
       </button>
       {feedback && <span className="logs-feedback">{feedback}</span>}
     </div>

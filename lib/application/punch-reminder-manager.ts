@@ -1,4 +1,5 @@
 import type { PunchReminderSlot, PunchState } from '../domain/types';
+import { punchStateForToday, isSlotPunched } from './punch-state';
 import { backgroundDetect, resetBackgroundHash } from './background-detect';
 import { resetGpPunchCache } from '#company/providers';
 import { resetSeniorApiCache } from '../infrastructure/senior/senior-api-provider';
@@ -49,8 +50,8 @@ export async function startReminder(slot: PunchReminderSlot, expectedTime: strin
   // popup abre indevidamente.
   await preFlightDetect();
 
-  const data = await chrome.storage.local.get(['pontoState', 'punchPopupWindowId', DISMISSED_SLOTS_KEY]);
-  const ps = data.pontoState as PunchState | null;
+  const data = await chrome.storage.local.get(['pontoState', 'pontoDate', 'punchPopupWindowId', DISMISSED_SLOTS_KEY]);
+  const ps = punchStateForToday(data);
 
   // Guard NEW: slot dispensado explicitamente hoje — não reabre popup
   const dismissed = (data[DISMISSED_SLOTS_KEY] as PunchReminderSlot[] | undefined) ?? [];
@@ -58,17 +59,17 @@ export async function startReminder(slot: PunchReminderSlot, expectedTime: strin
 
   // Guard P6: jornada não iniciada (não se aplica ao slot 'entrada' — o popup
   // de entrada serve justamente para lembrar de iniciar a jornada)
-  if (slot !== 'entrada' && !ps?.entrada) return;
+  if (slot !== 'entrada' && !isSlotPunched(ps, 'entrada')) return;
 
   // Guard P7: jornada encerrada
-  if (ps?.saida) {
+  if (isSlotPunched(ps, 'saida')) {
     await chrome.alarms.clear(RECHECK_ALARM);
     await chrome.storage.local.remove([...STORAGE_KEYS]);
     return;
   }
 
   // Guard P3: slot já batido
-  if (ps?.[slot]) return;
+  if (isSlotPunched(ps, slot)) return;
 
   // Salva keys ANTES de abrir janela (P1.4, P1.5). startedTs marca o início pra
   // calcular escalação no recheck.
@@ -102,6 +103,7 @@ export async function recheckReminder(): Promise<void> {
 
   const data = await chrome.storage.local.get([
     'pontoState',
+    'pontoDate',
     'punchPopupSlot',
     'punchPopupWindowId',
     'punchPopupExpectedTime',
@@ -109,7 +111,7 @@ export async function recheckReminder(): Promise<void> {
     DISMISSED_SLOTS_KEY,
   ]);
 
-  const ps = data.pontoState as PunchState | null;
+  const ps = punchStateForToday(data);
   const slot = data.punchPopupSlot as PunchReminderSlot | null;
   const expectedTime = (data.punchPopupExpectedTime as string | null) ?? '';
 
@@ -123,19 +125,19 @@ export async function recheckReminder(): Promise<void> {
   }
 
   // Guard P6: sem entrada registrada (não se aplica ao slot 'entrada')
-  if (slot !== 'entrada' && !ps?.entrada) {
+  if (slot !== 'entrada' && !isSlotPunched(ps, 'entrada')) {
     await resolveReminder(slot);
     return;
   }
 
   // Guard P7: jornada encerrada
-  if (ps?.saida) {
+  if (isSlotPunched(ps, 'saida')) {
     await resolveReminder(slot);
     return;
   }
 
   // Slot já batido? (pode ter sido pego pelo backgroundDetect acima)
-  if (ps?.[slot]) {
+  if (isSlotPunched(ps, slot)) {
     await resolveReminder(slot);
     return;
   }
@@ -227,12 +229,13 @@ export async function dismissSlotForToday(slot: PunchReminderSlot): Promise<void
 }
 
 export async function markSlotPunched(slot: PunchReminderSlot, time: string): Promise<void> {
-  const data = await chrome.storage.local.get('pontoState');
-  const state = (data.pontoState as PunchState | null) ?? {
+  const data = await chrome.storage.local.get(['pontoState', 'pontoDate']);
+  // punchStateForToday: nunca mesclar em estado de ontem (reset diário perdido)
+  const state: PunchState = punchStateForToday(data) ?? {
     entrada: null, almoco: null, volta: null, saida: null,
   };
   state[slot] = time;
-  await chrome.storage.local.set({ pontoState: state });
+  await chrome.storage.local.set({ pontoState: state, pontoDate: new Date().toDateString() });
   await resolveReminder(slot);
 }
 

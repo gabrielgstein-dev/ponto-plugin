@@ -22,10 +22,10 @@ export interface Settings {
   soundVolume: number;
   weekdaysOnly: boolean;
   paytrackReminder: boolean;
-  metaXReminder: boolean;
+  insiXReminder: boolean;
 }
 
-export interface MetaXState {
+export interface InsiXState {
   lastRespondedWeekKey: string | null;
   lastRespondedAt: number | null;
 }
@@ -79,10 +79,10 @@ export const DEFAULT_SETTINGS: Settings = {
   soundVolume: 1,
   weekdaysOnly: true,
   paytrackReminder: true,
-  metaXReminder: true,
+  insiXReminder: true,
 };
 
-export const DEFAULT_META_X_STATE: MetaXState = {
+export const DEFAULT_INSI_X_STATE: InsiXState = {
   lastRespondedWeekKey: null,
   lastRespondedAt: null,
 };

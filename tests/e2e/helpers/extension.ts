@@ -2,7 +2,7 @@
  * Helper para carregar a extensão no Playwright.
  *
  * Pré-requisito: extensão compilada em .output/chrome-mv3
- * Execute `pnpm build:meta` antes dos testes E2E.
+ * Execute `pnpm build:insi` antes dos testes E2E.
  */
 import { chromium, type BrowserContext, type Page } from '@playwright/test'
 import path from 'path'
@@ -21,7 +21,7 @@ export interface ExtensionFixture {
 export async function launchExtension(profileDir = ''): Promise<ExtensionFixture> {
   if (!fs.existsSync(EXTENSION_PATH)) {
     throw new Error(
-      `Extensão não compilada. Execute 'pnpm build:meta' antes dos testes E2E.\n` +
+      `Extensão não compilada. Execute 'pnpm build:insi' antes dos testes E2E.\n` +
         `Esperado em: ${EXTENSION_PATH}`,
     )
   }

@@ -55,6 +55,9 @@ import {
 
 const ESCALATION_THRESHOLD_MS = 20 * 60 * 1000;
 const pontoEntrada = { entrada: '09:00', almoco: null, volta: null, saida: null };
+// Os guards validam pontoDate antes de confiar no pontoState (punch-state.ts) —
+// todo mock com pontoState precisa vir datado de hoje.
+const TODAY = new Date().toDateString();
 
 beforeEach(() => {
   backgroundDetectSpy.mockClear();
@@ -68,6 +71,7 @@ beforeEach(() => {
 describe('E1 — recheck ativo: força backgroundDetect', () => {
   it('chama backgroundDetect antes de qualquer decisão', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
       punchPopupExpectedTime: '12:00',
@@ -80,6 +84,7 @@ describe('E1 — recheck ativo: força backgroundDetect', () => {
   it('continua o ciclo mesmo se backgroundDetect rejeitar (não derruba recheck)', async () => {
     backgroundDetectSpy.mockRejectedValueOnce(new Error('network down'));
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
       punchPopupExpectedTime: '12:00',
@@ -97,6 +102,7 @@ describe('E1 — recheck ativo: força backgroundDetect', () => {
 describe('E2 — escalação após 20 min', () => {
   it('abre popup em modo NORMAL quando startedTs é recente', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
       punchPopupExpectedTime: '12:00',
@@ -110,6 +116,7 @@ describe('E2 — escalação após 20 min', () => {
 
   it('abre popup em modo ESCALADO quando passou 20+ min', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
       punchPopupExpectedTime: '12:00',
@@ -123,6 +130,7 @@ describe('E2 — escalação após 20 min', () => {
   it('limite do threshold: 19min NÃO escala, 21min escala', async () => {
     // 19min — não escala
     mockStorageGet.mockResolvedValueOnce({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
       punchPopupExpectedTime: '12:00',
@@ -137,6 +145,7 @@ describe('E2 — escalação após 20 min', () => {
 
     // 21min — escala
     mockStorageGet.mockResolvedValueOnce({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
       punchPopupExpectedTime: '12:00',
@@ -149,7 +158,7 @@ describe('E2 — escalação após 20 min', () => {
   });
 
   it('startReminder marca punchPopupStartedTs com Date.now()', async () => {
-    mockStorageGet.mockResolvedValue({ pontoState: pontoEntrada });
+    mockStorageGet.mockResolvedValue({ pontoDate: TODAY, pontoState: pontoEntrada });
     const before = Date.now();
     await startReminder('almoco', '12:00');
     const after = Date.now();
@@ -171,6 +180,7 @@ describe('E2 — escalação após 20 min', () => {
 describe('E3 — dismissed slots', () => {
   it('startReminder NÃO abre popup pra slot dismissed', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       [DISMISSED_SLOTS_KEY]: ['almoco'],
     });
@@ -180,6 +190,7 @@ describe('E3 — dismissed slots', () => {
 
   it('startReminder AINDA abre popup pra slot não-dismissed', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       [DISMISSED_SLOTS_KEY]: ['almoco'], // almoco dismissed, volta não
     });
@@ -189,6 +200,7 @@ describe('E3 — dismissed slots', () => {
 
   it('recheckReminder resolve (não reabre) se slot foi dispensado entre cycles', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
       punchPopupExpectedTime: '12:00',
@@ -237,6 +249,7 @@ describe('E3 — dismissed slots', () => {
 describe('E4 — markSlotPunched (modo escalado: "Já bati")', () => {
   it('seta o slot no pontoState com o expectedTime', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
     });
@@ -253,7 +266,7 @@ describe('E4 — markSlotPunched (modo escalado: "Já bati")', () => {
 
   it('mantém os outros slots inalterados', async () => {
     const fullState = { entrada: '08:00', almoco: null, volta: null, saida: null };
-    mockStorageGet.mockResolvedValue({ pontoState: fullState, punchPopupSlot: 'almoco' });
+    mockStorageGet.mockResolvedValue({ pontoDate: TODAY, pontoState: fullState, punchPopupSlot: 'almoco' });
     await markSlotPunched('almoco', '12:00');
 
     const setCall = mockStorageSet.mock.calls.find(
@@ -268,7 +281,7 @@ describe('E4 — markSlotPunched (modo escalado: "Já bati")', () => {
   });
 
   it('funciona mesmo com pontoState null (primeira marcação do dia)', async () => {
-    mockStorageGet.mockResolvedValue({ pontoState: null, punchPopupSlot: 'entrada' });
+    mockStorageGet.mockResolvedValue({ pontoDate: TODAY, pontoState: null, punchPopupSlot: 'entrada' });
     await markSlotPunched('entrada', '08:00');
 
     const setCall = mockStorageSet.mock.calls.find(
@@ -281,6 +294,7 @@ describe('E4 — markSlotPunched (modo escalado: "Já bati")', () => {
 
   it('resolve o reminder (chama resolveReminder no slot)', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       punchPopupSlot: 'almoco',
       punchPopupWindowId: 99,
@@ -301,6 +315,7 @@ describe('E5 — happy path: backgroundDetect achou o ponto', () => {
     // Cenário ideal: usuário bateu no celular, GP sincronizou, backgroundDetect
     // pegou. mockStorageGet retorna ps já com almoço — recheck deve resolver.
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: { entrada: '09:00', almoco: '12:15', volta: null, saida: null },
       punchPopupSlot: 'almoco',
       punchPopupExpectedTime: '12:00',
@@ -318,7 +333,7 @@ describe('E5 — happy path: backgroundDetect achou o ponto', () => {
 
 describe('E6 — pre-flight em startReminder', () => {
   it('chama backgroundDetect ANTES de qualquer guard', async () => {
-    mockStorageGet.mockResolvedValue({ pontoState: pontoEntrada });
+    mockStorageGet.mockResolvedValue({ pontoDate: TODAY, pontoState: pontoEntrada });
     await startReminder('almoco', '12:00');
     expect(backgroundDetectSpy).toHaveBeenCalledTimes(1);
   });
@@ -328,6 +343,7 @@ describe('E6 — pre-flight em startReminder', () => {
     // dispara às 12:00. Sem pre-flight, popup abriria. Com pre-flight,
     // backgroundDetect rebusca, ps.almoco fica preenchido, guard P3 pega.
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: { entrada: '09:00', almoco: '11:59', volta: null, saida: null },
     });
     await startReminder('almoco', '12:00');
@@ -337,6 +353,7 @@ describe('E6 — pre-flight em startReminder', () => {
 
   it('AINDA abre popup quando pre-flight roda mas slot continua null', async () => {
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: { entrada: '09:00', almoco: null, volta: null, saida: null },
     });
     await startReminder('almoco', '12:00');
@@ -347,6 +364,7 @@ describe('E6 — pre-flight em startReminder', () => {
   it('falha do backgroundDetect não bloqueia startReminder (degrada gracioso)', async () => {
     backgroundDetectSpy.mockRejectedValueOnce(new Error('network down'));
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: { entrada: '09:00', almoco: null, volta: null, saida: null },
     });
     await expect(startReminder('almoco', '12:00')).resolves.toBeUndefined();
@@ -356,6 +374,7 @@ describe('E6 — pre-flight em startReminder', () => {
   it('pre-flight + slot dismissed: detect roda, mas popup não abre por dismissed', async () => {
     // Garante que dismissed continua tendo precedência (mesmo após detect)
     mockStorageGet.mockResolvedValue({
+      pontoDate: TODAY,
       pontoState: pontoEntrada,
       [DISMISSED_SLOTS_KEY]: ['almoco'],
     });
@@ -397,7 +416,7 @@ describe('E7 — garantia: os 4 slots funcionam end-to-end', () => {
   for (const tc of FOUR_SLOTS_CASES) {
     describe(`slot=${tc.slot}`, () => {
       beforeEach(() => {
-        mockStorageGet.mockResolvedValue({ pontoState: tc.pontoState });
+        mockStorageGet.mockResolvedValue({ pontoDate: TODAY, pontoState: tc.pontoState });
       });
 
       it(`startReminder abre popup com URL contendo slot=${tc.slot} e time=${tc.expectedTime}`, async () => {
@@ -421,7 +440,7 @@ describe('E7 — garantia: os 4 slots funcionam end-to-end', () => {
 
       it(`NÃO abre popup se ${tc.slot} já foi batido`, async () => {
         const alreadyPunched = { ...tc.pontoState, [tc.slot]: tc.expectedTime };
-        mockStorageGet.mockResolvedValue({ pontoState: alreadyPunched });
+        mockStorageGet.mockResolvedValue({ pontoDate: TODAY, pontoState: alreadyPunched });
         await startReminder(tc.slot, tc.expectedTime);
         expect(mockWindowsCreate).not.toHaveBeenCalled();
       });

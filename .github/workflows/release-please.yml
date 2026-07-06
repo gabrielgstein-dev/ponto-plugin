@@ -29,6 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Última linha de defesa antes de publicar: nunca shipar com flag
+      # dev-only ativa (DEBUG, ENABLE_NETLOG_CAPTURE), mesmo que algo tenha
+      # furado o gate de PR (prod-flags.yml).
+      - name: Gate de flags de produção
+        run: node scripts/check-prod-flags.mjs
+
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
