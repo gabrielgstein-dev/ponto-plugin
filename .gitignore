@@ -14,3 +14,7 @@ tests/.real-profile/
 
 # macOS
 .DS_Store
+
+# Credenciais locais (client secret do Google / CWS API, etc.)
+.env
+.env.*
