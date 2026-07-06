@@ -9,7 +9,7 @@
   "ENABLE_YESTERDAY": false,
   "ENABLE_NOTIFICATIONS": true,
   "ENABLE_META_TIMESHEET": true,
-  "ENABLE_NETLOG_CAPTURE": true,
+  "ENABLE_NETLOG_CAPTURE": false,
   "ENABLE_SILENT_REFRESH": true,
   "THEME": "insi"
 }
