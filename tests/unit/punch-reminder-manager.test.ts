@@ -18,7 +18,9 @@ const pontoEntradaAlmoco = { entrada: '09:00', almoco: '12:00', volta: null, sai
 const pontoCompleto = { entrada: '09:00', almoco: '12:00', volta: '13:00', saida: '18:00' }
 
 function storageWith(overrides: Record<string, unknown>) {
-  mockStorageGet.mockResolvedValue(overrides)
+  // pontoDate default = hoje: os guards validam a data antes de confiar no
+  // pontoState (punch-state.ts). Testes de estado stale sobrescrevem.
+  mockStorageGet.mockResolvedValue({ pontoDate: new Date().toDateString(), ...overrides })
 }
 
 // ── U1: startReminder cria storage keys e abre janela ────────────────────────

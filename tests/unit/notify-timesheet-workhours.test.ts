@@ -103,6 +103,8 @@ function setupStorage(pontoState: unknown, summary: unknown = MOCK_SUMMARY): voi
     timesheetSummaryCache: summary,
     tsNotifWindowId: null,
     pontoState,
+    // punchStateForToday valida a data antes de confiar no pontoState
+    pontoDate: new Date().toDateString(),
     tsNotifDismissedTs: 0,
   })
 }

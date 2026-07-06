@@ -21,6 +21,7 @@ import { ManualPunchProvider } from '../infrastructure/manual/manual-punch-provi
 import { scheduleNotifications } from './schedule-notifications';
 import { scheduleTsNotifications } from './schedule-ts-notifications';
 import { applyPartialState, applySettings, state, resetNotifScheduled } from './state';
+import { punchStateForToday, isSlotPunched } from './punch-state';
 import { calcHorarios } from './calc-schedule';
 
 function buildProviders(): IPunchProvider[] {
@@ -354,16 +355,16 @@ export async function notifyPendingTimesheet(): Promise<void> {
     // sobre o último estado conhecido. O sync acontece em outros gatilhos
     // (webRequest captura novo token, sidepanel onMount, edição manual).
     const stored = await chrome.storage.local.get([
-      'timesheetSummaryCache', 'tsNotifWindowId', 'pontoState', 'tsNotifDismissedTs', 'userProfile',
+      'timesheetSummaryCache', 'tsNotifWindowId', 'pontoState', 'pontoDate', 'tsNotifDismissedTs', 'userProfile',
     ]);
     // Gate via onboarding: se user disse que não preenche timesheet, ignora.
     // Lido nesta mesma chamada batch pra não acrescentar I/O extra.
     const profile = stored.userProfile as { hasTimesheet?: boolean | null } | undefined;
     if (profile?.hasTimesheet === false) return;
-    const ps = stored.pontoState as { entrada?: string | null; saida?: string | null } | null;
+    const ps = punchStateForToday(stored);
 
     // Só exibe dentro da janela de trabalho: entrada registrada e saída ainda não batida
-    if (!ps?.entrada || ps?.saida) return;
+    if (!isSlotPunched(ps, 'entrada') || isSlotPunched(ps, 'saida')) return;
 
     // Cooldown: respeita dismiss do usuário por 2h
     const dismissedTs = (stored.tsNotifDismissedTs as number) || 0;

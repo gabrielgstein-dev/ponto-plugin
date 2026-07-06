@@ -97,8 +97,11 @@ describe('handleReminderAlarm — stale alarm (wake-from-sleep)', () => {
   })
 
   it('AINDA dispara notificação quando scheduledTime é recente (<1h drift)', async () => {
-    mockStorageGetForHandler({
+    // mockResolvedValue (não Once): o handler faz múltiplas leituras
+    // (pontoSettings, pontoState+pontoDate via punch-state, alarm_msg_*).
+    mockStorageGet.mockResolvedValue({
       pontoState: { entrada: '08:00', almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
       alarm_msg_reminder_saida: 'Você ainda não bateu a saída! (30 min em atraso)',
     })
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
@@ -114,17 +117,14 @@ describe('handleReminderAlarm — stale alarm (wake-from-sleep)', () => {
     // Sem o fix, ambos dispararam (handler não checa drift). Com o fix, só o
     // de 59min dispara. Sem o par, "exatamente 1h dispara" sozinho passaria
     // dos dois lados — não testando o limite de verdade.
-    mockStorageGetForHandler({
+    mockStorageGet.mockResolvedValue({
       pontoState: { entrada: '08:00', almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
       alarm_msg_reminder_saida: 'msg',
     })
     await handleReminderAlarm('reminder_saida', Date.now() - 59 * 60 * 1000)
     expect(getNotifMock()).toHaveBeenCalledTimes(1)
 
-    mockStorageGetForHandler({
-      pontoState: { entrada: '08:00', almoco: null, volta: null, saida: null },
-      alarm_msg_reminder_saida: 'msg',
-    })
     await handleReminderAlarm('reminder_saida', Date.now() - 61 * 60 * 1000)
     expect(getNotifMock()).toHaveBeenCalledTimes(1) // ainda 1, não disparou de novo
   })
@@ -186,7 +186,7 @@ describe('handleNotifAlarm — stale alarm (wake-from-sleep)', () => {
   })
 
   it('AINDA dispara notificação "Prepare-se" quando scheduledTime é recente', async () => {
-    mockStorageGetForHandler({
+    mockStorageGet.mockResolvedValue({
       alarm_msg_notif_saida: 'Saída em 10 minutos! Prepare-se.',
     })
     await handleNotifAlarm('notif_saida', Date.now() - 30 * 1000)
@@ -205,8 +205,9 @@ describe('handleNotifAlarm — stale alarm (wake-from-sleep)', () => {
 //    pra não quebrar testes existentes que chamam só com alarmName.
 describe('backwards compatibility — chamada sem scheduledTime', () => {
   it('handleReminderAlarm sem scheduledTime usa Date.now() (não stale)', async () => {
-    mockStorageGetForHandler({
+    mockStorageGet.mockResolvedValue({
       pontoState: { entrada: null, almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
       alarm_msg_reminder_entrada: 'msg',
     })
     await handleReminderAlarm('reminder_entrada')
