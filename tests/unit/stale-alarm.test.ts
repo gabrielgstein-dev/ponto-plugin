@@ -193,7 +193,7 @@ describe('handleNotifAlarm — stale alarm (wake-from-sleep)', () => {
     expect(getNotifMock()).toHaveBeenCalledWith(
       'notif_saida',
       expect.objectContaining({
-        title: 'Senior Ponto',
+        title: 'Ponto Insi',
         message: 'Saída em 10 minutos! Prepare-se.',
       }),
       expect.any(Function),

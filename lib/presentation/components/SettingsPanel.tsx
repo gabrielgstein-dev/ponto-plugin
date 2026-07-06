@@ -76,13 +76,13 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
           />
         </div>
         <div className="setting-row">
-          <label htmlFor="meta-x-reminder">Lembrete Meta X</label>
+          <label htmlFor="insi-x-reminder">Lembrete Insi X</label>
           <input
-            id="meta-x-reminder"
+            id="insi-x-reminder"
             type="checkbox"
             className="setting-checkbox"
-            checked={settings.metaXReminder}
-            onChange={e => onChange({ metaXReminder: e.target.checked })}
+            checked={settings.insiXReminder}
+            onChange={e => onChange({ insiXReminder: e.target.checked })}
           />
         </div>
         <SoundSettings settings={settings} onChange={onChange} />
@@ -91,7 +91,7 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
         <LogsActions />
         {DEBUG && ENABLE_NETLOG_CAPTURE && <MetaNetLogActions />}
         {DEBUG && <DebugReminderTest />}
-        {DEBUG && <DebugMetaXTest />}
+        {DEBUG && <DebugInsiXTest />}
         {DEBUG && ENABLE_META_TIMESHEET && <DebugMetaTsDirectFetch />}
         {DEBUG && ENABLE_SENIOR_INTEGRATION && <DebugSeniorStorageDump />}
         <VersionFooter />
@@ -249,13 +249,13 @@ ${result.bodyPreview || '(empty)'}`}
   );
 }
 
-function DebugMetaXTest() {
+function DebugInsiXTest() {
   const [ctx, setCtx] = useState<'morning' | 'exit_gate' | 'snooze' | 'afternoon_notif'>('morning');
   const handleOpenPopup = () => {
-    chrome.runtime.sendMessage({ type: 'TEST_META_X_POPUP', ctx });
+    chrome.runtime.sendMessage({ type: 'TEST_INSI_X_POPUP', ctx });
   };
   const handleReset = () => {
-    chrome.storage.local.remove('metaXState');
+    chrome.storage.local.remove('insiXState');
   };
   return (
     <div className="logs-actions">
@@ -266,7 +266,7 @@ function DebugMetaXTest() {
         <option value="afternoon_notif">16h</option>
       </select>
       <button className="logs-export-btn" onClick={handleOpenPopup}>
-        Testar Meta X
+        Testar Insi X
       </button>
       <button className="logs-clear-btn" onClick={handleReset}>
         Reset semana

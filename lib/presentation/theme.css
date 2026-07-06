@@ -1,39 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Figtree:wght@300;400;500;600;700;800&display=swap');
 
+/* Paleta insi (ex-Meta) — roxo #421589 / magenta #ca2d7e. Extraída de insi.com. */
 :root {
-  --bg: #f9fafb;
+  --bg: #f5f5f7;
   --surface: #ffffff;
-  --surface2: #f1f5f9;
-  --border: #e2e8f0;
-  --accent: #0032ff;
-  --accent2: #0056b3;
-  --warn: #f59e0b;
-  --danger: #ef4444;
-  --text: #111827;
-  --text-dim: #374151;
-  --text-dimmer: #6b7280;
+  --surface2: #ebebf0;
+  --border: #d9d9e3;
+  --accent: #421589;
+  --accent2: #320078;
+  --warn: #b96800;
+  --danger: #a8215f;
+  --text: #1a1b3a;
+  --text-dim: #4a4b5c;
+  --text-dimmer: #6b6d7d;
   --overtime-bg: rgba(255, 165, 0, 0.1);
   --overtime-accent: #ff9500;
   --overtime-text: #cc7700;
   --overtime-value: #ff9500;
-  
-  --dark-bg: #0f1117;
-  --dark-surface: #1a1d23;
-  --dark-surface2: #23272f;
-  --dark-border: #2d3239;
-  --dark-accent: #3b82f6;
-  --dark-accent2: #2563eb;
-  --dark-warn: #f59e0b;
-  --dark-danger: #ef4444;
-  --dark-text: #f9fafb;
-  --dark-text-dim: #d1d5db;
-  --dark-text-dimmer: #9ca3af;
+
+  --dark-bg: #14101e;
+  --dark-surface: #1d1730;
+  --dark-surface2: #271f3d;
+  --dark-border: #36294f;
+  --dark-accent: #9d7bf0;
+  --dark-accent2: #7e5ce6;
+  --dark-warn: #e0a030;
+  --dark-danger: #e0558f;
+  --dark-text: #ece8f5;
+  --dark-text-dim: #b3a9c9;
+  --dark-text-dimmer: #7e7099;
   --dark-overtime-bg: rgba(255, 165, 0, 0.15);
   --dark-overtime-accent: #ffaa33;
   --dark-overtime-text: #ffaa33;
   --dark-overtime-value: #ffcc66;
   --mono: 'Space Mono', monospace;
-  --sans: 'DM Sans', sans-serif;
+  --sans: 'Figtree', sans-serif;
 }
 
 /* Dark mode variables */

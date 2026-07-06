@@ -138,7 +138,7 @@ export async function handleReminderAlarm(alarmName: string, scheduledTime = Dat
   chrome.notifications.create(alarmName, {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
-    title: 'Senior Ponto — Lembrete',
+    title: 'Ponto Insi — Lembrete',
     message: msg,
     priority: 2,
   }, (id: string) => {
@@ -160,7 +160,7 @@ export async function handleNotifAlarm(alarmName: string, scheduledTime = Date.n
   chrome.notifications.create(alarmName, {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
-    title: 'Senior Ponto',
+    title: 'Ponto Insi',
     message: msg,
     priority: 2,
   }, (id: string) => {

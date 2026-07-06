@@ -30,8 +30,8 @@ pnpm build:manual
 # Build para Senior (com tema dark)
 pnpm build:senior
 
-# Build para Meta (com tema meta e todas as configurações)
-pnpm build:meta
+# Build para Insi (com tema insi e todas as configurações)
+pnpm build:insi
 ```
 
 ### Gerando pacotes

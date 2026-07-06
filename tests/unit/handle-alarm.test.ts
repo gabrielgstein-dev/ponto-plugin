@@ -83,7 +83,7 @@ describe("handleReminderAlarm — slot 'entrada' (BUG 3)", () => {
     expect(notif).toHaveBeenCalledWith(
       'reminder_entrada',
       expect.objectContaining({
-        title: 'Senior Ponto — Lembrete',
+        title: 'Ponto Insi — Lembrete',
         message: 'Você ainda não bateu a entrada! (30 min em atraso)',
       }),
       expect.any(Function),

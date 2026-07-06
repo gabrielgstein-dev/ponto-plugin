@@ -1,14 +1,14 @@
-import type { MetaXState } from './types';
+import type { InsiXState } from './types';
 
-export type MetaXTone = 'idle' | 'attention' | 'urgent' | 'done';
+export type InsiXTone = 'idle' | 'attention' | 'urgent' | 'done';
 
-export interface MetaXStatus {
-  tone: MetaXTone;
+export interface InsiXStatus {
+  tone: InsiXTone;
   label: string;
   shouldShow: boolean;
 }
 
-export const META_X_URL = 'https://app.teamculture.com.br/survey';
+export const INSI_X_URL = 'https://app.teamculture.com.br/survey';
 
 export function getIsoWeekKey(now: Date): string {
   const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
@@ -19,12 +19,12 @@ export function getIsoWeekKey(now: Date): string {
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-export function hasRespondedThisWeek(state: MetaXState | null | undefined, now: Date): boolean {
+export function hasRespondedThisWeek(state: InsiXState | null | undefined, now: Date): boolean {
   if (!state?.lastRespondedWeekKey) return false;
   return state.lastRespondedWeekKey === getIsoWeekKey(now);
 }
 
-export function getMetaXStatus(now: Date, state: MetaXState | null | undefined): MetaXStatus {
+export function getInsiXStatus(now: Date, state: InsiXState | null | undefined): InsiXStatus {
   const day = now.getDay();
   const responded = hasRespondedThisWeek(state, now);
 

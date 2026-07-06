@@ -25,9 +25,9 @@ export function generateWidgetStyles(): string {
       #senior-ponto-widget { position:fixed; bottom:20px; right:20px; z-index:99999; font-family:var(--sans); user-select:none; will-change:transform; }
       #senior-ponto-widget.spw-dragging { transition:none !important; }
       #spw-toggle { touch-action:none; }
-      #spw-toggle { width:48px; height:48px; background:var(--bg); border:2px solid var(--accent); border-radius:50%; cursor:grab; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 20px rgba(74,222,128,0.3); margin-left:auto; transition:all 0.2s ease; }
+      #spw-toggle { width:48px; height:48px; background:var(--bg); border:2px solid var(--accent); border-radius:50%; cursor:grab; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 20px rgba(124,77,240,0.3); margin-left:auto; transition:all 0.2s ease; }
       #spw-toggle:active { cursor:grabbing; }
-      #spw-toggle:hover { transform:scale(1.05); box-shadow:0 4px 24px rgba(74,222,128,0.5); }
+      #spw-toggle:hover { transform:scale(1.05); box-shadow:0 4px 24px rgba(124,77,240,0.5); }
       #spw-toggle svg { color:var(--accent); transition:color 0.2s ease; }
       #spw-panel { display:none; position:absolute; background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:14px; width:220px; box-shadow:0 8px 32px rgba(0,0,0,0.5); transition:all 0.2s ease; }
       #spw-panel.open { display:block; }

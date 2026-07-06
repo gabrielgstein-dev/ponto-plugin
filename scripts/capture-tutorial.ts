@@ -69,7 +69,7 @@ const SEED_STATE = {
 function ensureBuilt() {
   if (!fs.existsSync(EXTENSION_PATH)) {
     throw new Error(
-      `Extensão não compilada. Rode 'pnpm build:meta' antes.\n` +
+      `Extensão não compilada. Rode 'pnpm build:insi' antes.\n` +
         `Esperado em: ${EXTENSION_PATH}`,
     )
   }

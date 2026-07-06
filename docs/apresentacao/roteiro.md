@@ -123,7 +123,7 @@
 ## O que precisa de login real
 
 Os passos abaixo dependem de uma sessão logada no Meta. Para capturar:
-1. Rode `pnpm build:meta` uma vez.
+1. Rode `pnpm build:insi` uma vez.
 2. Use um perfil persistente do Chromium (`--user-data-dir`) e logue manualmente.
 3. Re-execute o script — ele reaproveita o perfil.
 
