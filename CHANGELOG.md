@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.14.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.13.0...senior-ponto-v0.14.0) (2026-07-06)
+
+
+### Novidades
+
+* **migration:** preserva storage do usuário no rebrand Meta X → Insi X ([3f9c1ed](https://github.com/gabrielgstein-dev/ponto-plugin/commit/3f9c1ede67172800382b018e9ec7399a7f44b205))
+* netlog + rebrand para "Ponto Insi" + build de produção ([e499fb5](https://github.com/gabrielgstein-dev/ponto-plugin/commit/e499fb588b2cb3d13a0c2fb232868e0ce4a2f2b8))
+* **netlog:** captura de tráfego HTTP em todos os hosts (dev only) ([5f0cb85](https://github.com/gabrielgstein-dev/ponto-plugin/commit/5f0cb85715332b87904683c07bd13ac2309b275e))
+* rebrand para "Ponto Insi" + build de produção ([b304a27](https://github.com/gabrielgstein-dev/ponto-plugin/commit/b304a27e74cc3d49be90f3f647d1911c54bc62ad))
+
+
+### Correções
+
+* **e2e:** zera as 6 falhas da suíte — merge do onboarding + baselines ([2e1175b](https://github.com/gabrielgstein-dev/ponto-plugin/commit/2e1175b28de49779a56bd05462e912138986c3a1))
+* **reminder:** fecha popup só após ack do SW — snooze perdido em MV3 ([b07df0c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/b07df0c3f4f533fbf52cc909ede2cc93bb984f72))
+* **reminder:** fecha popup só após ack do SW — snooze perdido em MV3 ([ae608fd](https://github.com/gabrielgstein-dev/ponto-plugin/commit/ae608fd46caf8c5dfa883640c4ce41bb1015bd64))
+* **reminders:** centraliza checagem de slot batido em punch-state.ts ([942536e](https://github.com/gabrielgstein-dev/ponto-plugin/commit/942536e2361abab76ec7e915bef05a36c871050f))
+
 ## [0.13.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.12.1...senior-ponto-v0.13.0) (2026-06-10)
 
 
