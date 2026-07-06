@@ -23,7 +23,7 @@ import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/meta/timesheet/cons
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
 import { isValidJWT, decodeJwtPayload, formatJwtExp } from '../lib/domain/jwt-utils';
 import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
-import { initializeStorageIfNeeded } from '../lib/application/install-init';
+import { initializeStorageIfNeeded, migrateInsiXStorageKeys } from '../lib/application/install-init';
 import {
   openInsiXPopup,
   markInsiXResponded,
@@ -49,6 +49,7 @@ export default defineBackground(() => {
   // single source of truth com os tests pra evitar divergência.
   chrome.runtime.onInstalled.addListener(() => {
     initializeStorageIfNeeded().catch(() => {});
+    migrateInsiXStorageKeys().catch(() => {});
   });
 
   if (ENABLE_SENIOR_INTEGRATION) {
