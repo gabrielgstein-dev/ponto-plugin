@@ -103,7 +103,7 @@ test('SMOKE BUG 2 — sidepanel sem auth mostra ReconnectCard pro usuário', asy
   await sp.locator('.sp-tab', { hasText: 'Timesheet' }).click()
 
   await expect(sp.getByTestId('ts-reconnect-card')).toBeVisible({ timeout: 8_000 })
-  await expect(sp.locator('.ts-reconnect-msg')).toContainText('sessão Senior expirou')
+  await expect(sp.locator('.ts-reconnect-msg')).toContainText('sessão do Timesheet expirou')
   await expect(sp.getByTestId('ts-reconnect-btn')).toBeVisible()
   await sp.close()
 })
