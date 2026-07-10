@@ -6,7 +6,10 @@ import { readFileSync, writeFileSync } from 'fs';
 
 const basePermissions: string[] = ['storage', 'alarms', 'sidePanel'];
 const seniorPermissions: string[] = ['tabs', 'scripting', 'webRequest', 'cookies'];
-const metaTimesheetPermissions: string[] = ['tabs', 'scripting', 'webRequest', 'cookies'];
+// declarativeNetRequestWithHostAccess: injeta o cookie de sessão NextAuth no
+// fetch do background para /api/auth/session (o SW MV3 não envia cookies
+// SameSite=Lax sozinho). Só age em hosts já em host_permissions.
+const metaTimesheetPermissions: string[] = ['tabs', 'scripting', 'webRequest', 'cookies', 'declarativeNetRequestWithHostAccess'];
 const notifPermissions: string[] = ['notifications'];
 
 const permissions = Array.from(new Set([

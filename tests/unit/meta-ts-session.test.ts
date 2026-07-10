@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+import { mockCookiesGetAll, mockDnrUpdateSessionRules } from '../setup/chrome-mock'
 import type { TimesheetConfig } from '../../lib/infrastructure/timesheet/timesheet-config'
 import type { TimesheetAuth } from '../../lib/infrastructure/timesheet/timesheet-auth'
 
@@ -100,6 +101,53 @@ describe('getMetaTsTokenSilently', () => {
     const [url, init] = fetchSpy.mock.calls[0]
     expect(url).toBe('https://plataforma.meta.com.br/api/auth/session')
     expect((init as RequestInit).credentials).toBe('include')
+  })
+
+  it('injeta o cookie de sessão da plataforma via DNR quando há sessão (headless)', async () => {
+    const jwt = makeJwt()
+    // Sessão presente no navegador → chrome.cookies devolve os cookies
+    mockCookiesGetAll.mockResolvedValue([
+      { name: '__Secure-next-auth.session-token', value: 'sess-abc' },
+      { name: 'csrf', value: 'xyz' },
+    ])
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
+
+    const { getMetaTsTokenSilently } = await import(
+      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+    )
+    const auth = makeAuth()
+    const result = await getMetaTsTokenSilently(CONFIG, auth)
+    expect(result).toBe(jwt)
+
+    // Registrou a regra de sessão com o header Cookie contendo os cookies
+    const addCall = mockDnrUpdateSessionRules.mock.calls.find(
+      (c) => (c[0] as { addRules?: unknown[] })?.addRules,
+    )
+    expect(addCall).toBeTruthy()
+    const rule = (addCall![0] as { addRules: Array<{ id: number; action: { requestHeaders: Array<{ header: string; value: string }> }; condition: { tabIds: number[] } }> }).addRules[0]
+    expect(rule.action.requestHeaders[0].header.toLowerCase()).toBe('cookie')
+    expect(rule.action.requestHeaders[0].value).toContain('__Secure-next-auth.session-token=sess-abc')
+    expect(rule.action.requestHeaders[0].value).toContain('csrf=xyz')
+    expect(rule.condition.tabIds).toEqual([-1])
+
+    // Removeu a regra ao final (chamada só com removeRuleIds, sem addRules)
+    const removed = mockDnrUpdateSessionRules.mock.calls.some((c) => {
+      const o = c[0] as { removeRuleIds?: number[]; addRules?: unknown }
+      return Array.isArray(o?.removeRuleIds) && !o?.addRules
+    })
+    expect(removed).toBe(true)
+  })
+
+  it('sem sessão (cookies vazios) faz fetch normal, sem tocar DNR', async () => {
+    const jwt = makeJwt()
+    mockCookiesGetAll.mockResolvedValue([])
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
+
+    const { getMetaTsTokenSilently } = await import(
+      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+    )
+    expect(await getMetaTsTokenSilently(CONFIG, makeAuth())).toBe(jwt)
+    expect(mockDnrUpdateSessionRules).not.toHaveBeenCalled()
   })
 
   it('persiste o accessToken JWT válido', async () => {
