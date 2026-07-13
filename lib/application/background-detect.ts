@@ -192,7 +192,7 @@ const TS_AUTO_CONNECT_TIMEOUT_MS = 20000;
 // das chamadas reais ao api.meta.com.br). O SSO via Senior é encadeado
 // pela própria plataforma.
 const META_TS_BOOTSTRAP_URL =
-  'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create';
+  'https://plataforma.insi.com/login?callbackUrl=/timesheet/create';
 
 async function tsAutoConnect(): Promise<boolean> {
   try {

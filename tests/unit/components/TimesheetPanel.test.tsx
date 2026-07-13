@@ -66,7 +66,7 @@ describe('TimesheetPanel', () => {
     expect(screen.getByTestId('ts-reconnect-btn')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /abrir manualmente/i })).toHaveAttribute(
       'href',
-      'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create',
+      'https://plataforma.insi.com/login?callbackUrl=/timesheet/create',
     )
   })
 
@@ -79,7 +79,7 @@ describe('TimesheetPanel', () => {
     render(<TimesheetPanel />)
     fireEvent.click(screen.getByTestId('ts-reconnect-btn'))
     expect(create).toHaveBeenCalledWith({
-      url: 'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create',
+      url: 'https://plataforma.insi.com/login?callbackUrl=/timesheet/create',
       active: true,
     })
   })

@@ -330,7 +330,7 @@ export default defineBackground(() => {
         const token = data.metaTsToken as string | undefined;
         const tokenTs = data.metaTsTokenTs as number | undefined;
         if (!token) {
-          sendResponse({ ok: false, error: 'metaTsToken ausente — abra https://plataforma.meta.com.br/modules/timesheet/create 1x pra capturar' });
+          sendResponse({ ok: false, error: 'metaTsToken ausente — abra https://plataforma.insi.com/timesheet/create 1x pra capturar' });
           return;
         }
         const period = message.period as string | undefined ?? getCurrentTimesheetPeriod(0);

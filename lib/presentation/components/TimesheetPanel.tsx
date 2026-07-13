@@ -122,7 +122,7 @@ function formatHours(h: number): string {
 // "Reconectar" disparava REQUEST_TS_SYNC → auto-connect em aba escondida, que
 // depende do /api/auth/session (quebrado: retorna {} após mudança de login).
 const META_TS_LOGIN_URL =
-  'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create';
+  'https://plataforma.insi.com/login?callbackUrl=/timesheet/create';
 
 function openTimesheetTab(): void {
   try {
