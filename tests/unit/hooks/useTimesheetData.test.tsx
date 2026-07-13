@@ -182,8 +182,13 @@ describe('useTimesheetData', () => {
     renderHook(() => useTimesheetData())
     await waitFor(() => expect(getSummarySpy).toHaveBeenCalled())
     getSummarySpy.mockClear()
+    // Token precisa ser um JWT VÁLIDO (não vencido) para disparar reload — a
+    // reconexão só recarrega quando o token passa a ser usável.
+    const header = btoa(JSON.stringify({ alg: 'RS256' })).replace(/=/g, '')
+    const body = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).replace(/=/g, '')
+    const validJwt = `${header}.${body}.sig`
     act(() => {
-      triggerStorageChange({ metaTsToken: { newValue: 'tok' } }, 'local')
+      triggerStorageChange({ metaTsToken: { newValue: validJwt } }, 'local')
     })
     await waitFor(() => expect(getSummarySpy).toHaveBeenCalled())
   })

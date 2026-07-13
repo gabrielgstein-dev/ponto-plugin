@@ -151,7 +151,7 @@ export default defineBackground(() => {
           debugLog(`metaTsToken capturado via webRequest${exp ? ` (${formatJwtExp(exp)})` : ''}`);
         }
       },
-      { urls: ['https://api.meta.com.br/*'] },
+      { urls: ['https://api.insi.com/*'] },
       ['requestHeaders', 'extraHeaders']
     );
   }
@@ -663,14 +663,15 @@ export default defineBackground(() => {
       }).catch(() => {});
     }
     if (changes.metaTsToken) {
-      // Só dispara em transição ausente↔presente. Renovações rotineiras
-      // (presente→presente diferente) NÃO precisam de re-sync — caso contrário
-      // cada `fetchHoursSummary` que captura novo Bearer dispara nova sync,
-      // que dispara nova captura, em loop. Confirmado em prod 2026-05-07.
-      const hadToken = !!changes.metaTsToken.oldValue;
-      const hasToken = !!changes.metaTsToken.newValue;
-      if (!hadToken && hasToken) {
-        debugLog('Background: metaTsToken apareceu (login/auto-connect), sincronizando...');
+      // Dispara quando o token passa a ser USÁVEL (ausente/vencido → válido).
+      // Não basta ausente↔presente: na reconexão o storage tem o token velho
+      // vencido, então é presente→presente e o sync era pulado (usuário logava
+      // e a tela não trocava pra lista). Renovações rotineiras (válido→válido)
+      // continuam sem re-sync — evita o loop captura→sync→captura (prod 2026-05-07).
+      const oldOk = isValidJWT((changes.metaTsToken.oldValue as string) ?? '', 0);
+      const newOk = isValidJWT((changes.metaTsToken.newValue as string) ?? '', 0);
+      if (newOk && !oldOk) {
+        debugLog('Background: metaTsToken tornou-se válido (login/auto-connect), sincronizando...');
         backgroundTimesheetSync()
           .then(() => notifyPendingTimesheet())
           .catch(() => {});
