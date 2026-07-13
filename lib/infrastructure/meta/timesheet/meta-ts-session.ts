@@ -135,19 +135,34 @@ async function doRefresh(config: TimesheetConfig, auth: TimesheetAuth): Promise<
     // logar o body real quando a resposta vier sem accessToken.
     const rawBody = await r.text();
     let token: string | undefined;
+    let sessionError: string | undefined;
     try {
-      token = (JSON.parse(rawBody) as { accessToken?: string })?.accessToken;
+      const parsed = JSON.parse(rawBody) as { accessToken?: string; error?: string };
+      token = parsed?.accessToken;
+      sessionError = parsed?.error;
     } catch (_) {
       /* parse falha cai no branch abaixo */
     }
     if (typeof token !== 'string' || !isValidJWT(token)) {
+      // Distingue "sessão SSO morta" de "sem token". Quando o refresh token do
+      // Keycloak expira (idle/max lifetime), a plataforma responde 200 com
+      // `{accessToken: <JWT vencido>, error: 'RefreshAccessTokenError'}` — headless
+      // não recupera, só login interativo. O JWT vencido tem exp no passado.
+      const sessionExpired =
+        sessionError === 'RefreshAccessTokenError' || (typeof token === 'string' && !isValidJWT(token));
       const preview = rawBody.length > 500 ? rawBody.slice(0, 500) + `…[+${rawBody.length - 500}]` : rawBody;
-      errorLog('meta-ts-session: resposta sem accessToken válido (sessão expirada?)', JSON.stringify({
-        status: r.status,
-        contentType: r.headers.get('content-type'),
-        bodyLength: rawBody.length,
-        bodyPreview: preview,
-      }));
+      errorLog(
+        sessionExpired
+          ? 'meta-ts-session: sessão da plataforma expirada (refresh token SSO morto) — requer novo login'
+          : 'meta-ts-session: resposta sem accessToken válido',
+        JSON.stringify({
+          status: r.status,
+          sessionError,
+          contentType: r.headers.get('content-type'),
+          bodyLength: rawBody.length,
+          bodyPreview: preview,
+        }),
+      );
       return null;
     }
     auth.saveToken(token);

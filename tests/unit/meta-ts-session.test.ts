@@ -179,6 +179,24 @@ describe('getMetaTsTokenSilently', () => {
     expect(auth.saveToken).not.toHaveBeenCalled()
   })
 
+  it('rejeita sessão com error RefreshAccessTokenError (refresh SSO morto)', async () => {
+    // Plataforma responde 200 com JWT vencido + error quando o refresh token
+    // do Keycloak expira — headless não recupera, só login interativo.
+    const header = btoa(JSON.stringify({ alg: 'RS256' })).replace(/=/g, '')
+    const body = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 100 })).replace(/=/g, '')
+    const expiredJwt = `${header}.${body}.sig`
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({
+      ok: true, status: 200, body: { accessToken: expiredJwt, error: 'RefreshAccessTokenError' },
+    })))
+
+    const { getMetaTsTokenSilently } = await import(
+      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+    )
+    const auth = makeAuth()
+    expect(await getMetaTsTokenSilently(CONFIG, auth)).toBeNull()
+    expect(auth.saveToken).not.toHaveBeenCalled()
+  })
+
   it('retorna null com 401 (cookie expirado)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: false, status: 401, body: { error: 'unauthorized' } })))
 
