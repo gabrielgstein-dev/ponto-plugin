@@ -23,6 +23,8 @@ export interface Settings {
   weekdaysOnly: boolean;
   paytrackReminder: boolean;
   insiXReminder: boolean;
+  autoPunchEnabled: boolean;
+  autoPunchSlots: Record<PunchReminderSlot, boolean>;
 }
 
 export interface InsiXState {
@@ -80,6 +82,8 @@ export const DEFAULT_SETTINGS: Settings = {
   weekdaysOnly: true,
   paytrackReminder: true,
   insiXReminder: true,
+  autoPunchEnabled: false,
+  autoPunchSlots: { entrada: false, almoco: false, volta: false, saida: false },
 };
 
 export const DEFAULT_INSI_X_STATE: InsiXState = {

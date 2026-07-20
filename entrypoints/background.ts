@@ -2,7 +2,8 @@ import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/
 import { isTimesheetEnabled } from '../lib/domain/timesheet-gate';
 import { debugLog } from '../lib/domain/debug';
 import { installErrorHandlers } from '../lib/domain/install-error-handlers';
-import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
+import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm, handleAutoPunchAlarm } from '../lib/application/handle-alarm';
+import { openPunchPage } from '../lib/application/open-punch-page';
 import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, snoozeReminder, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
 import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
@@ -13,7 +14,6 @@ import { resetSeniorApiCache } from '../lib/infrastructure/senior/senior-api-pro
 import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-storage-provider';
 import { resetSeniorActiveUserCache } from '../lib/infrastructure/senior/senior-active-user-provider';
 import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
-import { COMPANY_PUNCH_URL } from '#company/providers';
 import { directFetchMetaTs } from '../lib/infrastructure/meta/timesheet/meta-ts-direct-fetch';
 import { directFetchSenior } from '../lib/infrastructure/senior/senior-direct-fetch';
 import { directFetchGp } from '../lib/infrastructure/meta/gestaoponto/gp-direct-fetch';
@@ -418,6 +418,15 @@ export default defineBackground(() => {
         .catch(() => sendResponse({ ok: false }));
       return true;
     }
+    if (message.type === 'TEST_AUTO_PUNCH') {
+      // Dev: dispara a batida automática de um slot imediatamente, bypassando o
+      // agendamento. Guards internos (slot já batido / dia bloqueado) ainda valem.
+      const slot = message.slot || 'entrada';
+      handleAutoPunchAlarm(`autopunch_${slot}`, Date.now())
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
     if (message.type === 'INSI_X_SNOOZE') {
       (async () => {
         await snoozeInsiXReminder();
@@ -489,6 +498,10 @@ export default defineBackground(() => {
       return;
     }
     if (alarm.name === 'punch_recheck') { recheckReminder().catch(() => {}); return; }
+    if (alarm.name.startsWith('autopunch_')) {
+      handleAutoPunchAlarm(alarm.name, alarm.scheduledTime).catch(() => {});
+      return;
+    }
     if (alarm.name.startsWith('punch_popup_')) {
       maybeInterceptSaidaForInsiX(alarm.name, alarm.scheduledTime).catch(() => {});
       return;
@@ -543,19 +556,6 @@ export default defineBackground(() => {
   // BUG 1: alarm separado pra checar pendentes do cache (sem depender de sync).
   // 30 min é suficiente — o popup tem cooldown próprio de 2h após dismiss.
   chrome.alarms.create('tsNotifCheck', { periodInMinutes: 30 });
-
-  async function openPunchPage() {
-    const tabs = await chrome.tabs.query({ url: 'https://platform.senior.com.br/*' });
-    const existing = tabs.find(t => t.url?.includes('clockingEvent') || t.url?.includes('clocking-event'));
-    if (existing?.id != null) {
-      await chrome.tabs.update(existing.id, { active: true });
-      if (existing.windowId != null) {
-        await chrome.windows.update(existing.windowId, { focused: true });
-      }
-      return;
-    }
-    await chrome.tabs.create({ url: COMPANY_PUNCH_URL, active: true });
-  }
 
   const INSI_X_GATE_SAIDA_KEY = 'insiXGateSaidaExpectedTime';
 

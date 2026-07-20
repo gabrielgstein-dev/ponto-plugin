@@ -1,12 +1,16 @@
 import { ENABLE_SENIOR_INTEGRATION, ENABLE_NOTIFICATIONS } from '../domain/build-flags';
 import { resetTsScheduled } from './schedule-ts-notifications';
 import { scheduleNotifications } from './schedule-notifications';
+import { scheduleAutoPunch, AUTO_PUNCH_ALARM_PREFIX } from './schedule-auto-punch';
+import { runAutoPunch } from './auto-punch';
+import { openPunchPage } from './open-punch-page';
 import { applySettings, resetNotifScheduled } from './state';
 import { startReminder, resolveReminder, DISMISSED_SLOTS_KEY } from './punch-reminder-manager';
 import { isSlotPunchedToday } from './punch-state';
 import { DEFAULT_SETTINGS } from '../domain/types';
 import type { PunchReminderSlot, Settings } from '../domain/types';
 import { isReminderBlockedToday } from '../domain/weekday-gate';
+import { debugLog } from '../domain/debug';
 
 const REMINDER_SLOT_MAP: Record<string, PunchReminderSlot> = {
   reminder_entrada: 'entrada',
@@ -51,6 +55,7 @@ export async function handleDailyReset(): Promise<void> {
       a.name.startsWith('notif_') ||
       a.name.startsWith('reminder_') ||
       a.name.startsWith('punch_popup_') ||
+      a.name.startsWith(AUTO_PUNCH_ALARM_PREFIX) ||
       a.name === 'punch_recheck' ||
       a.name.startsWith('ts_')
     ) {
@@ -113,6 +118,9 @@ export async function handleDailyReset(): Promise<void> {
   if (ENABLE_NOTIFICATIONS) {
     scheduleNotifications(null, null, null, null);
   }
+  // Reagenda a batida automática do dia novo (offsets regeneram via getTodayOffsets
+  // porque a data mudou). No-op se a feature/toggle estiver desligada.
+  await scheduleAutoPunch(null, null, null, null).catch(() => {});
 }
 
 export async function handlePunchPopupAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
@@ -155,6 +163,109 @@ export async function handleReminderAlarm(alarmName: string, scheduledTime = Dat
     setTimeout(() => chrome.notifications.clear(id), 10000);
   });
   await chrome.storage.local.remove(msgKey);
+}
+
+const SLOT_LABELS: Record<PunchReminderSlot, string> = {
+  entrada: 'entrada',
+  almoco: 'almoço',
+  volta: 'volta do almoço',
+  saida: 'saída',
+};
+
+export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
+  const slot = alarmName.slice(AUTO_PUNCH_ALARM_PREFIX.length) as PunchReminderSlot;
+  if (!SLOT_LABELS[slot]) return;
+
+  const timeKey = `alarm_time_${alarmName}`;
+  const data = await chrome.storage.local.get(timeKey);
+  const expectedTime = (data[timeKey] as string) || '';
+  await chrome.storage.local.remove(timeKey);
+
+  // Guards: alarme obsoleto (SO acordou tarde), dia bloqueado, ou slot já batido
+  // (bateu no celular / manualmente antes do horário automático).
+  // Cada saída é logada — "não bateu sozinho" precisa ter causa rastreável.
+  if (isStaleAlarm(scheduledTime)) {
+    const atrasoMin = Math.round((Date.now() - scheduledTime) / 60000);
+    debugLog(`Auto-punch: ${slot} abortado — alarme obsoleto (${atrasoMin}min de atraso, provável sleep do SO)`);
+    return;
+  }
+  if (await isReminderBlockedToday()) {
+    debugLog(`Auto-punch: ${slot} abortado — dia bloqueado (fim de semana / weekdaysOnly)`);
+    return;
+  }
+  if (await isSlotPunchedToday(slot)) {
+    debugLog(`Auto-punch: ${slot} abortado — slot já batido hoje (manual/celular)`);
+    return;
+  }
+
+  debugLog(`Auto-punch: disparando ${slot} (esperado ${expectedTime})...`);
+  let result;
+  try {
+    result = await runAutoPunch();
+  } catch (e) {
+    result = { success: false, logs: [`exceção: ${(e as Error).message}`], punchTime: null, confirmed: false };
+  }
+
+  // Sucesso só vale com confirmação independente do servidor. Sem isso, o
+  // plugin já afirmou "bati" com o histórico do Senior vazio — batida fantasma.
+  if (result.success && result.confirmed) {
+    const at = result.punchTime ? ` às ${result.punchTime}` : '';
+    debugLog(`Auto-punch: ${slot} registrado e CONFIRMADO no servidor${at}`);
+    chrome.notifications.create(alarmName, {
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: 'Ponto Insi — Batida automática',
+      message: `Bati ${SLOT_LABELS[slot]}${at} automaticamente.`,
+      priority: 2,
+    }, (id: string) => {
+      setTimeout(() => chrome.notifications.clear(id), 8000);
+    });
+    return;
+  }
+
+  if (result.success && !result.confirmed) {
+    // O Senior aceitou o import mas a leitura independente não enxerga a
+    // batida. Nunca afirmar que bateu — mandar o usuário conferir na fonte.
+    debugLog(`Auto-punch: ${slot} NÃO CONFIRMADO — import aceito (${result.punchTime}) mas servidor não retorna a batida`);
+    chrome.notifications.create(`${alarmName}_unconfirmed`, {
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: 'Ponto Insi — Batida NÃO confirmada',
+      message: `Enviei ${SLOT_LABELS[slot]}, mas o Senior não confirmou. Confira no Senior e bata manualmente se preciso.`,
+      priority: 2,
+    });
+    await openPunchPage().catch(() => {});
+    await startReminder(slot, expectedTime).catch(() => {});
+    return;
+  }
+
+  // Fallback: não deu pra bater em silêncio (token vencido / sem aba Senior).
+  // `result.logs` carrega o motivo real vindo do registrar/auth providers
+  // (ex.: "Nenhum token encontrado", "Nenhuma aba Senior encontrada", "Config
+  // falhou: 401") — é essa linha que responde "por que não bateu".
+  debugLog(`Auto-punch: FALHA em ${slot} — motivo: ${result.logs.join(' | ')}`);
+
+  // Notificação SEMPRE: startReminder tem guards próprios (slot dispensado,
+  // jornada não iniciada) que podem não abrir popup nenhum. Sem isso, a falha
+  // seria totalmente silenciosa pro usuário.
+  chrome.notifications.create(`${alarmName}_fail`, {
+    type: 'basic',
+    iconUrl: 'icons/icon128.png',
+    title: 'Ponto Insi — Batida automática falhou',
+    message: `Não consegui bater ${SLOT_LABELS[slot]} sozinho. Abri o Senior — bata manualmente.`,
+    priority: 2,
+  });
+
+  try {
+    await openPunchPage();
+  } catch (e) {
+    debugLog(`Auto-punch: fallback não conseguiu abrir a página do Senior: ${(e as Error).message}`);
+  }
+  try {
+    await startReminder(slot, expectedTime);
+  } catch (e) {
+    debugLog(`Auto-punch: fallback não conseguiu abrir o lembrete de ${slot}: ${(e as Error).message}`);
+  }
 }
 
 export async function handleNotifAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {

@@ -11,5 +11,6 @@
   "ENABLE_META_TIMESHEET": true,
   "ENABLE_NETLOG_CAPTURE": false,
   "ENABLE_SILENT_REFRESH": true,
+  "ENABLE_AUTO_PUNCH": false,
   "THEME": "insi"
 }

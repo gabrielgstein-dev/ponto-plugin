@@ -2,14 +2,18 @@
 /**
  * Build de DIAGNÓSTICO do Ponto Insi.
  *
- * Idêntico ao `build:insi`, mas com DEBUG=true e ENABLE_NETLOG_CAPTURE=true:
+ * Idêntico ao `build:insi`, mas com DEBUG, ENABLE_NETLOG_CAPTURE e
+ * ENABLE_AUTO_PUNCH ligados:
  *   - ENABLE_NETLOG_CAPTURE liga a captura de TODAS as requests de QUALQUER
  *     site (netcap.content casa em <all_urls>), com URL/método/headers/body de
  *     request E response — exatamente o "todos os requests que eu faço".
  *   - DEBUG faz o botão "Exportar tráfego" aparecer nas Settings
  *     (SettingsPanel só mostra MetaNetLogActions quando DEBUG && NETLOG).
+ *   - ENABLE_AUTO_PUNCH faz o bloco "Batida automática (Senior)" aparecer nas
+ *     Settings. Sem ela o toggle simplesmente não renderiza. Continua desligada
+ *     em runtime até o usuário marcar o toggle + os slots.
  *
- * IMPORTANTE: essas duas flags são dev-only. O gate scripts/check-prod-flags.mjs
+ * IMPORTANTE: essas três flags são dev-only. O gate scripts/check-prod-flags.mjs
  * (workflow prod-flags.yml em PRs → master) barra elas ligadas. Por isso este
  * script SEMPRE restaura lib/domain/build-flags.json ao estado original ao fim
  * — inclusive se o build falhar. Nada dev-only fica staged.
@@ -50,9 +54,10 @@ try {
     THEME: 'insi',
     DEBUG: true,
     ENABLE_NETLOG_CAPTURE: true,
+    ENABLE_AUTO_PUNCH: true,
   });
   writeFileSync(FLAGS, JSON.stringify(flags, null, 2) + '\n');
-  console.log('🔧 build:insi:debug — DEBUG + ENABLE_NETLOG_CAPTURE ligados (dev-only, serão restaurados)');
+  console.log('🔧 build:insi:debug — DEBUG + ENABLE_NETLOG_CAPTURE + ENABLE_AUTO_PUNCH ligados (dev-only, serão restaurados)');
 
   execSync('wxt build', { stdio: 'inherit' });
   execSync('wxt zip', { stdio: 'inherit' });

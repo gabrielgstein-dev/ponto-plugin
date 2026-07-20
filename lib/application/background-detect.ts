@@ -19,6 +19,7 @@ import { SeniorScraperProvider } from '../infrastructure/senior/senior-scraper';
 import { SeniorActiveUserPunchProvider } from '../infrastructure/senior/senior-active-user-provider';
 import { ManualPunchProvider } from '../infrastructure/manual/manual-punch-provider';
 import { scheduleNotifications } from './schedule-notifications';
+import { scheduleAutoPunch } from './schedule-auto-punch';
 import { scheduleTsNotifications } from './schedule-ts-notifications';
 import { applyPartialState, applySettings, state, resetNotifScheduled } from './state';
 import { punchStateForToday, isSlotPunched } from './punch-state';
@@ -115,6 +116,12 @@ export async function backgroundDetect(trigger: string = 'unknown'): Promise<boo
         timeToMinutes(state._saidaEstimada),
       );
     }
+    await scheduleAutoPunch(
+      timeToMinutes(state.entrada),
+      timeToMinutes(state.almoco),
+      timeToMinutes(state.volta),
+      timeToMinutes(state._saidaEstimada),
+    ).catch(() => {});
     return false;
   }
   debugLog(`${tag}: detector retornou ${result.times.length} batimentos de ${result.source}`);
@@ -161,6 +168,12 @@ export async function backgroundDetect(trigger: string = 'unknown'): Promise<boo
       timeToMinutes(state._saidaEstimada),
     );
   }
+  await scheduleAutoPunch(
+    timeToMinutes(state.entrada),
+    timeToMinutes(state.almoco),
+    timeToMinutes(state.volta),
+    timeToMinutes(state._saidaEstimada),
+  ).catch(() => {});
 
   debugLog(`${tag}: state atualizado (durationMs=${Date.now() - startedAt})`, {
     entrada: state.entrada, almoco: state.almoco, volta: state.volta, saida: state.saida,
