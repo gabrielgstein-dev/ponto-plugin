@@ -48,6 +48,65 @@ function isStaleAlarm(scheduledTime: number): boolean {
   return Date.now() - scheduledTime > STALE_ALARM_THRESHOLD_MS;
 }
 
+// ── Retry do auto-punch ──────────────────────────────────────────────────────
+// O alarme `autopunch_<slot>` é de disparo único: falhou, o slot morria no dia
+// (o scheduleAutoPunch seguinte só loga "horário já passou"). Foi o que se viu
+// em 2026-07-21 — falha às 09:43 por token frio e nenhuma nova tentativa.
+//
+// 3 tentativas × 3min mantém o pior caso em nominal+jitter+6min. O jitter já
+// pode chegar a 8min (OFFSET_MAX), então o teto é ~14min depois do nominal —
+// dentro da tolerância de apuração de 10min? NÃO necessariamente: por isso o
+// retry NÃO reivindica ter batido no horário nominal, ele só tenta de novo e o
+// horário real da batida é o que o servidor confirmar.
+const AUTO_PUNCH_MAX_ATTEMPTS = 3;
+const AUTO_PUNCH_RETRY_DELAY_MS = 3 * 60 * 1000;
+const ATTEMPT_KEY_PREFIX = 'autopunch_attempt_';
+
+/** Conta tentativas do slot NO DIA (registro velho de ontem conta como zero). */
+async function bumpAttempt(slot: PunchReminderSlot): Promise<number> {
+  const key = `${ATTEMPT_KEY_PREFIX}${slot}`;
+  const today = new Date().toDateString();
+  try {
+    const data = await chrome.storage.local.get(key);
+    const rec = data[key] as { date: string; count: number } | undefined;
+    const count = (rec?.date === today ? rec.count : 0) + 1;
+    await chrome.storage.local.set({ [key]: { date: today, count } });
+    return count;
+  } catch (_) {
+    // Storage indisponível: trata como última tentativa. Melhor cair no
+    // fallback visível do que arriscar loop de retry sem contador.
+    return AUTO_PUNCH_MAX_ATTEMPTS;
+  }
+}
+
+/**
+ * Reagenda o slot se ainda houver tentativa. Devolve o horário HH:MM da próxima
+ * tentativa, ou null quando esgotou (o chamador cai no fallback visível).
+ */
+async function scheduleAutoPunchRetry(
+  slot: PunchReminderSlot,
+  alarmName: string,
+  expectedTime: string,
+): Promise<string | null> {
+  const attempt = await bumpAttempt(slot);
+  if (attempt >= AUTO_PUNCH_MAX_ATTEMPTS) return null;
+
+  const when = Date.now() + AUTO_PUNCH_RETRY_DELAY_MS;
+  try {
+    chrome.alarms.create(alarmName, { when });
+    // O handler consome (remove) `alarm_time_*` no início; sem reescrever, a
+    // retentativa perderia o horário nominal usado pelo lembrete de fallback.
+    await chrome.storage.local.set({ [`alarm_time_${alarmName}`]: expectedTime });
+  } catch (e) {
+    auditLog(`Auto-punch: falha ao reagendar ${slot}: ${(e as Error).message}`);
+    return null;
+  }
+
+  const at = new Date(when).toTimeString().slice(0, 5);
+  auditLog(`Auto-punch: ${slot} reagendado para ${at} (tentativa ${attempt + 1}/${AUTO_PUNCH_MAX_ATTEMPTS})`);
+  return at;
+}
+
 export async function handleDailyReset(): Promise<void> {
   const alarms = await chrome.alarms.getAll();
   for (const a of alarms) {
@@ -194,10 +253,18 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   const slot = alarmName.slice(AUTO_PUNCH_ALARM_PREFIX.length) as PunchReminderSlot;
   if (!SLOT_LABELS[slot]) return;
 
+  // Storage indisponível não pode abortar a batida em silêncio: o horário
+  // nominal só alimenta o texto do lembrete de fallback, então perdê-lo degrada
+  // a mensagem — não justifica não bater (nem sumir sem avisar).
   const timeKey = `alarm_time_${alarmName}`;
-  const data = await chrome.storage.local.get(timeKey);
-  const expectedTime = (data[timeKey] as string) || '';
-  await chrome.storage.local.remove(timeKey);
+  let expectedTime = '';
+  try {
+    const data = await chrome.storage.local.get(timeKey);
+    expectedTime = (data[timeKey] as string) || '';
+    await chrome.storage.local.remove(timeKey);
+  } catch (e) {
+    auditLog(`Auto-punch: ${slot} sem horário nominal (storage falhou: ${(e as Error).message})`);
+  }
 
   // Guards: alarme obsoleto (SO acordou tarde), dia bloqueado, ou slot já batido
   // (bateu no celular / manualmente antes do horário automático).
@@ -263,8 +330,18 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   // `result.logs` carrega o motivo real vindo do registrar/auth providers
   // (ex.: "Nenhum token encontrado", "Nenhuma aba Senior encontrada", "Config
   // falhou: 401") — é essa linha que responde "por que não bateu".
-  auditLog(`Auto-punch: FALHA em ${slot} — motivo: ${result.logs.join(' | ')}`);
-  await publishAutoPunchResult(slot, 'failed', null, result.logs.join(' | ') || 'motivo desconhecido');
+  const reason = result.logs.join(' | ') || 'motivo desconhecido';
+  auditLog(`Auto-punch: FALHA em ${slot} — motivo: ${reason}`);
+
+  // Antes de incomodar o usuário, tenta de novo: as causas mais comuns
+  // (token frio, SPA ainda bootando) se resolvem sozinhas em poucos minutos.
+  const retryAt = await scheduleAutoPunchRetry(slot, alarmName, expectedTime);
+  if (retryAt) {
+    await publishAutoPunchResult(slot, 'failed', null, `${reason} — nova tentativa às ${retryAt}`);
+    return;
+  }
+
+  await publishAutoPunchResult(slot, 'failed', null, reason);
 
   // Notificação SEMPRE: startReminder tem guards próprios (slot dispensado,
   // jornada não iniciada) que podem não abrir popup nenhum. Sem isso, a falha
