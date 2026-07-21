@@ -29,6 +29,7 @@ import { useAuthStatus } from './hooks/useAuthStatus';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useAutoPunchStatus } from './hooks/useAutoPunchStatus';
 import { AutoPunchBanner } from './components/AutoPunchBanner';
+import { DetectionBlindBanner } from './components/DetectionBlindBanner';
 import { OnboardingOverlay } from './components/OnboardingOverlay';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
 import { COMPANY_LOGIN_URL, COMPANY_NAME } from '#company/providers';
@@ -52,6 +53,9 @@ export function App() {
   const autoPunch = useAutoPunchStatus();
   const autoSlots = settings.autoPunchEnabled ? (settings.autoPunchSlots ?? {}) : {};
   const anyAutoSlot = Object.values(autoSlots).some(Boolean);
+  // Sem nenhuma fonte de auth o plugin não CONSEGUE saber se você bateu. Isso
+  // não é o mesmo que "não bateu" — ver DetectionBlindBanner.
+  const blind = ENABLE_SENIOR_INTEGRATION && hasAuth === false;
 
   const nowMin = getNowMinutes();
   const nextSlot = loading ? null : getNextSlot(punchState, nowMin);
@@ -82,10 +86,11 @@ export function App() {
             <PunchCard key={slot} label={LABELS[slot]} icon={ICONS[slot]}
               time={display} subtitle={isCalc ? 'estimado' : ''} isCalc={isCalc}
               isPast={min != null && min <= nowMin} isNext={slot === nextSlot}
-              isAuto={autoSlots[slot] === true} />
+              isAuto={autoSlots[slot] === true} unknown={blind} />
           );
         })}
       </div>
+      <DetectionBlindBanner blind={blind} loginUrl={COMPANY_LOGIN_URL} companyLabel={COMPANY_NAME} />
       <AutoPunchBanner view={autoPunch} enabled={anyAutoSlot} />
       <ProgressBar workedMinutes={workedMin} totalMinutes={settings.jornada} showOvertime={shouldShowOvertime} />
       {ENABLE_YESTERDAY && yesterdayTimes.length > 0 && (
