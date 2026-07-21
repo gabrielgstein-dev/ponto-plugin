@@ -8,7 +8,7 @@ import { applySettings, resetNotifScheduled } from './state';
 import { startReminder, resolveReminder, DISMISSED_SLOTS_KEY } from './punch-reminder-manager';
 import { isSlotPunchedToday } from './punch-state';
 import { DEFAULT_SETTINGS } from '../domain/types';
-import type { PunchReminderSlot, Settings } from '../domain/types';
+import type { PunchReminderSlot, Settings, AutoPunchStatus, AutoPunchLastResult } from '../domain/types';
 import { isReminderBlockedToday } from '../domain/weekday-gate';
 import { auditLog } from '../domain/debug';
 
@@ -172,6 +172,24 @@ const SLOT_LABELS: Record<PunchReminderSlot, string> = {
   saida: 'saída',
 };
 
+export const AUTO_PUNCH_RESULT_KEY = 'autoPunchLastResult';
+
+/** Publica o desfecho para a UI mostrar sem obrigar o usuário a exportar log. */
+async function publishAutoPunchResult(
+  slot: PunchReminderSlot,
+  status: AutoPunchStatus,
+  time: string | null,
+  reason: string | null,
+): Promise<void> {
+  try {
+    const result: AutoPunchLastResult = {
+      date: new Date().toDateString(),
+      slot, status, time, reason, ts: Date.now(),
+    };
+    await chrome.storage.local.set({ [AUTO_PUNCH_RESULT_KEY]: result });
+  } catch (_) { /* storage indisponível: a notificação já avisou */ }
+}
+
 export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
   const slot = alarmName.slice(AUTO_PUNCH_ALARM_PREFIX.length) as PunchReminderSlot;
   if (!SLOT_LABELS[slot]) return;
@@ -211,6 +229,7 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   if (result.success && result.confirmed) {
     const at = result.punchTime ? ` às ${result.punchTime}` : '';
     auditLog(`Auto-punch: ${slot} registrado e CONFIRMADO no servidor${at}`);
+    await publishAutoPunchResult(slot, 'confirmed', result.punchTime, null);
     chrome.notifications.create(alarmName, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
@@ -227,6 +246,7 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
     // O Senior aceitou o import mas a leitura independente não enxerga a
     // batida. Nunca afirmar que bateu — mandar o usuário conferir na fonte.
     auditLog(`Auto-punch: ${slot} NÃO CONFIRMADO — import aceito (${result.punchTime}) mas servidor não retorna a batida`);
+    await publishAutoPunchResult(slot, 'unconfirmed', result.punchTime, 'servidor não retornou a batida');
     chrome.notifications.create(`${alarmName}_unconfirmed`, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
@@ -244,6 +264,7 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   // (ex.: "Nenhum token encontrado", "Nenhuma aba Senior encontrada", "Config
   // falhou: 401") — é essa linha que responde "por que não bateu".
   auditLog(`Auto-punch: FALHA em ${slot} — motivo: ${result.logs.join(' | ')}`);
+  await publishAutoPunchResult(slot, 'failed', null, result.logs.join(' | ') || 'motivo desconhecido');
 
   // Notificação SEMPRE: startReminder tem guards próprios (slot dispensado,
   // jornada não iniciada) que podem não abrir popup nenhum. Sem isso, a falha

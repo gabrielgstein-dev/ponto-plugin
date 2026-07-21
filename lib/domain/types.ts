@@ -27,6 +27,37 @@ export interface Settings {
   autoPunchSlots: Record<PunchReminderSlot, boolean>;
 }
 
+/**
+ * Estado visível da batida automática. Existe para a UI poder responder, sem
+ * adivinhação, "vai bater sozinho? quando?" — a pergunta que o usuário não
+ * conseguia responder olhando só o lembrete tocando.
+ */
+export interface AutoPunchScheduleState {
+  /** toDateString() do dia — descarta agendamento de dias anteriores. */
+  date: string;
+  /** slot -> epoch ms do disparo (já COM o jitter aplicado). */
+  scheduled: Partial<Record<PunchReminderSlot, number>>;
+  /**
+   * Slot que trava a corrente quando nada pôde ser agendado. O agendamento é
+   * encadeado (almoço só depois da entrada batida), então "nada agendado" quase
+   * sempre significa "esperando este slot ser batido".
+   */
+  waitingFor: PunchReminderSlot | null;
+}
+
+export type AutoPunchStatus = 'confirmed' | 'unconfirmed' | 'failed';
+
+export interface AutoPunchLastResult {
+  date: string;
+  slot: PunchReminderSlot;
+  status: AutoPunchStatus;
+  /** Horário HH:MM que o Senior devolveu, quando houve. */
+  time: string | null;
+  /** Motivo da falha, para a UI mostrar sem obrigar a exportar log. */
+  reason: string | null;
+  ts: number;
+}
+
 export interface InsiXState {
   lastRespondedWeekKey: string | null;
   lastRespondedAt: number | null;

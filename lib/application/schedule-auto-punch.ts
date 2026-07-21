@@ -3,12 +3,20 @@ import { ENABLE_AUTO_PUNCH } from '../domain/build-flags';
 import { generateDailyOffsets, type SlotOffsets } from '../domain/auto-punch-jitter';
 import { auditLog } from '../domain/debug';
 import { settings } from './state';
-import type { PunchReminderSlot } from '../domain/types';
+import type { PunchReminderSlot, AutoPunchScheduleState } from '../domain/types';
 
 export const AUTO_PUNCH_ALARM_PREFIX = 'autopunch_';
 
 const OFFSETS_KEY = 'autoPunchOffsets';
 const OFFSETS_DATE_KEY = 'autoPunchOffsetsDate';
+export const AUTO_PUNCH_SCHEDULE_KEY = 'autoPunchSchedule';
+
+/** Publica o estado que a UI lê para mostrar "vai bater X às HH:MM". */
+async function publishSchedule(state: AutoPunchScheduleState): Promise<void> {
+  try {
+    await chrome.storage.local.set({ [AUTO_PUNCH_SCHEDULE_KEY]: state });
+  } catch (_) { /* storage indisponível: a UI só não mostra o indicador */ }
+}
 
 /**
  * Offsets de jitter do dia. Persistidos e chaveados por data para serem
@@ -75,6 +83,7 @@ export async function scheduleAutoPunch(
     targets.push({ slot: 'saida', timeMin: saidaEstMin });
   }
 
+  const todayStr = new Date().toDateString();
   const pending = targets.filter(t => enabled.includes(t.slot));
   if (pending.length === 0) {
     // Caso comum e importante de diagnosticar: o próximo slot da vez não é um
@@ -82,12 +91,14 @@ export async function scheduleAutoPunch(
     auditLog(
       `Auto-punch: nada a agendar — próximo(s) slot(s) pendente(s) = [${targets.map(t => t.slot).join(', ') || 'nenhum'}], habilitado(s) = [${enabled.join(', ')}]`,
     );
+    await publishSchedule({ date: todayStr, scheduled: {}, waitingFor: targets[0]?.slot ?? null });
     return;
   }
 
   const offsets = await getTodayOffsets();
   const nowMin = getNowMinutes();
   const today = new Date();
+  const scheduled: AutoPunchScheduleState['scheduled'] = {};
 
   for (const { slot, timeMin } of pending) {
     const offset = offsets[slot] ?? 0;
@@ -109,6 +120,9 @@ export async function scheduleAutoPunch(
     chrome.storage.local.set({
       [`alarm_time_${AUTO_PUNCH_ALARM_PREFIX}${slot}`]: minutesToTime(timeMin) || '',
     });
+    scheduled[slot] = triggerDate.getTime();
     auditLog(`Auto-punch: ${slot} agendado para ${fireTime} (nominal ${nominal} + jitter ${offset}min)`);
   }
+
+  await publishSchedule({ date: todayStr, scheduled, waitingFor: null });
 }

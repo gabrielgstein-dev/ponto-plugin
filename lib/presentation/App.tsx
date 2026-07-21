@@ -27,6 +27,8 @@ import { InsiXBanner, InsiXDoneHint } from './components/InsiXBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
+import { useAutoPunchStatus } from './hooks/useAutoPunchStatus';
+import { AutoPunchBanner } from './components/AutoPunchBanner';
 import { OnboardingOverlay } from './components/OnboardingOverlay';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
 import { COMPANY_LOGIN_URL, COMPANY_NAME } from '#company/providers';
@@ -47,6 +49,9 @@ export function App() {
   const hourBankProvider = useMemo(() => ENABLE_MANUAL_PUNCH ? new ManualHourBankProvider() : null, []);
   const { balance } = useHourBank(hourBankProvider, settings);
   const hasAuth = useAuthStatus();
+  const autoPunch = useAutoPunchStatus();
+  const autoSlots = settings.autoPunchEnabled ? (settings.autoPunchSlots ?? {}) : {};
+  const anyAutoSlot = Object.values(autoSlots).some(Boolean);
 
   const nowMin = getNowMinutes();
   const nextSlot = loading ? null : getNextSlot(punchState, nowMin);
@@ -76,10 +81,12 @@ export function App() {
           return (
             <PunchCard key={slot} label={LABELS[slot]} icon={ICONS[slot]}
               time={display} subtitle={isCalc ? 'estimado' : ''} isCalc={isCalc}
-              isPast={min != null && min <= nowMin} isNext={slot === nextSlot} />
+              isPast={min != null && min <= nowMin} isNext={slot === nextSlot}
+              isAuto={autoSlots[slot] === true} />
           );
         })}
       </div>
+      <AutoPunchBanner view={autoPunch} enabled={anyAutoSlot} />
       <ProgressBar workedMinutes={workedMin} totalMinutes={settings.jornada} showOvertime={shouldShowOvertime} />
       {ENABLE_YESTERDAY && yesterdayTimes.length > 0 && (
         <div className="yesterday-banner">
