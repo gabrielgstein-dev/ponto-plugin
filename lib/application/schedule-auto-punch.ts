@@ -1,7 +1,7 @@
 import { timeToMinutes, minutesToTime, getNowMinutes, isWeekend } from '../domain/time-utils';
 import { ENABLE_AUTO_PUNCH } from '../domain/build-flags';
 import { generateDailyOffsets, type SlotOffsets } from '../domain/auto-punch-jitter';
-import { debugLog } from '../domain/debug';
+import { auditLog } from '../domain/debug';
 import { settings } from './state';
 import type { PunchReminderSlot } from '../domain/types';
 
@@ -57,7 +57,7 @@ export async function scheduleAutoPunch(
   if (enabled.length === 0) return;
 
   if (settings.weekdaysOnly && isWeekend()) {
-    debugLog('Auto-punch: não agendado — fim de semana (weekdaysOnly ligado)');
+    auditLog('Auto-punch: não agendado — fim de semana (weekdaysOnly ligado)');
     return;
   }
 
@@ -79,7 +79,7 @@ export async function scheduleAutoPunch(
   if (pending.length === 0) {
     // Caso comum e importante de diagnosticar: o próximo slot da vez não é um
     // dos habilitados (ex.: só 'saida' ligada, mas o pendente agora é 'almoco').
-    debugLog(
+    auditLog(
       `Auto-punch: nada a agendar — próximo(s) slot(s) pendente(s) = [${targets.map(t => t.slot).join(', ') || 'nenhum'}], habilitado(s) = [${enabled.join(', ')}]`,
     );
     return;
@@ -96,7 +96,7 @@ export async function scheduleAutoPunch(
     const fireTime = minutesToTime(fireMin) || '';
     // Passou da hora: não bate no passado. O slot cai no lembrete/fallback normal.
     if (fireMin <= nowMin) {
-      debugLog(
+      auditLog(
         `Auto-punch: ${slot} NÃO agendado — horário ${fireTime} já passou (agora ${minutesToTime(nowMin)})`,
       );
       continue;
@@ -109,6 +109,6 @@ export async function scheduleAutoPunch(
     chrome.storage.local.set({
       [`alarm_time_${AUTO_PUNCH_ALARM_PREFIX}${slot}`]: minutesToTime(timeMin) || '',
     });
-    debugLog(`Auto-punch: ${slot} agendado para ${fireTime} (nominal ${nominal} + jitter ${offset}min)`);
+    auditLog(`Auto-punch: ${slot} agendado para ${fireTime} (nominal ${nominal} + jitter ${offset}min)`);
   }
 }

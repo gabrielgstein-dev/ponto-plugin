@@ -1,5 +1,5 @@
 import type { PunchResult } from '../domain/types';
-import { debugLog } from '../domain/debug';
+import { auditLog } from '../domain/debug';
 import { timeToMinutes } from '../domain/time-utils';
 import { registerPunch } from './register-punch';
 import { SeniorCookieAuth } from '../infrastructure/senior/senior-cookie-auth';
@@ -63,12 +63,12 @@ async function verifyOnServer(punchTime: string): Promise<boolean> {
         return m != null && Math.abs(m - targetMin) <= VERIFY_TOLERANCE_MIN;
       });
       if (hit) {
-        debugLog(`Auto-punch: confirmado no servidor (${punchTime} presente em [${times.join(', ')}])`);
+        auditLog(`Auto-punch: confirmado no servidor (${punchTime} presente em [${times.join(', ')}])`);
         return true;
       }
-      debugLog(`Auto-punch: ainda não confirmado após ${delay}ms — servidor tem [${times.join(', ')}]`);
+      auditLog(`Auto-punch: ainda não confirmado após ${delay}ms — servidor tem [${times.join(', ')}]`);
     } catch (e) {
-      debugLog(`Auto-punch: verificação falhou após ${delay}ms: ${(e as Error).message}`);
+      auditLog(`Auto-punch: verificação falhou após ${delay}ms: ${(e as Error).message}`);
     }
   }
   return false;

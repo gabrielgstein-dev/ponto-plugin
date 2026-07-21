@@ -10,7 +10,7 @@ import { isSlotPunchedToday } from './punch-state';
 import { DEFAULT_SETTINGS } from '../domain/types';
 import type { PunchReminderSlot, Settings } from '../domain/types';
 import { isReminderBlockedToday } from '../domain/weekday-gate';
-import { debugLog } from '../domain/debug';
+import { auditLog } from '../domain/debug';
 
 const REMINDER_SLOT_MAP: Record<string, PunchReminderSlot> = {
   reminder_entrada: 'entrada',
@@ -186,19 +186,19 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   // Cada saída é logada — "não bateu sozinho" precisa ter causa rastreável.
   if (isStaleAlarm(scheduledTime)) {
     const atrasoMin = Math.round((Date.now() - scheduledTime) / 60000);
-    debugLog(`Auto-punch: ${slot} abortado — alarme obsoleto (${atrasoMin}min de atraso, provável sleep do SO)`);
+    auditLog(`Auto-punch: ${slot} abortado — alarme obsoleto (${atrasoMin}min de atraso, provável sleep do SO)`);
     return;
   }
   if (await isReminderBlockedToday()) {
-    debugLog(`Auto-punch: ${slot} abortado — dia bloqueado (fim de semana / weekdaysOnly)`);
+    auditLog(`Auto-punch: ${slot} abortado — dia bloqueado (fim de semana / weekdaysOnly)`);
     return;
   }
   if (await isSlotPunchedToday(slot)) {
-    debugLog(`Auto-punch: ${slot} abortado — slot já batido hoje (manual/celular)`);
+    auditLog(`Auto-punch: ${slot} abortado — slot já batido hoje (manual/celular)`);
     return;
   }
 
-  debugLog(`Auto-punch: disparando ${slot} (esperado ${expectedTime})...`);
+  auditLog(`Auto-punch: disparando ${slot} (esperado ${expectedTime})...`);
   let result;
   try {
     result = await runAutoPunch();
@@ -210,7 +210,7 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   // plugin já afirmou "bati" com o histórico do Senior vazio — batida fantasma.
   if (result.success && result.confirmed) {
     const at = result.punchTime ? ` às ${result.punchTime}` : '';
-    debugLog(`Auto-punch: ${slot} registrado e CONFIRMADO no servidor${at}`);
+    auditLog(`Auto-punch: ${slot} registrado e CONFIRMADO no servidor${at}`);
     chrome.notifications.create(alarmName, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
@@ -226,7 +226,7 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   if (result.success && !result.confirmed) {
     // O Senior aceitou o import mas a leitura independente não enxerga a
     // batida. Nunca afirmar que bateu — mandar o usuário conferir na fonte.
-    debugLog(`Auto-punch: ${slot} NÃO CONFIRMADO — import aceito (${result.punchTime}) mas servidor não retorna a batida`);
+    auditLog(`Auto-punch: ${slot} NÃO CONFIRMADO — import aceito (${result.punchTime}) mas servidor não retorna a batida`);
     chrome.notifications.create(`${alarmName}_unconfirmed`, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
@@ -243,7 +243,7 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   // `result.logs` carrega o motivo real vindo do registrar/auth providers
   // (ex.: "Nenhum token encontrado", "Nenhuma aba Senior encontrada", "Config
   // falhou: 401") — é essa linha que responde "por que não bateu".
-  debugLog(`Auto-punch: FALHA em ${slot} — motivo: ${result.logs.join(' | ')}`);
+  auditLog(`Auto-punch: FALHA em ${slot} — motivo: ${result.logs.join(' | ')}`);
 
   // Notificação SEMPRE: startReminder tem guards próprios (slot dispensado,
   // jornada não iniciada) que podem não abrir popup nenhum. Sem isso, a falha
@@ -259,12 +259,12 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   try {
     await openPunchPage();
   } catch (e) {
-    debugLog(`Auto-punch: fallback não conseguiu abrir a página do Senior: ${(e as Error).message}`);
+    auditLog(`Auto-punch: fallback não conseguiu abrir a página do Senior: ${(e as Error).message}`);
   }
   try {
     await startReminder(slot, expectedTime);
   } catch (e) {
-    debugLog(`Auto-punch: fallback não conseguiu abrir o lembrete de ${slot}: ${(e as Error).message}`);
+    auditLog(`Auto-punch: fallback não conseguiu abrir o lembrete de ${slot}: ${(e as Error).message}`);
   }
 }
 
