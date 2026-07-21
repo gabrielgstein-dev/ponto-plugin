@@ -55,7 +55,9 @@ export function App() {
   const anyAutoSlot = Object.values(autoSlots).some(Boolean);
   // Sem nenhuma fonte de auth o plugin não CONSEGUE saber se você bateu. Isso
   // não é o mesmo que "não bateu" — ver DetectionBlindBanner.
-  const blind = ENABLE_SENIOR_INTEGRATION && hasAuth === false;
+  // Duas formas de estar cego: sem auth nenhuma, OU com auth mas nenhuma fonte
+  // autoritativa respondeu (ex.: gestão de ponto em 502).
+  const blind = ENABLE_SENIOR_INTEGRATION && (hasAuth === false || autoPunch.blind);
 
   const nowMin = getNowMinutes();
   const nextSlot = loading ? null : getNextSlot(punchState, nowMin);

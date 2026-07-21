@@ -50,6 +50,34 @@ function getActivePendingPunches(): string[] {
   return _pendingPunches.map(p => p.time);
 }
 
+/**
+ * Saúde das fontes AUTORITATIVAS (as que implementam `probe`) no último detect.
+ *
+ * `blind` = existem fontes autoritativas e NENHUMA conseguiu responder. Nesse
+ * estado "zero batidas" não é informação — é ignorância, e a UI precisa dizer
+ * isso em vez de desenhar `--:--` (incidente 2026-07-21: usuário bateu em
+ * duplicidade porque a tela afirmava que ele não tinha batido).
+ *
+ * Caches locais não contam: um "zero" vindo do localStorage não prova nada
+ * sobre o servidor.
+ */
+export interface DetectionHealth {
+  probed: number;
+  ok: number;
+  blind: boolean;
+}
+
+let _lastHealth: DetectionHealth = { probed: 0, ok: 0, blind: false };
+
+export function getLastDetectionHealth(): DetectionHealth {
+  return _lastHealth;
+}
+
+/* v8 ignore next 3 -- helper apenas para testes */
+export function _resetDetectionHealthForTests(): void {
+  _lastHealth = { probed: 0, ok: 0, blind: false };
+}
+
 export class PunchDetector implements IPunchDetector {
   private providers: IPunchProvider[];
 
@@ -63,11 +91,25 @@ export class PunchDetector implements IPunchDetector {
     const primaryTimes: string[] = [];
     const primarySources: string[] = [];
 
+    let probed = 0;
+    let probedOk = 0;
+
     for (const provider of this.providers) {
       if (provider.priority > PRIMARY_MAX) break;
       debugLog(`PunchDetector: tentando provider ${provider.name} (priority=${provider.priority})`);
+      const authoritative = typeof provider.probe === 'function';
+      if (authoritative) probed++;
       try {
-        const times = await provider.fetchPunches(date, aggressive);
+        const result = authoritative
+          ? await provider.probe!(date, aggressive)
+          : { times: await provider.fetchPunches(date, aggressive), outcome: 'ok' as const };
+
+        if (authoritative && result.outcome === 'ok') probedOk++;
+        if (authoritative && result.outcome === 'unavailable') {
+          debugWarn(`${provider.name}: fonte indisponível — "zero batidas" daqui não é verdade`);
+        }
+
+        const times = result.times;
         if (times.length > 0) {
           debugLog(`${provider.name}: ${times.length} batimento(s) →`, times.join(', '));
           primaryTimes.push(...times);
@@ -76,10 +118,19 @@ export class PunchDetector implements IPunchDetector {
           debugLog(`${provider.name}: sem resultados`);
         }
       } catch (e) {
+        // Exceção é indisponibilidade por definição — não conta como ok.
         if (aggressive) {
           debugWarn(`${provider.name} falhou:`, (e as Error).message);
         }
       }
+    }
+
+    _lastHealth = { probed, ok: probedOk, blind: probed > 0 && probedOk === 0 };
+    if (_lastHealth.blind) {
+      debugWarn(
+        `PunchDetector: CEGO — nenhuma das ${probed} fontes autoritativas respondeu. ` +
+        'Ausência de batimentos aqui não significa que o usuário não bateu.',
+      );
     }
 
     if (primaryTimes.length > 0) {

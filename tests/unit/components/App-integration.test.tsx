@@ -87,7 +87,7 @@ const AUTO_ENTRADA = {
 beforeEach(() => {
   mockAuth.mockReturnValue(true)
   mockSettings.mockReturnValue(NO_AUTO)
-  mockAutoPunchView.mockReturnValue({ next: null, waitingFor: null, lastResult: null })
+  mockAutoPunchView.mockReturnValue({ next: null, waitingFor: null, lastResult: null, blind: false })
 })
 
 describe('App — indicador de batida automática realmente montado', () => {
@@ -99,6 +99,7 @@ describe('App — indicador de batida automática realmente montado', () => {
       next: { slot: 'entrada', fireAt: fireAt.getTime() },
       waitingFor: null,
       lastResult: null,
+      blind: false,
     })
 
     render(<App />)
@@ -108,7 +109,7 @@ describe('App — indicador de batida automática realmente montado', () => {
 
   it('mostra a espera quando a corrente está travada', () => {
     mockSettings.mockReturnValue(AUTO_ENTRADA)
-    mockAutoPunchView.mockReturnValue({ next: null, waitingFor: 'entrada', lastResult: null })
+    mockAutoPunchView.mockReturnValue({ next: null, waitingFor: 'entrada', lastResult: null, blind: false })
     render(<App />)
     expect(screen.getByText(/aguardando/i)).toBeInTheDocument()
   })
@@ -153,6 +154,16 @@ describe('App — plugin cego não pode parecer "não bateu" (incidente 2026-07-
     render(<App />)
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.queryByText('??:??')).toBeNull()
+  })
+
+  it('COM auth mas fontes em 502: também avisa que está cego', () => {
+    // Buraco que sobrava: hasAuth=true não garante que alguma fonte respondeu.
+    // Foi o caso do gestão de ponto retornando 502 com token válido.
+    mockAuth.mockReturnValue(true)
+    mockAutoPunchView.mockReturnValue({ next: null, waitingFor: null, lastResult: null, blind: true })
+    render(<App />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getAllByText('??:??').length).toBeGreaterThan(0)
   })
 
   it('auth ainda carregando (null) NÃO dispara o alerta', () => {

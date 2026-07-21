@@ -194,7 +194,12 @@ describe('U10 — startReminder aborta se entrada é null (P6)', () => {
     storageWith({ pontoState: { entrada: null, almoco: null, volta: null, saida: null } })
     await startReminder('almoco', '12:00')
     expect(mockWindowsCreate).not.toHaveBeenCalled()
-    expect(mockStorageSet).not.toHaveBeenCalled()
+    // Asserção precisa: nenhum ESTADO DE POPUP gravado. Antes era
+    // `mockStorageSet).not.toHaveBeenCalled()`, que também pegava escritas de
+    // bookkeeping do pre-flight detect (alarmes, detectionHealth) — sem relação
+    // com o que o teste verifica, e dependente da hora do dia em que rodava.
+    const written = mockStorageSet.mock.calls.flatMap(c => Object.keys(c[0] as object))
+    expect(written.filter(k => k.startsWith('punchPopup'))).toEqual([])
   })
 
   it('não abre popup com pontoState null', async () => {

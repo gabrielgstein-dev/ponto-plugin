@@ -169,3 +169,23 @@ test('AP-5: sem auth, tela avisa que está cega e NÃO mostra --:--', async () =
   await expect(alert).toHaveScreenshot('detection-blind.png', { maxDiffPixelRatio: 0.02 })
   await page.close()
 })
+
+test('AP-6: COM auth mas fontes indisponíveis (502) também avisa', async () => {
+  // Buraco que sobrava depois do AP-5: token válido não garante que alguma
+  // fonte respondeu. Foi o caso do gestão de ponto em 502 com token ok.
+  await seed({
+    seniorToken: 'token-valido-fake',
+    seniorTokenTs: Date.now(),
+    detectionHealth: { probed: 2, ok: 0, blind: true, ts: Date.now() },
+    pontoState: null,
+    pontoDate: new Date().toDateString(),
+  })
+
+  const page = await ctx.newPage()
+  await page.goto(popupUrl)
+  await page.waitForLoadState('domcontentloaded')
+
+  await expect(page.locator('.detection-blind-banner')).toBeVisible()
+  await expect(page.locator('.card-time.unknown').first()).toContainText('??:??')
+  await page.close()
+})

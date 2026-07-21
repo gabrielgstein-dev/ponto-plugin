@@ -1,4 +1,4 @@
-import type { IPunchProvider } from '../../domain/interfaces';
+import type { IPunchProvider, PunchProbe } from '../../domain/interfaces';
 import { SeniorCookieAuth } from './senior-cookie-auth';
 import { SENIOR_TOKEN_MAX_AGE_MS } from './constants';
 import { debugLog, debugWarn } from '../../domain/debug';
@@ -47,14 +47,25 @@ export class SeniorActiveUserPunchProvider implements IPunchProvider {
   readonly name = 'seniorActiveUser';
   readonly priority = 1;
 
-  async fetchPunches(date: Date, _aggressive = false): Promise<string[]> {
-    if (Date.now() - _lastFailTs < FAIL_COOLDOWN_MS) return _cachedTimes ?? [];
-    if (_cachedTimes && Date.now() - _cachedTs < CACHE_TTL_MS) return _cachedTimes;
+  async fetchPunches(date: Date, aggressive = false): Promise<string[]> {
+    return (await this.probe(date, aggressive)).times;
+  }
+
+  /** Ver IPunchProvider.probe — distingue "zero batidas" de "não consultei". */
+  async probe(date: Date, _aggressive = false): Promise<PunchProbe> {
+    // Em cooldown de falha: só é 'ok' se houver cache para servir; sem cache
+    // estamos genuinamente sem saber.
+    if (Date.now() - _lastFailTs < FAIL_COOLDOWN_MS) {
+      return { times: _cachedTimes ?? [], outcome: _cachedTimes ? 'ok' : 'unavailable' };
+    }
+    if (_cachedTimes && Date.now() - _cachedTs < CACHE_TTL_MS) {
+      return { times: _cachedTimes, outcome: 'ok' };
+    }
 
     const token = await this.resolveToken();
     if (!token) {
       debugLog('SeniorActiveUser: sem token Senior — pula');
-      return [];
+      return { times: [], outcome: 'unavailable' };
     }
 
     try {
@@ -80,7 +91,7 @@ export class SeniorActiveUserPunchProvider implements IPunchProvider {
           // Token expirou/sem scope — cooldown pra não martelar
           _lastFailTs = Date.now();
         }
-        return _cachedTimes ?? [];
+        return { times: _cachedTimes ?? [], outcome: 'unavailable' };
       }
 
       const json = (await r.json()) as ClockingResponse;
@@ -89,7 +100,7 @@ export class SeniorActiveUserPunchProvider implements IPunchProvider {
       _cachedTs = Date.now();
       _lastFailTs = 0;
       debugLog(`SeniorActiveUser: ${times.length} batimento(s) hoje: ${times.join(', ')}`);
-      return times;
+      return { times, outcome: 'ok' };
     } catch (e) {
       logError(e, {
         category: 'detection',
@@ -97,7 +108,7 @@ export class SeniorActiveUserPunchProvider implements IPunchProvider {
         operation: 'SeniorActiveUserPunchProvider.fetchPunches',
       });
       _lastFailTs = Date.now();
-      return _cachedTimes ?? [];
+      return { times: _cachedTimes ?? [], outcome: 'unavailable' };
     }
   }
 

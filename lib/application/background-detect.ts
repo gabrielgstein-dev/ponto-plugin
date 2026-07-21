@@ -20,6 +20,7 @@ import { SeniorActiveUserPunchProvider } from '../infrastructure/senior/senior-a
 import { ManualPunchProvider } from '../infrastructure/manual/manual-punch-provider';
 import { scheduleNotifications } from './schedule-notifications';
 import { scheduleAutoPunch } from './schedule-auto-punch';
+import { getLastDetectionHealth } from './detect-punches';
 import { scheduleTsNotifications } from './schedule-ts-notifications';
 import { applyPartialState, applySettings, state, resetNotifScheduled } from './state';
 import { punchStateForToday, isSlotPunched } from './punch-state';
@@ -103,6 +104,8 @@ export async function backgroundDetect(trigger: string = 'unknown'): Promise<boo
   // sem ação explícita do usuário. Tab-spam no master era causado por
   // GpPunchProvider chamando fetchGpViaTabs(true) e abrindo gestaoponto sozinho.
   const result = await detector.detect(new Date(), false);
+  // Publica a saúde das fontes para a UI distinguir "não bateu" de "não sei".
+  await publishDetectionHealth();
   if (!result || result.times.length === 0) {
     debugLog(`${tag}: detector não retornou batimentos (durationMs=${Date.now() - startedAt})`);
     // Sem batimentos detectados ainda é o caminho típico da manhã (Chrome
@@ -419,4 +422,20 @@ export async function notifyPendingTimesheet(): Promise<void> {
   } catch (e) {
     debugWarn('notifyPendingTimesheet erro:', (e as Error).message);
   }
+}
+
+export const DETECTION_HEALTH_KEY = 'detectionHealth';
+
+/**
+ * Espelha `getLastDetectionHealth()` no storage para a UI ler. A UI não pode
+ * chamar o detector (ele roda no service worker), então o estado precisa
+ * atravessar por storage — mesmo padrão do autoPunchSchedule.
+ */
+async function publishDetectionHealth(): Promise<void> {
+  try {
+    const health = getLastDetectionHealth();
+    await chrome.storage.local.set({
+      [DETECTION_HEALTH_KEY]: { ...health, ts: Date.now() },
+    });
+  } catch (_) { /* storage indisponível: UI só não mostra o aviso */ }
 }

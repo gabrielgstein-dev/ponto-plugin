@@ -1,4 +1,4 @@
-import type { IPunchProvider } from '../../../domain/interfaces';
+import type { IPunchProvider, PunchProbe } from '../../../domain/interfaces';
 import { todayDateStr } from '../../../domain/time-utils';
 import { debugLog, debugWarn } from '../../../domain/debug';
 import { getGpAssertion, invalidateGpCache } from './gp-auth';
@@ -20,26 +20,35 @@ export class GpPunchProvider implements IPunchProvider {
   readonly name = 'gestaoPonto';
   readonly priority = 1;
 
-  async fetchPunches(_date: Date, aggressive = false): Promise<string[]> {
+  async fetchPunches(date: Date, aggressive = false): Promise<string[]> {
+    return (await this.probe(date, aggressive)).times;
+  }
+
+  /** Ver IPunchProvider.probe — distingue "zero batidas" de "não consultei". */
+  async probe(_date: Date, aggressive = false): Promise<PunchProbe> {
     if (Date.now() - _lastFailTs < 60000) {
       if (aggressive) debugLog('GP: em cooldown de falha, faltam', Math.round((60000 - (Date.now() - _lastFailTs)) / 1000), 's');
-      return _cachedResult ?? [];
+      return { times: _cachedResult ?? [], outcome: _cachedResult ? 'ok' : 'unavailable' };
     }
-    if (_cachedResult !== null && Date.now() - _cachedTs < 30000) return _cachedResult;
+    if (_cachedResult !== null && Date.now() - _cachedTs < 30000) {
+      return { times: _cachedResult, outcome: 'ok' };
+    }
 
+    // fetchDirect.ok=true significa que o GP respondeu — inclusive com zero
+    // marcações, que aí é verdade e não cegueira.
     const direct = await this.fetchDirect();
     if (direct.ok) {
       _cachedResult = direct.times;
       _cachedTs = Date.now();
       _lastFailTs = 0;
-      return direct.times;
+      return { times: direct.times, outcome: 'ok' };
     }
 
     // Only open a tab if there's an active Senior session.
     // Without a token, attemptGpAuth inside the tab also fails — the tab is useless.
     if (aggressive && !(await hasSeniorSession())) {
       debugLog('GP: sem sessão Senior — tab flow ignorado');
-      return _cachedResult ?? [];
+      return { times: _cachedResult ?? [], outcome: _cachedResult ? 'ok' : 'unavailable' };
     }
 
     const tabResult = await fetchGpViaTabs(aggressive);
@@ -48,10 +57,11 @@ export class GpPunchProvider implements IPunchProvider {
       _cachedResult = tabResult;
       _cachedTs = Date.now();
       _lastFailTs = 0;
-    } else {
-      _lastFailTs = Date.now();
+      return { times: tabResult, outcome: 'ok' };
     }
-    return tabResult;
+    // Zero via tabs já era tratado como falha aqui (seta cooldown) — mantido.
+    _lastFailTs = Date.now();
+    return { times: [], outcome: 'unavailable' };
   }
 
   private async fetchDirect(): Promise<{ times: string[]; ok: boolean }> {

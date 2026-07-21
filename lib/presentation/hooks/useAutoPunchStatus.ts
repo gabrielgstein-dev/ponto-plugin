@@ -7,6 +7,7 @@ import type {
 
 const SCHEDULE_KEY = 'autoPunchSchedule';
 const RESULT_KEY = 'autoPunchLastResult';
+const HEALTH_KEY = 'detectionHealth';
 
 export interface AutoPunchView {
   /** Próximo disparo automático de hoje: slot + epoch ms (jitter já aplicado). */
@@ -15,15 +16,21 @@ export interface AutoPunchView {
   waitingFor: PunchReminderSlot | null;
   /** Desfecho da última batida automática de hoje. */
   lastResult: AutoPunchLastResult | null;
+  /**
+   * Nenhuma fonte autoritativa respondeu no último detect. "Zero batidas" aqui
+   * é ignorância, não fato — a UI precisa avisar em vez de mostrar `--:--`.
+   */
+  blind: boolean;
 }
 
-const EMPTY: AutoPunchView = { next: null, waitingFor: null, lastResult: null };
+const EMPTY: AutoPunchView = { next: null, waitingFor: null, lastResult: null, blind: false };
 
 function build(
   schedule: AutoPunchScheduleState | null,
   result: AutoPunchLastResult | null,
   today: string,
   now: number,
+  health?: { blind?: boolean } | null,
 ): AutoPunchView {
   // Estado de dias anteriores não vale: o agendamento é diário.
   const sched = schedule && schedule.date === today ? schedule : null;
@@ -35,7 +42,12 @@ function build(
     if (!next || fireAt < next.fireAt) next = { slot: slot as PunchReminderSlot, fireAt };
   }
 
-  return { next, waitingFor: sched?.waitingFor ?? null, lastResult: last };
+  return {
+    next,
+    waitingFor: sched?.waitingFor ?? null,
+    lastResult: last,
+    blind: health?.blind === true,
+  };
 }
 
 /**
@@ -50,13 +62,14 @@ export function useAutoPunchStatus(): AutoPunchView {
     let alive = true;
 
     const load = () => {
-      chrome.storage.local.get([SCHEDULE_KEY, RESULT_KEY], (data) => {
+      chrome.storage.local.get([SCHEDULE_KEY, RESULT_KEY, HEALTH_KEY], (data) => {
         if (!alive) return;
         setView(build(
           (data?.[SCHEDULE_KEY] as AutoPunchScheduleState) ?? null,
           (data?.[RESULT_KEY] as AutoPunchLastResult) ?? null,
           new Date().toDateString(),
           Date.now(),
+          (data?.[HEALTH_KEY] as { blind?: boolean }) ?? null,
         ));
       });
     };
@@ -68,7 +81,7 @@ export function useAutoPunchStatus(): AutoPunchView {
 
     const onChanged = (changes: Record<string, unknown>, area: string) => {
       if (area !== 'local') return;
-      if (SCHEDULE_KEY in changes || RESULT_KEY in changes) load();
+      if (SCHEDULE_KEY in changes || RESULT_KEY in changes || HEALTH_KEY in changes) load();
     };
     chrome.storage.onChanged.addListener(onChanged);
 
