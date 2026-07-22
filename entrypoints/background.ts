@@ -3,6 +3,7 @@ import { isTimesheetEnabled } from '../lib/domain/timesheet-gate';
 import { debugLog } from '../lib/domain/debug';
 import { installErrorHandlers } from '../lib/domain/install-error-handlers';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm, handleAutoPunchAlarm } from '../lib/application/handle-alarm';
+import { probePunchAuth } from '../lib/application/probe-punch-auth';
 import { openPunchPage } from '../lib/application/open-punch-page';
 import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, snoozeReminder, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
@@ -42,6 +43,11 @@ import type { InsiXState } from '../lib/domain/types';
 export default defineBackground(() => {
   installErrorHandlers();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+
+  // Diagnóstico read-only exposto no console do service worker: rode
+  // `await __probePunchAuth()` pra ver qual token o Senior aceita no serviço de
+  // ponto (não registra batida). Ver lib/application/probe-punch-auth.ts.
+  (globalThis as unknown as { __probePunchAuth: typeof probePunchAuth }).__probePunchAuth = probePunchAuth;
 
 
   // onInstalled dispara em install, update e chrome_update. A lógica de
@@ -425,6 +431,14 @@ export default defineBackground(() => {
       handleAutoPunchAlarm(`autopunch_${slot}`, Date.now())
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'PROBE_PUNCH_AUTH') {
+      // Dev/diagnóstico READ-ONLY: descobre qual fonte de token o Senior aceita
+      // no serviço de ponto, sem registrar batida. Ver probe-punch-auth.ts.
+      probePunchAuth()
+        .then(results => sendResponse({ ok: true, results }))
+        .catch(e => sendResponse({ ok: false, error: (e as Error).message }));
       return true;
     }
     if (message.type === 'INSI_X_SNOOZE') {
