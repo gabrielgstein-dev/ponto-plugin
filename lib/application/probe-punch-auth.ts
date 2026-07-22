@@ -4,7 +4,9 @@ import { SeniorCookieAuth } from '../infrastructure/senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../infrastructure/senior/senior-page-auth';
 import { SeniorInterceptorAuth } from '../infrastructure/senior/senior-interceptor-auth';
 import { SeniorTokenStorageAuth } from '../infrastructure/senior/senior-token-storage-auth';
+import { SeniorPunchRegistrar } from '../infrastructure/senior/senior-registrar';
 import type { IAuthProvider } from '../domain/interfaces';
+import type { PunchResult } from '../domain/types';
 
 // Mesmo endpoint que o SeniorPunchRegistrar chama ANTES de importar. É uma
 // LEITURA (getEmployeeClockingConfigQuery) — não registra ponto. Se um token
@@ -82,6 +84,44 @@ export async function probePunchAuth(): Promise<ProbeResult[]> {
     auditLog('Probe: ❌ CONCLUSÃO — nenhuma fonte de token foi aceita. É problema de escopo/permissão, não de "achar token".');
   }
   return results;
+}
+
+/**
+ * Dry-run READ-ONLY do fluxo de batida: roda o registrar de produção com
+ * dryRun=true — config, assinatura e montagem do payload acontecem de verdade,
+ * mas o POST de import NÃO é enviado. Prova que tudo até a escrita funciona,
+ * sem registrar ponto. Usa a MESMA cadeia de auth da batida real.
+ */
+export async function probePunchDryRun(): Promise<PunchResult> {
+  auditLog('Dry-run: montando a batida completa SEM enviar o import...');
+
+  const providers: IAuthProvider[] = [
+    new SeniorCookieAuth(),
+    new SeniorPageAuth(),
+    new SeniorInterceptorAuth(),
+    new SeniorTokenStorageAuth(),
+  ];
+
+  let token: string | null = null;
+  let via = '';
+  for (const p of providers) {
+    token = await p.getAccessToken().catch(() => null);
+    if (token) { via = p.name; break; }
+  }
+  if (!token) {
+    auditLog('Dry-run: nenhuma fonte deu token — abra o Senior logado e rode de novo');
+    return { success: false, logs: ['sem token'] };
+  }
+  auditLog(`Dry-run: usando token de '${via}' (${token.slice(0, 8)}…)`);
+
+  const result = await new SeniorPunchRegistrar().registerPunch(token, { dryRun: true });
+  result.logs.forEach(l => auditLog(`Dry-run: ${l}`));
+  if (result.success) {
+    auditLog('Dry-run: ✅ fluxo inteiro OK até o import. Só falta o POST real — que uma batida de verdade faria.');
+  } else {
+    auditLog(`Dry-run: ❌ falhou antes do import — ${result.logs.join(' | ')}`);
+  }
+  return result;
 }
 
 /**

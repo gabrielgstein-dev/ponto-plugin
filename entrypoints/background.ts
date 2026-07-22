@@ -3,7 +3,7 @@ import { isTimesheetEnabled } from '../lib/domain/timesheet-gate';
 import { debugLog } from '../lib/domain/debug';
 import { installErrorHandlers } from '../lib/domain/install-error-handlers';
 import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm, handleAutoPunchAlarm } from '../lib/application/handle-alarm';
-import { probePunchAuth } from '../lib/application/probe-punch-auth';
+import { probePunchAuth, probePunchDryRun } from '../lib/application/probe-punch-auth';
 import { openPunchPage } from '../lib/application/open-punch-page';
 import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, snoozeReminder, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
@@ -48,6 +48,9 @@ export default defineBackground(() => {
   // `await __probePunchAuth()` pra ver qual token o Senior aceita no serviço de
   // ponto (não registra batida). Ver lib/application/probe-punch-auth.ts.
   (globalThis as unknown as { __probePunchAuth: typeof probePunchAuth }).__probePunchAuth = probePunchAuth;
+  // `await __probePunchDryRun()` roda a batida INTEIRA sem enviar o import
+  // (não registra ponto). Ver lib/application/probe-punch-auth.ts.
+  (globalThis as unknown as { __probePunchDryRun: typeof probePunchDryRun }).__probePunchDryRun = probePunchDryRun;
 
 
   // onInstalled dispara em install, update e chrome_update. A lógica de
