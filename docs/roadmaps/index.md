@@ -34,7 +34,7 @@ Cobre os 5 fluxos críticos de sincronização do plugin:
 
 **Bug corrigido (2026-03-25):** `usePunchAction` não propagava `punchSuccessTime` ao storage após batimento via API — o background usava fallback (hora atual) ao invés do horário confirmado pela API Senior. Corrigido em [lib/presentation/hooks/usePunchAction.ts](../../lib/presentation/hooks/usePunchAction.ts).
 
-**Melhoria (2026-03-25):** "Saldo do Período" no Histórico de Ponto passou a consumir o endpoint `/colaborador/{id}/bancos-horas/saldo-mensal` da API do GeståoPonto, removendo o cálculo local que somava `balanceMinutes` dia a dia. O valor `saldoMinutos` retornado pela API é usado diretamente; negativo exibe vermelho, positivo exibe azul. Alterado em [lib/infrastructure/meta/gestaoponto/gp-history-provider.ts](../../lib/infrastructure/meta/gestaoponto/gp-history-provider.ts).
+**Melhoria (2026-03-25):** "Saldo do Período" no Histórico de Ponto passou a consumir o endpoint `/colaborador/{id}/bancos-horas/saldo-mensal` da API do GeståoPonto, removendo o cálculo local que somava `balanceMinutes` dia a dia. O valor `saldoMinutos` retornado pela API é usado diretamente; negativo exibe vermelho, positivo exibe azul. Alterado em [lib/infrastructure/insi/gestaoponto/gp-history-provider.ts](../../lib/infrastructure/insi/gestaoponto/gp-history-provider.ts).
 
 **Melhoria (2026-03-25):** Popup de timesheet (`ts-notification`) passou a respeitar a janela de trabalho — só exibe se `pontoState.entrada` está registrada e `pontoState.saida` ainda não foi batida (mesmos guards P6/P7 do punch-reminder). Alterado em [lib/application/background-detect.ts](../../lib/application/background-detect.ts) (`notifyPendingTimesheet`).
 

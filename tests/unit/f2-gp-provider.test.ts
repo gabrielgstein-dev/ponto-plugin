@@ -21,16 +21,16 @@ const { mockFetchGpViaTabs, mockGetGpAssertion } = vi.hoisted(() => ({
   mockGetGpAssertion: vi.fn().mockResolvedValue(null),
 }))
 
-vi.mock('../../lib/infrastructure/meta/gestaoponto/gp-tab', () => ({
+vi.mock('../../lib/infrastructure/insi/gestaoponto/gp-tab', () => ({
   fetchGpViaTabs: mockFetchGpViaTabs,
 }))
 
-vi.mock('../../lib/infrastructure/meta/gestaoponto/gp-auth', () => ({
+vi.mock('../../lib/infrastructure/insi/gestaoponto/gp-auth', () => ({
   getGpAssertion: mockGetGpAssertion,
   invalidateGpCache: vi.fn(),
 }))
 
-import { GpPunchProvider, resetGpPunchCache } from '../../lib/infrastructure/meta/gestaoponto/gp-provider'
+import { GpPunchProvider, resetGpPunchCache } from '../../lib/infrastructure/insi/gestaoponto/gp-provider'
 
 const COOKIE_WITH_TOKEN = [{ value: encodeURIComponent(JSON.stringify({ access_token: 'senior-tok' })) }]
 const SENIOR_TOKEN_MAX_AGE_MS = 6.5 * 24 * 60 * 60 * 1000

@@ -13,7 +13,7 @@ import { metaTimesheetProvider } from './timesheet/meta-ts-provider';
 // (silent refresh /api/auth/session usa esse cookie sem precisar de aba).
 export const COMPANY_LOGIN_URL = 'https://platform.senior.com.br';
 
-export const COMPANY_NAME = 'Meta';
+export const COMPANY_NAME = 'Insi';
 
 export const COMPANY_AUTH_STORAGE_KEYS = [
   'metaTsToken',

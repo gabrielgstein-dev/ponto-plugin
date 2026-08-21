@@ -36,7 +36,7 @@ vi.mock('../../lib/infrastructure/senior/senior-page-auth', () => ({
   })),
 }))
 
-import { getGpAssertion } from '../../lib/infrastructure/meta/gestaoponto/gp-auth'
+import { getGpAssertion } from '../../lib/infrastructure/insi/gestaoponto/gp-auth'
 import { mockStorageGet, mockStorageRemove, mockStorageSet } from '../setup/chrome-mock'
 
 beforeEach(() => {

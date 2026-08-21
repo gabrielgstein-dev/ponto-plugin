@@ -61,7 +61,7 @@ describe('getMetaTsTokenSilently', () => {
       ENABLE_SENIOR_INTEGRATION: true,
       ENABLE_META_TIMESHEET: true,
     }))
-    const mod = await import('../../lib/infrastructure/meta/timesheet/meta-ts-session')
+    const mod = await import('../../lib/infrastructure/insi/timesheet/meta-ts-session')
     mod._resetForTests()
   })
 
@@ -77,7 +77,7 @@ describe('getMetaTsTokenSilently', () => {
     vi.stubGlobal('fetch', fetchSpy)
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     const result = await getMetaTsTokenSilently(CONFIG, auth)
@@ -92,7 +92,7 @@ describe('getMetaTsTokenSilently', () => {
     vi.stubGlobal('fetch', fetchSpy)
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     await getMetaTsTokenSilently(CONFIG, auth)
@@ -113,7 +113,7 @@ describe('getMetaTsTokenSilently', () => {
     vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     const result = await getMetaTsTokenSilently(CONFIG, auth)
@@ -144,7 +144,7 @@ describe('getMetaTsTokenSilently', () => {
     vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     expect(await getMetaTsTokenSilently(CONFIG, makeAuth())).toBe(jwt)
     expect(mockDnrUpdateSessionRules).not.toHaveBeenCalled()
@@ -155,7 +155,7 @@ describe('getMetaTsTokenSilently', () => {
     vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     const result = await getMetaTsTokenSilently(CONFIG, auth)
@@ -172,7 +172,7 @@ describe('getMetaTsTokenSilently', () => {
     vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: expiredJwt } })))
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     expect(await getMetaTsTokenSilently(CONFIG, auth)).toBeNull()
@@ -190,7 +190,7 @@ describe('getMetaTsTokenSilently', () => {
     })))
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     expect(await getMetaTsTokenSilently(CONFIG, auth)).toBeNull()
@@ -201,7 +201,7 @@ describe('getMetaTsTokenSilently', () => {
     vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: false, status: 401, body: { error: 'unauthorized' } })))
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     expect(await getMetaTsTokenSilently(CONFIG, auth)).toBeNull()
@@ -217,7 +217,7 @@ describe('getMetaTsTokenSilently', () => {
     }))
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     const [r1, r2, r3] = await Promise.all([
@@ -237,7 +237,7 @@ describe('getMetaTsTokenSilently', () => {
     }))
 
     const { getMetaTsTokenSilently } = await import(
-      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+      '../../lib/infrastructure/insi/timesheet/meta-ts-session'
     )
     const auth = makeAuth()
     expect(await getMetaTsTokenSilently(CONFIG, auth)).toBeNull()

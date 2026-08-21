@@ -98,7 +98,7 @@
 - `lib/infrastructure/senior/senior-cookie-auth.ts` — Cookie OAuth
 - `lib/infrastructure/senior/senior-interceptor-auth.ts` — Bearer interceptado
 - `lib/infrastructure/senior/senior-page-auth.ts` — Page scan
-- `lib/infrastructure/meta/gestaoponto/gp-auth.ts` — Assertion Meta
+- `lib/infrastructure/insi/gestaoponto/gp-auth.ts` — Assertion Meta
 
 ### Checklist de Verificação
 
@@ -122,8 +122,8 @@
 ## F5: Garantir sincronização Timesheet Meta
 
 ### Componentes Envolvidos
-- `lib/infrastructure/meta/gestaoponto/gp-provider.ts` — `GpPunchProvider`
-- `lib/infrastructure/meta/timesheet/meta-ts-provider.ts` — `metaTimesheetProvider`
+- `lib/infrastructure/insi/gestaoponto/gp-provider.ts` — `GpPunchProvider`
+- `lib/infrastructure/insi/timesheet/meta-ts-provider.ts` — `metaTimesheetProvider`
 
 ### Checklist de Verificação
 

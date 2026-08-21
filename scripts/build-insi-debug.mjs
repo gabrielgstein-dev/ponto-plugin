@@ -46,7 +46,7 @@ try {
     ENABLE_SENIOR_PUNCH_BUTTON: false,
     ENABLE_MANUAL_PUNCH: false,
     ENABLE_META_TIMESHEET: true,
-    ACTIVE_COMPANY: 'meta',
+    ACTIVE_COMPANY: 'insi',
     APP_NAME: 'Ponto Insi',
     ENABLE_WIDGET: true,
     ENABLE_NOTIFICATIONS: true,
