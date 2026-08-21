@@ -35,6 +35,7 @@ import {
 import { startReminder } from '../../lib/application/punch-reminder-manager'
 import {
   mockAlarmsClear,
+  mockAlarmsGet,
   mockStorageGet,
   mockStorageGetForHandler,
   mockStorageSet,
@@ -51,6 +52,90 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+// handleReminderAlarm/handleNotifAlarm fazem múltiplas leituras de storage
+// (pontoSettings do gate, pontoState+pontoDate do punch-state, alarm_msg_*) —
+// mockResolvedValue responde todas com o mesmo objeto merged.
+function notifMock() {
+  return (globalThis as { chrome: { notifications: { create: ReturnType<typeof vi.fn> } } })
+    .chrome.notifications.create
+}
+
+describe('silêncio enquanto a batida automática está armada', () => {
+  // 09:05 do dia fixado — só precisa ser um horário plausível de disparo.
+  const ARMED_AT = new Date(2026, 4, 13, 9, 5, 0).getTime()
+
+  const armAutoPunch = (forAlarm: string) =>
+    mockAlarmsGet.mockImplementation(async (name: string) =>
+      name === forAlarm ? { name, scheduledTime: ARMED_AT } : undefined,
+    )
+
+  it('popup de entrada NÃO abre quando autopunch_entrada está agendado', async () => {
+    armAutoPunch('autopunch_entrada')
+    mockStorageGetForHandler({ alarm_time_punch_popup_entrada: '08:00' })
+
+    await handlePunchPopupAlarm('punch_popup_entrada')
+
+    expect(startReminder).not.toHaveBeenCalled()
+  })
+
+  it('popup de entrada abre normalmente quando a automática NÃO cobre o slot', async () => {
+    // Automática armada só pra saída — entrada continua por conta do usuário.
+    armAutoPunch('autopunch_saida')
+    mockStorageGetForHandler({ alarm_time_punch_popup_entrada: '08:00' })
+
+    await handlePunchPopupAlarm('punch_popup_entrada')
+
+    expect(startReminder).toHaveBeenCalledWith('entrada', '08:00')
+  })
+
+  // handleReminderAlarm/handleNotifAlarm leem storage várias vezes (gate,
+  // punch-state, alarm_msg_*) — o mock precisa responder todas.
+  const storageSemBatida = (msgKey: string) =>
+    mockStorageGet.mockResolvedValue({
+      pontoState: { entrada: null, almoco: null, volta: null, saida: null },
+      pontoDate: new Date().toDateString(),
+      [msgKey]: 'Você ainda não bateu a entrada!',
+    })
+
+  it('aviso de antecedência não notifica quando a automática está armada', async () => {
+    armAutoPunch('autopunch_entrada')
+    storageSemBatida('alarm_msg_notif_entrada')
+
+    await handleNotifAlarm('notif_entrada')
+
+    expect(notifMock()).not.toHaveBeenCalled()
+  })
+
+  it('lembrete de atraso não notifica quando a automática está armada', async () => {
+    armAutoPunch('autopunch_entrada')
+    storageSemBatida('alarm_msg_reminder_entrada')
+
+    await handleReminderAlarm('reminder_entrada')
+
+    expect(notifMock()).not.toHaveBeenCalled()
+  })
+
+  it('lembrete de atraso volta a cobrar depois que a automática se esgota', async () => {
+    // Sem alarme `autopunch_*` (todas as tentativas gastas) o slot é cobrado —
+    // é a rede de segurança pra automática que sumiu sem bater.
+    mockAlarmsGet.mockResolvedValue(undefined)
+    storageSemBatida('alarm_msg_reminder_entrada')
+
+    await handleReminderAlarm('reminder_entrada')
+
+    expect(notifMock()).toHaveBeenCalled()
+  })
+
+  it('falha ao consultar o alarme não silencia o lembrete', async () => {
+    mockAlarmsGet.mockRejectedValue(new Error('alarms indisponível'))
+    mockStorageGetForHandler({ alarm_time_punch_popup_entrada: '08:00' })
+
+    await handlePunchPopupAlarm('punch_popup_entrada')
+
+    expect(startReminder).toHaveBeenCalledWith('entrada', '08:00')
+  })
 })
 
 describe("handlePunchPopupAlarm — slot 'entrada' (BUG 3)", () => {
@@ -71,14 +156,6 @@ describe("handlePunchPopupAlarm — slot 'entrada' (BUG 3)", () => {
     expect(startReminder).not.toHaveBeenCalled()
   })
 })
-
-// handleReminderAlarm/handleNotifAlarm fazem múltiplas leituras de storage
-// (pontoSettings do gate, pontoState+pontoDate do punch-state, alarm_msg_*) —
-// mockResolvedValue responde todas com o mesmo objeto merged.
-function notifMock() {
-  return (globalThis as { chrome: { notifications: { create: ReturnType<typeof vi.fn> } } })
-    .chrome.notifications.create
-}
 
 describe("handleReminderAlarm — slot 'entrada' (BUG 3)", () => {
   it('dispara notification para reminder_entrada quando entrada ainda não foi batida', async () => {

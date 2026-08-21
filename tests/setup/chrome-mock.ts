@@ -68,6 +68,9 @@ export const mockRuntimeGetManifest = vi.fn(() => ({ version: '0.0.0-test' }))
 // ── Alarms ────────────────────────────────────────────────────────────────────
 export const mockAlarmsCreate = vi.fn()
 export const mockAlarmsClear = vi.fn().mockResolvedValue(true)
+// undefined = alarme não agendado. É o default de propósito: quase todo teste
+// quer o caminho "sem batida automática armada".
+export const mockAlarmsGet = vi.fn().mockResolvedValue(undefined)
 
 // ── Side Panel ────────────────────────────────────────────────────────────────
 export const mockSidePanelOpen = vi.fn().mockResolvedValue(undefined)
@@ -147,6 +150,7 @@ const chromeMock = {
   alarms: {
     create: mockAlarmsCreate,
     clear: mockAlarmsClear,
+    get: mockAlarmsGet,
     onAlarm: {
       addListener: vi.fn(),
       removeListener: vi.fn(),
@@ -202,6 +206,8 @@ beforeEach(() => {
   mockRuntimeGetURL.mockImplementation((path: string) => `chrome-extension://test-id/${path}`)
   mockRuntimeGetManifest.mockReturnValue({ version: '0.0.0-test' })
   mockAlarmsClear.mockResolvedValue(true)
+  mockAlarmsGet.mockReset()
+  mockAlarmsGet.mockResolvedValue(undefined)
   mockSidePanelOpen.mockResolvedValue(undefined)
   mockActionSetBadgeText.mockResolvedValue(undefined)
   mockActionSetBadgeBackgroundColor.mockResolvedValue(undefined)

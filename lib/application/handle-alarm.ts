@@ -108,6 +108,38 @@ async function scheduleAutoPunchRetry(
   return at;
 }
 
+// ── Silêncio enquanto a batida automática está armada ────────────────────────
+// Cobrar o slot de quem já tem batida automática agendada é ruído garantido: o
+// popup abre no horário nominal (08:00) e fica tocando de 5 em 5 min, enquanto
+// a automática só dispara em nominal+jitter (08:01 em 2026-08-21) e a detecção
+// leva mais um ciclo pra enxergar. O usuário é acordado por um alarme que existe
+// justamente pra ele não precisar fazer nada.
+//
+// O alarme `autopunch_<slot>` é a prova de que o slot está coberto: ele existe
+// desde o agendamento até a batida confirmar ou as tentativas se esgotarem — e
+// nesse último caso o próprio handleAutoPunchAlarm abre o lembrete com som.
+// O `reminder_<slot>` de atraso segue como rede de segurança: quando ele dispara
+// (nominal+30min por padrão) o alarme automático já não existe mais, então uma
+// automática que sumiu sem disparar continua sendo cobrada.
+async function autoPunchArmedFor(slot: PunchReminderSlot): Promise<number | null> {
+  try {
+    const alarm = await chrome.alarms.get(`${AUTO_PUNCH_ALARM_PREFIX}${slot}`);
+    return alarm ? alarm.scheduledTime : null;
+  } catch (_) {
+    // Sem conseguir checar, prefere avisar: um lembrete a mais incomoda, um
+    // ponto não batido custa.
+    return null;
+  }
+}
+
+/** Silencia o aviso do slot se a batida automática já está armada pra ele. */
+async function silencedByAutoPunch(slot: PunchReminderSlot, what: string): Promise<boolean> {
+  const at = await autoPunchArmedFor(slot);
+  if (at == null) return false;
+  auditLog(`${what}: ${slot} silenciado — batida automática armada para ${new Date(at).toTimeString().slice(0, 5)}`);
+  return true;
+}
+
 export async function handleDailyReset(): Promise<void> {
   const alarms = await chrome.alarms.getAll();
   for (const a of alarms) {
@@ -187,7 +219,11 @@ export async function handlePunchPopupAlarm(alarmName: string, scheduledTime = D
   const slot = PUNCH_POPUP_SLOT_MAP[alarmName];
   if (!slot) return;
   const timeKey = `alarm_time_${alarmName}`;
-  if (isStaleAlarm(scheduledTime) || await isReminderBlockedToday()) {
+  if (
+    isStaleAlarm(scheduledTime) ||
+    await isReminderBlockedToday() ||
+    await silencedByAutoPunch(slot, 'Popup de lembrete')
+  ) {
     await chrome.storage.local.remove(timeKey);
     return;
   }
@@ -200,7 +236,11 @@ export async function handlePunchPopupAlarm(alarmName: string, scheduledTime = D
 export async function handleReminderAlarm(alarmName: string, scheduledTime = Date.now()): Promise<void> {
   const slot = REMINDER_SLOT_MAP[alarmName];
   const msgKey = `alarm_msg_${alarmName}`;
-  if (isStaleAlarm(scheduledTime) || await isReminderBlockedToday()) {
+  if (
+    isStaleAlarm(scheduledTime) ||
+    await isReminderBlockedToday() ||
+    await silencedByAutoPunch(slot, 'Lembrete de atraso')
+  ) {
     await chrome.storage.local.remove(msgKey);
     return;
   }
@@ -390,7 +430,7 @@ export async function handleNotifAlarm(alarmName: string, scheduledTime = Date.n
   // Batimento adiantado: quem bate antes do aviso de antecipação não deve
   // ouvir "hora de bater em X minutos" de um ponto que já registrou.
   const slot = NOTIF_SLOT_MAP[alarmName];
-  if (slot && await isSlotPunchedToday(slot)) {
+  if (slot && (await isSlotPunchedToday(slot) || await silencedByAutoPunch(slot, 'Aviso de antecedência'))) {
     await chrome.storage.local.remove(msgKey);
     return;
   }
