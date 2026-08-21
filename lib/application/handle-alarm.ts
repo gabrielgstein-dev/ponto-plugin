@@ -7,6 +7,7 @@ import { openPunchPage } from './open-punch-page';
 import { applySettings, resetNotifScheduled } from './state';
 import { startReminder, resolveReminder, DISMISSED_SLOTS_KEY } from './punch-reminder-manager';
 import { isSlotPunchedToday } from './punch-state';
+import { invalidateSeniorTokenStorage } from '../infrastructure/insi/gestaoponto/gp-auth';
 import { DEFAULT_SETTINGS } from '../domain/types';
 import type { PunchReminderSlot, Settings, AutoPunchStatus, AutoPunchLastResult } from '../domain/types';
 import { isReminderBlockedToday } from '../domain/weekday-gate';
@@ -332,6 +333,20 @@ export async function handleAutoPunchAlarm(alarmName: string, scheduledTime = Da
   // falhou: 401") — é essa linha que responde "por que não bateu".
   const reason = result.logs.join(' | ') || 'motivo desconhecido';
   auditLog(`Auto-punch: FALHA em ${slot} — motivo: ${reason}`);
+
+  // O token guardado em storage passou pelo Senior e foi rejeitado — reter
+  // ele pra retentativa é insistir num token que já provamos morto. Sem
+  // isso, as 3 tentativas (08:04/08:07/08:10 de 2026-08-11) rodam com o
+  // MESMO token e falham do mesmo jeito: `SeniorTokenStorageAuth` só checa
+  // idade própria (janela bem mais larga que o TTL real do Senior), então
+  // ele continua "válido" pro plugin mesmo já rejeitado pelo servidor.
+  // Invalidar força a retentativa a pular esse provider e cair no
+  // `SeniorPageAuth`, que lê a sessão viva da aba — chance real de achar um
+  // token que a SPA já renovou sozinha nesse meio-tempo.
+  if (/Config falhou: 40[13]/.test(reason)) {
+    await invalidateSeniorTokenStorage();
+    auditLog(`Auto-punch: ${slot} — token rejeitado pelo servidor, invalidado antes da retentativa`);
+  }
 
   // Antes de incomodar o usuário, tenta de novo: as causas mais comuns
   // (token frio, SPA ainda bootando) se resolvem sozinhas em poucos minutos.
