@@ -1,6 +1,5 @@
 import { auditLog } from '../domain/debug';
 import { findSeniorTab } from '../infrastructure/senior/tab-utils';
-import { SeniorCookieAuth } from '../infrastructure/senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../infrastructure/senior/senior-page-auth';
 import { SeniorInterceptorAuth } from '../infrastructure/senior/senior-interceptor-auth';
 import { SeniorTokenStorageAuth } from '../infrastructure/senior/senior-token-storage-auth';
@@ -42,7 +41,6 @@ export async function probePunchAuth(): Promise<ProbeResult[]> {
   auditLog(`Probe: usando aba Senior ${tab.id} (${tab.url?.slice(0, 60)})`);
 
   const providers: IAuthProvider[] = [
-    new SeniorCookieAuth(),
     new SeniorPageAuth(),
     new SeniorInterceptorAuth(),
     new SeniorTokenStorageAuth(),
@@ -96,7 +94,6 @@ export async function probePunchDryRun(): Promise<PunchResult> {
   auditLog('Dry-run: montando a batida completa SEM enviar o import...');
 
   const providers: IAuthProvider[] = [
-    new SeniorCookieAuth(),
     new SeniorPageAuth(),
     new SeniorInterceptorAuth(),
     new SeniorTokenStorageAuth(),

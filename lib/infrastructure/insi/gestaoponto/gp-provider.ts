@@ -3,7 +3,6 @@ import { todayDateStr } from '../../../domain/time-utils';
 import { debugLog, debugWarn } from '../../../domain/debug';
 import { getGpAssertion, invalidateGpCache } from './gp-auth';
 import { fetchGpViaTabs } from './gp-tab';
-import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
 import { SENIOR_TOKEN_MAX_AGE_MS } from '../../senior/constants';
 import { GP_API_BASE } from './constants';
 let _lastFailTs = 0;
@@ -110,8 +109,6 @@ export class GpPunchProvider implements IPunchProvider {
 }
 
 async function hasSeniorSession(): Promise<boolean> {
-  const fromCookie = await new SeniorCookieAuth().getAccessToken().catch(() => null);
-  if (fromCookie) return true;
   try {
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
     return !!stored.seniorToken && !!stored.seniorTokenTs &&

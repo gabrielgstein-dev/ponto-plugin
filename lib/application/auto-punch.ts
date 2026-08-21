@@ -3,7 +3,6 @@ import { auditLog } from '../domain/debug';
 import { timeToMinutes } from '../domain/time-utils';
 import { registerPunch, resolveAccessToken } from './register-punch';
 import { ensureSeniorTab, closeSeniorTab } from './ensure-senior-tab';
-import { SeniorCookieAuth } from '../infrastructure/senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../infrastructure/senior/senior-page-auth';
 import { SeniorInterceptorAuth } from '../infrastructure/senior/senior-interceptor-auth';
 import { SeniorTokenStorageAuth } from '../infrastructure/senior/senior-token-storage-auth';
@@ -14,14 +13,12 @@ import {
 } from '../infrastructure/senior/senior-active-user-provider';
 
 // Cadeia de auth do botão manual (usePunchAction) + `SeniorTokenStorageAuth`.
-// Rodar no service worker é ok: SeniorCookieAuth usa chrome.cookies; os demais
-// são fallback via aba/storage.
+// Rodar no service worker é ok: os providers são fallback via aba/storage.
 //
-// A ordem importa: os três primeiros são tokens de escopo estreito e origem
+// A ordem importa: os dois primeiros são tokens de escopo estreito e origem
 // conhecida. `tokenStorage` fecha a cadeia porque é o único que sobrevive a um
 // restart do Chrome sem aba aberta — era exatamente o buraco de 2026-07-21.
 const authProviders = [
-  new SeniorCookieAuth(),
   new SeniorPageAuth(),
   new SeniorInterceptorAuth(),
   new SeniorTokenStorageAuth(),

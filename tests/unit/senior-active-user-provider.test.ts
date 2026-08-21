@@ -119,10 +119,11 @@ describe('SeniorActiveUserPunchProvider', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('usa token do cookie e parseia resposta de hoje', async () => {
-    mockCookiesGetAll.mockResolvedValue([
-      { name: 'com.senior.token', value: encodeURIComponent(JSON.stringify({ access_token: 'cookie-token-xyz' })) },
-    ]);
+  it('usa token do storage e parseia resposta de hoje', async () => {
+    mockStorageGet.mockResolvedValue({
+      seniorToken: 'storage-token-xyz',
+      seniorTokenTs: Date.now(),
+    });
     mockFetchOk({
       count: 3, totalPages: 1,
       result: [
@@ -157,9 +158,10 @@ describe('SeniorActiveUserPunchProvider', () => {
   });
 
   it('manda o body com schema EXATO do Senior (pageSize string, activePlatformUser)', async () => {
-    mockCookiesGetAll.mockResolvedValue([
-      { name: 'com.senior.token', value: encodeURIComponent(JSON.stringify({ access_token: 'tok' })) },
-    ]);
+    mockStorageGet.mockResolvedValue({
+      seniorToken: 'tok',
+      seniorTokenTs: Date.now(),
+    });
     mockFetchOk({ count: 0, totalPages: 0, result: [] });
 
     const provider = new SeniorActiveUserPunchProvider();
@@ -195,9 +197,10 @@ describe('SeniorActiveUserPunchProvider', () => {
   });
 
   it('respeita cache de 30s — segunda chamada não refaz fetch', async () => {
-    mockCookiesGetAll.mockResolvedValue([
-      { name: 'com.senior.token', value: encodeURIComponent(JSON.stringify({ access_token: 'tok' })) },
-    ]);
+    mockStorageGet.mockResolvedValue({
+      seniorToken: 'tok',
+      seniorTokenTs: Date.now(),
+    });
     mockFetchOk({
       count: 1, totalPages: 1,
       result: [{ id: '1', dateEvent: '2026-05-14', timeEvent: '08:00:00' }],
@@ -212,9 +215,10 @@ describe('SeniorActiveUserPunchProvider', () => {
   });
 
   it('cooldown de falha — 401/403 evita re-fetch por 2min', async () => {
-    mockCookiesGetAll.mockResolvedValue([
-      { name: 'com.senior.token', value: encodeURIComponent(JSON.stringify({ access_token: 'tok' })) },
-    ]);
+    mockStorageGet.mockResolvedValue({
+      seniorToken: 'tok',
+      seniorTokenTs: Date.now(),
+    });
     mockFetchErr(401);
 
     const provider = new SeniorActiveUserPunchProvider();
@@ -226,9 +230,10 @@ describe('SeniorActiveUserPunchProvider', () => {
   });
 
   it('retorna array vazio sem crashar quando fetch lança erro de rede', async () => {
-    mockCookiesGetAll.mockResolvedValue([
-      { name: 'com.senior.token', value: encodeURIComponent(JSON.stringify({ access_token: 'tok' })) },
-    ]);
+    mockStorageGet.mockResolvedValue({
+      seniorToken: 'tok',
+      seniorTokenTs: Date.now(),
+    });
     globalThis.fetch = vi.fn(async () => {
       throw new TypeError('Failed to fetch');
     }) as unknown as typeof fetch;
@@ -243,9 +248,10 @@ describe('SeniorActiveUserPunchProvider', () => {
   });
 
   it('formata data alvo usando timezone LOCAL (não UTC)', async () => {
-    mockCookiesGetAll.mockResolvedValue([
-      { name: 'com.senior.token', value: encodeURIComponent(JSON.stringify({ access_token: 'tok' })) },
-    ]);
+    mockStorageGet.mockResolvedValue({
+      seniorToken: 'tok',
+      seniorTokenTs: Date.now(),
+    });
     mockFetchOk({
       count: 2, totalPages: 1,
       result: [

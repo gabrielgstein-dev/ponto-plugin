@@ -1,7 +1,6 @@
 import type { GpAuthData } from '../../../domain/types';
 import { GP_API_BASE, GP_CACHE_DURATION_MS } from './constants';
 import { SENIOR_TOKEN_MAX_AGE_MS } from '../../senior/constants';
-import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../../senior/senior-page-auth';
 import { refreshSeniorTokenSilently } from '../../senior/senior-token-refresh';
 import { debugLog, debugWarn } from '../../../domain/debug';
@@ -117,9 +116,7 @@ async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
 }
 
 async function getSeniorAccessToken(): Promise<string | null> {
-  // Storage é fonte canônica: refresh atualiza só o storage (cookie cross-context
-  // não rotaciona de forma confiável). Cookie só é fallback inicial pra primeira
-  // captura — depois disso, storage manda.
+  // Storage é fonte canônica: refresh atualiza só o storage.
   try {
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs', 'seniorRefreshToken']);
     if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS) {
@@ -146,13 +143,7 @@ async function getSeniorAccessToken(): Promise<string | null> {
     });
   }
 
-  // Fallback: cookie (primeira captura, ou storage vazio)
-  const fromCookie = await new SeniorCookieAuth().getAccessToken();
-  if (fromCookie) {
-    debugLog('getSeniorAccessToken: storage sem token válido, usando cookie');
-    return fromCookie;
-  }
-
+  // Fallback: aba Senior aberta (storage vazio)
   const fromPage = await new SeniorPageAuth().getAccessToken();
   if (fromPage) {
     debugLog('getSeniorAccessToken: token obtido via aba Senior aberta');

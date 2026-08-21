@@ -18,7 +18,6 @@ import { getGpAssertion } from '../lib/infrastructure/insi/gestaoponto/gp-auth';
 import { directFetchMetaTs } from '../lib/infrastructure/insi/timesheet/meta-ts-direct-fetch';
 import { directFetchSenior } from '../lib/infrastructure/senior/senior-direct-fetch';
 import { directFetchGp } from '../lib/infrastructure/insi/gestaoponto/gp-direct-fetch';
-import { SeniorCookieAuth } from '../lib/infrastructure/senior/senior-cookie-auth';
 import { SENIOR_TOKEN_MAX_AGE_MS } from '../lib/infrastructure/senior/constants';
 import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/insi/timesheet/constants';
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
@@ -374,23 +373,17 @@ export default defineBackground(() => {
     }
     if (message.type === 'SPIKE_SENIOR_DIRECT_FETCH') {
       // Spike: testa fetch direto contra pontomobile_bff sem aba aberta.
-      // Resolve token: cookie OAuth → storage (seniorToken).
+      // Resolve token: storage (seniorToken).
       (async () => {
         try {
           let token: string | null = null;
           let tokenAgeMs: number | null = null;
-          const cookieToken = await new SeniorCookieAuth().getAccessToken().catch(() => null);
-          if (cookieToken) {
-            token = cookieToken;
-            tokenAgeMs = 0;
-          } else {
-            const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
-            if (stored.seniorToken && stored.seniorTokenTs) {
-              const age = Date.now() - stored.seniorTokenTs;
-              if (age < SENIOR_TOKEN_MAX_AGE_MS) {
-                token = stored.seniorToken;
-                tokenAgeMs = age;
-              }
+          const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
+          if (stored.seniorToken && stored.seniorTokenTs) {
+            const age = Date.now() - stored.seniorTokenTs;
+            if (age < SENIOR_TOKEN_MAX_AGE_MS) {
+              token = stored.seniorToken;
+              tokenAgeMs = age;
             }
           }
           if (!token) {

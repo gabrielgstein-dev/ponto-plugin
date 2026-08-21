@@ -83,7 +83,7 @@ describe('runAutoPunch() — cadeia de auth efetivamente usada', () => {
 
     const chain = mockRegister.mock.calls[0][0]
     expect(chain.map(p => p.name)).toEqual([
-      'cookie', 'pageContext', 'interceptor', 'tokenStorage',
+      'pageContext', 'interceptor', 'tokenStorage',
     ])
   })
 
