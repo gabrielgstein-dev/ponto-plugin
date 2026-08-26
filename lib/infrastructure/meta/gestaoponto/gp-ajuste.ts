@@ -1,5 +1,5 @@
 import { getGpAssertion } from './gp-auth';
-import { GP_API_BASE } from './constants';
+import { GP_API_BASE, GP_ORIGIN } from './constants';
 import { debugLog, debugWarn } from '../../../domain/debug';
 
 export const JUSTIFICATIVAS = [
@@ -103,7 +103,7 @@ export async function addGpPunchAjuste(
         'Accept': 'application/json, text/plain, */*',
         'Content-Type': 'application/json;charset=UTF-8',
         'assertion': assertion,
-        'origin': 'https://gestaoponto.meta.com.br',
+        'origin': GP_ORIGIN,
       },
       body: JSON.stringify(payload),
     });

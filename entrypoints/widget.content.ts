@@ -73,7 +73,7 @@ function cleanup() {
 }
 
 export default defineContentScript({
-  matches: ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*'],
+  matches: ['*://platform.senior.com.br/*', '*://gestaoponto.insi.com/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*'],
   runAt: 'document_idle',
 
   main() {
