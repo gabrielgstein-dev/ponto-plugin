@@ -58,16 +58,16 @@ nunca mais pensar em login.
       (`hasSeniorSession()`) → sidepanel mostra "Sua sessão está OK, mas o GestãoPonto mudou de endereço —
       atualize o plugin" em vez de "Reconectar" (`useGpUnreachable` + `TokenStatus gpUnreachable`).
 
-## Fase 3 — Transparência no update
+## Fase 3 — Transparência no update ✅ (branch `feat/gp-host-migration-ux`)
 
-- [ ] `onInstalled` (`reason === 'update'`, `previousVersion < 0.15.0`) seta `pendingHostMigration`.
+- [x] `onInstalled` (`reason === 'update'`, `previousVersion < 0.15.0`) seta `pendingHostMigration`.
       Se `chrome.permissions.contains({ origins: ['*://gestaoponto.insi.com/*'] })` for `false`, popup mostra
       banner "O GestãoPonto mudou para gestaoponto.insi.com. Clique em Ativar para o plugin voltar a
-      sincronizar" → `chrome.permissions.request()`.
-- [ ] Ao aceitar: `invalidateGpCache()` + `resetGpPunchCache()` + sync imediato.
-- [ ] Release notes 0.15.0 (`/release-notes`) com seção "Por que o Chrome pediu permissão nova". Mesma frase
+      sincronizar" → `chrome.permissions.request()` (`lib/application/gp-host-migration.ts`, `GpHostMigrationBanner`).
+- [x] Ao aceitar: `invalidateGpCache()` + `resetGpPunchCache()` + sync imediato (via `FORCE_REDETECT`, que já faz `resetAllCaches()`).
+- [ ] Release notes 0.15.0 (gerar com `/release-notes` quando o release-please cortar a versão; texto abaixo) (`/release-notes`) com seção "Por que o Chrome pediu permissão nova". Mesma frase
       no CHANGELOG e na descrição da loja.
-- [ ] Atualizar `public/privacy.html`, `PRIVACY.md`, `APRENDIZADOS_API_SENIOR.md` (política de privacidade é
+- [x] Atualizar `public/privacy.html`, `PRIVACY.md`, `APRENDIZADOS_API_SENIOR.md` (política de privacidade é
       revisada pela loja — precisa citar o domínio novo).
 
 ## Fase 4 — Rollout
@@ -84,3 +84,12 @@ nunca mais pensar em login.
 - Lado Senior (login SAML/Microsoft, refresh token): funcionando, não mexer.
 - Timesheet (`plataforma.meta.com.br` / `api.meta.com.br`): responde normal; se migrar, é o mesmo tipo de fix
   e a Fase 2 acusa no log.
+
+## Texto para usuários (release notes / comunicado / loja)
+
+> **Por que o Chrome pediu uma permissão nova?**
+> O GestãoPonto mudou de endereço: de `gestaoponto.meta.com.br` para `gestaoponto.insi.com`.
+> Para continuar lendo suas marcações, o plugin precisa de acesso ao endereço novo — e o Chrome
+> exige que você confirme isso uma vez. Depois de clicar em **Ativar** (no aviso do Chrome ou no
+> banner do plugin), tudo volta a sincronizar sozinho. Sua sessão Senior não muda; não precisa
+> logar de novo.

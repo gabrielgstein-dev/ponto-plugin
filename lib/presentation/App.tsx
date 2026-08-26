@@ -24,6 +24,7 @@ import { PunchHistory } from './components/PunchHistory';
 import { HourBankBanner } from './components/HourBankBanner';
 import { PaytrackBanner } from './components/PaytrackBanner';
 import { InsiXBanner, InsiXDoneHint } from './components/InsiXBanner';
+import { GpHostMigrationBanner } from './components/GpHostMigrationBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
 import { useGpUnreachable } from './hooks/useGpUnreachable';
@@ -69,6 +70,7 @@ export function App() {
         {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
         {settings.insiXReminder && <InsiXDoneHint />}
       </div>
+      {ENABLE_SENIOR_INTEGRATION && <GpHostMigrationBanner />}
       {settings.insiXReminder && <InsiXBanner />}
       <div className="cards-grid">
         {PUNCH_SLOTS.map(slot => {

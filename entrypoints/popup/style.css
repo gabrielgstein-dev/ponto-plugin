@@ -421,6 +421,31 @@ body {
   .paytrack-banner.urgent { animation: none; }
 }
 
+/* ============ Migração de host do GP (0.15.0) ============ */
+.gp-migration-banner {
+  margin: 8px 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--warn);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gp-migration-msg { margin: 0; font-size: 11px; line-height: 1.4; color: var(--text); }
+.gp-migration-btn {
+  align-self: flex-end;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gp-migration-btn:disabled { opacity: 0.6; cursor: default; }
+
 /* ============ Insi X banner ============ */
 .insi-x-banner {
   position: relative;

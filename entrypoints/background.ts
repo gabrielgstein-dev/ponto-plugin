@@ -35,6 +35,7 @@ import {
   INSI_X_NOTIFY_ALARM,
 } from '../lib/application/insi-x-reminder-manager';
 import { refreshInsiXBadge } from '../lib/application/insi-x-badge';
+import { markGpHostMigrationOnUpdate } from '../lib/application/gp-host-migration';
 import { INSI_X_URL, hasRespondedThisWeek } from '../lib/domain/insi-x-status';
 import { appendNetEntry, getNetEntries, clearNetEntries, type MetaNetEntry } from '../lib/domain/meta-net-log';
 import type { InsiXState } from '../lib/domain/types';
@@ -47,9 +48,11 @@ export default defineBackground(() => {
   // onInstalled dispara em install, update e chrome_update. A lógica de
   // inicialização defensiva está em lib/application/install-init.ts —
   // single source of truth com os tests pra evitar divergência.
-  chrome.runtime.onInstalled.addListener(() => {
+  chrome.runtime.onInstalled.addListener((details) => {
     initializeStorageIfNeeded().catch(() => {});
     migrateInsiXStorageKeys().catch(() => {});
+    // 0.15.0: host do GP mudou (gestaoponto.insi.com) — ver lib/application/gp-host-migration.ts
+    markGpHostMigrationOnUpdate(details).catch(() => {});
   });
 
   if (ENABLE_SENIOR_INTEGRATION) {
