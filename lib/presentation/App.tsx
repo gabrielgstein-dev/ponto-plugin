@@ -26,6 +26,7 @@ import { PaytrackBanner } from './components/PaytrackBanner';
 import { InsiXBanner, InsiXDoneHint } from './components/InsiXBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
+import { useGpUnreachable } from './hooks/useGpUnreachable';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { OnboardingOverlay } from './components/OnboardingOverlay';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
@@ -47,6 +48,7 @@ export function App() {
   const hourBankProvider = useMemo(() => ENABLE_MANUAL_PUNCH ? new ManualHourBankProvider() : null, []);
   const { balance } = useHourBank(hourBankProvider, settings);
   const hasAuth = useAuthStatus();
+  const gpUnreachable = useGpUnreachable();
 
   const nowMin = getNowMinutes();
   const nextSlot = loading ? null : getNextSlot(punchState, nowMin);
@@ -63,7 +65,7 @@ export function App() {
     <div className="popup-container">
       <LiveClock time={time} date={date} />
       <div className="token-status-row">
-        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText="" hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} companyLabel={COMPANY_NAME} />}
+        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText="" hasAuth={hasAuth} gpUnreachable={gpUnreachable} loginUrl={COMPANY_LOGIN_URL} companyLabel={COMPANY_NAME} />}
         {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
         {settings.insiXReminder && <InsiXDoneHint />}
       </div>

@@ -5,9 +5,11 @@ interface TokenStatusProps {
   hasAuth?: boolean | null;
   loginUrl?: string;
   companyLabel?: string;
+  /** Host do GP redirecionou: sessão pode estar OK, plugin precisa de update. */
+  gpUnreachable?: boolean;
 }
 
-export function TokenStatus({ hasToken, loading, statusText, hasAuth, loginUrl = 'https://platform.senior.com.br', companyLabel = 'plataforma' }: TokenStatusProps) {
+export function TokenStatus({ hasToken, loading, statusText, hasAuth, loginUrl = 'https://platform.senior.com.br', companyLabel = 'plataforma', gpUnreachable = false }: TokenStatusProps) {
   if (loading) {
     return <div className="token-status loading">Verificando token...</div>;
   }
@@ -19,6 +21,18 @@ export function TokenStatus({ hasToken, loading, statusText, hasAuth, loginUrl =
         Desconectado
         <span className="token-status-text">
           — <a href={loginUrl} target="_blank" rel="noreferrer" className="token-login-link">Conecte-se ao {companyLabel}</a> para sincronizar
+        </span>
+      </div>
+    );
+  }
+
+  if (gpUnreachable) {
+    return (
+      <div className="token-status warning" data-testid="token-status-gp-unreachable">
+        <span className="token-dot" />
+        Sessão OK
+        <span className="token-status-text">
+          — o GestãoPonto mudou de endereço. Atualize o plugin para voltar a sincronizar.
         </span>
       </div>
     );

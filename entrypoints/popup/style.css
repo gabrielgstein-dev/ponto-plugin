@@ -54,6 +54,7 @@ body {
 .token-status.connected { color: var(--accent); }
 .token-status.disconnected { color: var(--error, #e74c3c); }
 .token-status.loading { color: var(--warn); }
+.token-status.warning { color: var(--warn); }
 .token-dot {
   width: 5px; height: 5px;
   border-radius: 50%;
@@ -63,6 +64,7 @@ body {
 .token-status.connected .token-dot { background: var(--accent); }
 .token-status.disconnected .token-dot { background: var(--error, #e74c3c); }
 .token-status.loading .token-dot { background: var(--warn); }
+.token-status.warning .token-dot { background: var(--warn); }
 .token-status-text {
   color: var(--text-dim);
   font-weight: 400;

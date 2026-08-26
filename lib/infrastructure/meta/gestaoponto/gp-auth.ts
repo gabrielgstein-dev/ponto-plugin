@@ -6,6 +6,7 @@ import { SeniorPageAuth } from '../../senior/senior-page-auth';
 import { refreshSeniorTokenSilently } from '../../senior/senior-token-refresh';
 import { debugLog, debugWarn } from '../../../domain/debug';
 import { logError } from '../../../domain/error-logger';
+import { isGpHostRedirect, markGpUnreachable, clearGpUnreachable } from './gp-host-guard';
 
 export async function getGpAssertion(force = false): Promise<GpAuthData | null> {
   const stored = await chrome.storage.local.get(['gpAssertion', 'gpAssertionTs', 'gestaoPontoColaboradorId', 'gestaoPontoCodigoCalculo']);
@@ -52,11 +53,17 @@ interface CallGpAuthResult {
 
 async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
   try {
-    const r = await fetch(`${GP_API_BASE}senior/auth/g7`, {
+    const url = `${GP_API_BASE}senior/auth/g7`;
+    const r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/plain, */*', 'token': accessToken, 'expires': '604800' },
       body: '{}',
+      redirect: 'manual',
     });
+    if (isGpHostRedirect(r)) {
+      await markGpUnreachable('callGpAuthG7', url, r);
+      return { ok: false, data: null, shouldRefresh: false };
+    }
     if (!r.ok) {
       const shouldRefresh = r.status === 401 || r.status === 403;
       // Lê body pra distinguir causa do 5xx — sem isso, não dá pra saber se
@@ -104,6 +111,7 @@ async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
     if (colaboradorId) save.gestaoPontoColaboradorId = colaboradorId;
     if (codigoCalculo) save.gestaoPontoCodigoCalculo = codigoCalculo;
     chrome.storage.local.set(save);
+    clearGpUnreachable().catch(() => {});
     debugLog('GP auth/g7 OK, colaboradorId:', colaboradorId, 'codigoCalculo:', codigoCalculo, 'userRange:', JSON.stringify(json.userRange)?.substring(0, 200));
     return { ok: true, data: { assertion: json.token, colaboradorId, codigoCalculo }, shouldRefresh: false };
   } catch (e) {

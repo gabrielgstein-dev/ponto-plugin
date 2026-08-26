@@ -50,6 +50,20 @@ describe('TokenStatus', () => {
     expect(screen.getByText('Sem token')).toBeInTheDocument()
   })
 
+  it('renders gp-unreachable warning instead of "Sem token" when host redirected', () => {
+    const { container } = render(
+      <TokenStatus hasToken={false} loading={false} hasAuth gpUnreachable />,
+    )
+    expect(container.querySelector('.token-status')).toHaveClass('warning')
+    expect(screen.getByText('Sessão OK')).toBeInTheDocument()
+    expect(screen.getByText(/mudou de endereço/)).toBeInTheDocument()
+  })
+
+  it('keeps "Desconectado" when hasAuth is false even if gpUnreachable', () => {
+    render(<TokenStatus hasToken={false} loading={false} hasAuth={false} gpUnreachable />)
+    expect(screen.getByText('Desconectado')).toBeInTheDocument()
+  })
+
   it('does not render statusText when undefined', () => {
     const { container } = render(<TokenStatus hasToken loading={false} hasAuth />)
     expect(container.querySelector('.token-status-text')).toBeNull()

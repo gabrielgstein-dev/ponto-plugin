@@ -42,20 +42,21 @@ nunca mais pensar em login.
 ## Fase 1 — Fix do domínio ✅ (branch `fix/gp-insi-domain`)
 
 - [x] `constants.ts`: `GP_HOST`, `GP_LEGACY_HOST`, `GP_ORIGIN`, `GP_API_BASE`, `GP_FRONTEND_URL`, `GP_LOCAL_LOGIN_PATH`
-- [x] `wxt.config.ts`: `host_permissions` += `*://gestaoponto.insi.com/*` (legado mantido — remover gera 2º prompt? não; mas manter é inofensivo até a Fase 4)
+- [x] `wxt.config.ts`: `host_permissions` += `*://gestaoponto.insi.com/*` (legado mantido até a Fase 4; remover não gera prompt, mas manter é inofensivo)
 - [x] `interceptor.content.ts`, `widget.content.ts`: `matches` com os dois hosts
 - [x] `gp-ajuste.ts`: header `origin` → `GP_ORIGIN`
 - [x] `gp-tab-utils.ts`: `findGpTab` ignora aba parada em `/gestaoponto-frontend/login`
 - [x] `tests/unit/gp-constants.test.ts`
 - [ ] Verificação real em browser: `auth/g7` 200 com `token`, marcações lidas sem abrir aba (evidência no PR)
 
-## Fase 2 — Nunca mais falhar em silêncio
+## Fase 2 — Nunca mais falhar em silêncio ✅
 
-- [ ] `callGpAuthG7` e `fetchDirect`: `fetch(..., { redirect: 'manual' })`; `opaqueredirect`/`r.redirected` →
-      `logError` `category: 'auth'`, `severity: 'high'`, `operation: 'gp.hostRedirected'`, `metadata.location`.
-- [ ] Estado de auth `'gp_unreachable'` (≠ deslogado): redirect/5xx **com** sessão Senior válida
+- [x] `callGpAuthG7` e `fetchDirect`: `fetch(..., { redirect: 'manual' })`; `opaqueredirect`/`r.redirected` →
+      `logError` `category: 'auth'`, `severity: 'high'`, `operation: 'gp.hostRedirected'`, `metadata.location`
+      (`gp-host-guard.ts`; storage `gpUnreachableTs`/`gpUnreachableUrl`, limpo no próximo `auth/g7` OK).
+- [x] Estado de auth `'gp_unreachable'` (≠ deslogado): redirect/5xx **com** sessão Senior válida
       (`hasSeniorSession()`) → sidepanel mostra "Sua sessão está OK, mas o GestãoPonto mudou de endereço —
-      atualize o plugin" em vez de "Reconectar".
+      atualize o plugin" em vez de "Reconectar" (`useGpUnreachable` + `TokenStatus gpUnreachable`).
 
 ## Fase 3 — Transparência no update
 
