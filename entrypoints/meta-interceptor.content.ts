@@ -1,5 +1,5 @@
 export default defineContentScript({
-  matches: ['*://plataforma.meta.com.br/*'],
+  matches: ['*://plataforma.insi.com/*', '*://plataforma.meta.com.br/*'],
   world: 'MAIN',
   runAt: 'document_start',
 

@@ -54,6 +54,7 @@ body {
 .token-status.connected { color: var(--accent); }
 .token-status.disconnected { color: var(--error, #e74c3c); }
 .token-status.loading { color: var(--warn); }
+.token-status.warning { color: var(--warn); }
 .token-dot {
   width: 5px; height: 5px;
   border-radius: 50%;
@@ -63,6 +64,7 @@ body {
 .token-status.connected .token-dot { background: var(--accent); }
 .token-status.disconnected .token-dot { background: var(--error, #e74c3c); }
 .token-status.loading .token-dot { background: var(--warn); }
+.token-status.warning .token-dot { background: var(--warn); }
 .token-status-text {
   color: var(--text-dim);
   font-weight: 400;
@@ -418,6 +420,31 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .paytrack-banner.urgent { animation: none; }
 }
+
+/* ============ Migração de host do GP (0.15.0) ============ */
+.gp-migration-banner {
+  margin: 8px 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--warn);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gp-migration-msg { margin: 0; font-size: 11px; line-height: 1.4; color: var(--text); }
+.gp-migration-btn {
+  align-self: flex-end;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gp-migration-btn:disabled { opacity: 0.6; cursor: default; }
 
 /* ============ Insi X banner ============ */
 .insi-x-banner {

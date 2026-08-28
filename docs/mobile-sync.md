@@ -11,7 +11,7 @@ Diagnóstico em 2026-05-14:
 - 3 dos 4 providers que existiam (`SeniorStoragePunchProvider`,
   `SeniorApiPunchProvider`, `SeniorScraperProvider`) **dependem de aba do
   Senior aberta** — sem aba, sem dados.
-- O 4º (`GpPunchProvider`) faz fetch direto do SW pra `gestaoponto.meta.com.br`
+- O 4º (`GpPunchProvider`) faz fetch direto do SW pra `gestaoponto.insi.com`
   mas tem **lag de minutos** pra batimentos vindos do app mobile.
 
 ## Solução: `SeniorActiveUserPunchProvider`

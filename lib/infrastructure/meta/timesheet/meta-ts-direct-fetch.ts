@@ -1,7 +1,7 @@
 /**
- * POC: fetch direto do service worker contra `api.meta.com.br`, sem aba.
+ * POC: fetch direto do service worker contra `api.insi.com`, sem aba.
  *
- * Hipótese validada: o `host_permissions` `*://api.meta.com.br/*` no manifest
+ * Hipótese validada: o `host_permissions` `*://api.insi.com/*` no manifest
  * dá ao service worker fetch privilegiado SEM checagem CORS. O browser
  * trata a extensão como contexto same-origin pra hosts listados — diferente
  * de páginas web, que sempre passam por CORS.

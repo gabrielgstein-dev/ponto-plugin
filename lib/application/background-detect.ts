@@ -19,8 +19,6 @@ import { SeniorScraperProvider } from '../infrastructure/senior/senior-scraper';
 import { SeniorActiveUserPunchProvider } from '../infrastructure/senior/senior-active-user-provider';
 import { ManualPunchProvider } from '../infrastructure/manual/manual-punch-provider';
 import { scheduleNotifications } from './schedule-notifications';
-import { scheduleAutoPunch } from './schedule-auto-punch';
-import { getLastDetectionHealth } from './detect-punches';
 import { scheduleTsNotifications } from './schedule-ts-notifications';
 import { applyPartialState, applySettings, state, resetNotifScheduled } from './state';
 import { punchStateForToday, isSlotPunched } from './punch-state';
@@ -104,8 +102,6 @@ export async function backgroundDetect(trigger: string = 'unknown'): Promise<boo
   // sem ação explícita do usuário. Tab-spam no master era causado por
   // GpPunchProvider chamando fetchGpViaTabs(true) e abrindo gestaoponto sozinho.
   const result = await detector.detect(new Date(), false);
-  // Publica a saúde das fontes para a UI distinguir "não bateu" de "não sei".
-  await publishDetectionHealth();
   if (!result || result.times.length === 0) {
     debugLog(`${tag}: detector não retornou batimentos (durationMs=${Date.now() - startedAt})`);
     // Sem batimentos detectados ainda é o caminho típico da manhã (Chrome
@@ -119,12 +115,6 @@ export async function backgroundDetect(trigger: string = 'unknown'): Promise<boo
         timeToMinutes(state._saidaEstimada),
       );
     }
-    await scheduleAutoPunch(
-      timeToMinutes(state.entrada),
-      timeToMinutes(state.almoco),
-      timeToMinutes(state.volta),
-      timeToMinutes(state._saidaEstimada),
-    ).catch(() => {});
     return false;
   }
   debugLog(`${tag}: detector retornou ${result.times.length} batimentos de ${result.source}`);
@@ -171,12 +161,6 @@ export async function backgroundDetect(trigger: string = 'unknown'): Promise<boo
       timeToMinutes(state._saidaEstimada),
     );
   }
-  await scheduleAutoPunch(
-    timeToMinutes(state.entrada),
-    timeToMinutes(state.almoco),
-    timeToMinutes(state.volta),
-    timeToMinutes(state._saidaEstimada),
-  ).catch(() => {});
 
   debugLog(`${tag}: state atualizado (durationMs=${Date.now() - startedAt})`, {
     entrada: state.entrada, almoco: state.almoco, volta: state.volta, saida: state.saida,
@@ -205,10 +189,9 @@ const TS_AUTO_CONNECT_TIMEOUT_MS = 20000;
 // URL de login da plataforma com callback direto pra rota do timesheet.
 // Cair em /modules/timesheet/create faz o SPA bootstrapar o módulo do
 // timesheet (necessário para que a captura via webRequest pegue o Bearer
-// das chamadas reais ao api.meta.com.br). O SSO via Senior é encadeado
+// das chamadas reais ao api.insi.com). O SSO via Senior é encadeado
 // pela própria plataforma.
-const META_TS_BOOTSTRAP_URL =
-  'https://plataforma.insi.com/login?callbackUrl=/timesheet/create';
+const META_TS_BOOTSTRAP_URL = META_TIMESHEET_CONFIG.bootstrapUrl;
 
 async function tsAutoConnect(): Promise<boolean> {
   try {
@@ -422,20 +405,4 @@ export async function notifyPendingTimesheet(): Promise<void> {
   } catch (e) {
     debugWarn('notifyPendingTimesheet erro:', (e as Error).message);
   }
-}
-
-export const DETECTION_HEALTH_KEY = 'detectionHealth';
-
-/**
- * Espelha `getLastDetectionHealth()` no storage para a UI ler. A UI não pode
- * chamar o detector (ele roda no service worker), então o estado precisa
- * atravessar por storage — mesmo padrão do autoPunchSchedule.
- */
-async function publishDetectionHealth(): Promise<void> {
-  try {
-    const health = getLastDetectionHealth();
-    await chrome.storage.local.set({
-      [DETECTION_HEALTH_KEY]: { ...health, ts: Date.now() },
-    });
-  } catch (_) { /* storage indisponível: UI só não mostra o aviso */ }
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTimesheetData } from '../hooks/useTimesheetData';
 import { TimesheetRowSingle } from './TimesheetRowSingle';
 import { TimesheetRowMultiple } from './TimesheetRowMultiple';
+import { COMPANY_LOGIN_URL } from '#company/providers';
 
 export function TimesheetPanel() {
   const { summary, loading, available, connecting, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, updateEntry, updateEntryWithAllocations, fetchGpHours } = useTimesheetData();
@@ -115,55 +116,43 @@ function formatHours(h: number): string {
   return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
 
-// URL de login da plataforma Meta com callback direto pra rota do timesheet.
-// Abrir numa aba REAL (visível) é o único caminho de reconexão confiável hoje:
-// o SPA dispara as chamadas a api.meta.com.br, o webRequest captura o Bearer e
-// o listener de storage do background re-sincroniza sozinho. O antigo botão
-// "Reconectar" disparava REQUEST_TS_SYNC → auto-connect em aba escondida, que
-// depende do /api/auth/session (quebrado: retorna {} após mudança de login).
-const META_TS_LOGIN_URL =
-  'https://plataforma.insi.com/login?callbackUrl=/timesheet/create';
-
-function openTimesheetTab(): void {
-  try {
-    const p = chrome.tabs?.create({ url: META_TS_LOGIN_URL, active: true });
-    // Em MV3 é Promise; se falhar (ou API ausente) cai no window.open.
-    (p as Promise<unknown> | undefined)?.catch?.(() =>
-      window.open(META_TS_LOGIN_URL, '_blank', 'noreferrer'),
-    );
-  } catch (_) {
-    window.open(META_TS_LOGIN_URL, '_blank', 'noreferrer');
-  }
-}
-
 /**
- * BUG 2: card de reconexão exibido no SidePanel quando o token do Timesheet
+ * BUG 2: card de reconexão exibido no SidePanel quando o cookie/token Senior
  * expirou. Background nunca pede login automaticamente — só aqui, em ação
- * explícita do usuário (que abriu o painel). A ação abre o Timesheet numa aba
- * visível pra que a captura via webRequest reconecte a sessão.
+ * explícita do usuário (que abriu o painel).
  */
 function ReconnectCard() {
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const handleReconnect = () => {
+    setReconnecting(true);
+    chrome.runtime
+      .sendMessage({ type: 'REQUEST_TS_SYNC' })
+      .catch(() => {})
+      .finally(() => setReconnecting(false));
+  };
+
   return (
     <div className="ts-reconnect" data-testid="ts-reconnect-card">
       <p className="ts-reconnect-msg">
-        Sua sessão do Timesheet expirou. Abra o Timesheet e faça login — a
-        sincronização volta sozinha assim que a página carregar.
+        Sua sessão Senior expirou. Reconecte para sincronizar seus lançamentos pendentes.
       </p>
       <div className="ts-reconnect-actions">
         <button
           className="ts-reconnect-btn"
-          onClick={openTimesheetTab}
+          onClick={handleReconnect}
+          disabled={reconnecting}
           data-testid="ts-reconnect-btn"
         >
-          Abrir Timesheet
+          {reconnecting ? 'Reconectando...' : 'Reconectar'}
         </button>
         <a
-          href={META_TS_LOGIN_URL}
+          href={COMPANY_LOGIN_URL}
           target="_blank"
           rel="noreferrer"
           className="token-login-link"
         >
-          ou abrir manualmente
+          ou abrir Senior manualmente
         </a>
       </div>
     </div>

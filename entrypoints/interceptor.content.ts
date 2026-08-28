@@ -1,5 +1,5 @@
 export default defineContentScript({
-  matches: ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*'],
+  matches: ['*://platform.senior.com.br/*', '*://gestaoponto.insi.com/*', '*://gestaoponto.meta.com.br/*'],
   world: 'MAIN',
   runAt: 'document_start',
 

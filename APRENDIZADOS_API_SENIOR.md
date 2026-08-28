@@ -7,7 +7,7 @@ A plataforma Senior é composta por **dois sistemas independentes** com domínio
 | Sistema | Domínio | Função |
 |---------|---------|--------|
 | **Senior X Platform** | `platform.senior.com.br` | Plataforma principal, pontomobile (bater ponto), SSO |
-| **GestaoPonto (Meta)** | `gestaoponto.meta.com.br` | Histórico de ponto, apuração, marcações previstas |
+| **GestaoPonto (Meta/Insi)** | `gestaoponto.insi.com` (até ago/2026: `gestaoponto.meta.com.br`, hoje 301 cego pra tela de login — ver docs/roadmaps/roadmap-migracao-gp-insi.md) | Histórico de ponto, apuração, marcações previstas |
 
 **Insight crítico**: O pontomobile da Senior **NÃO tem API para consultar histórico de pontos**. Ele usa APENAS `localStorage`. A API real de histórico está no GestaoPonto (domínio completamente diferente).
 
@@ -51,7 +51,7 @@ Authorization: bearer <access_token>
 
 ### 3.1 Endpoint de autenticação
 ```
-POST https://gestaoponto.meta.com.br/gestaoponto-backend/api/senior/auth/g7
+POST https://gestaoponto.insi.com/gestaoponto-backend/api/senior/auth/g7
 ```
 
 ### 3.2 Headers obrigatórios
@@ -119,7 +119,7 @@ Header: assertion: <JWT>
 
 ### 4.1 Endpoint
 ```
-GET https://gestaoponto.meta.com.br/gestaoponto-backend/api/acertoPontoColaboradorPeriodo/colaborador/{colaboradorId}
+GET https://gestaoponto.insi.com/gestaoponto-backend/api/acertoPontoColaboradorPeriodo/colaborador/{colaboradorId}
 ```
 
 ### 4.2 Query parameters
@@ -365,7 +365,7 @@ O plugin tenta **11 endpoints** em sequência até encontrar um que retorne dado
 
 ### 9.2 URL do frontend GP
 ```
-https://gestaoponto.meta.com.br/gestaoponto-frontend/?portal=g7&showMenu=S
+https://gestaoponto.insi.com/gestaoponto-frontend/?portal=g7&showMenu=S
 ```
 
 ### 9.3 Sessão GP injetada
@@ -404,7 +404,7 @@ Isso garante que o assertion GP sempre tenha validade máxima enquanto o usuári
 ### 10.2 Content Script (interceptor.content.ts)
 Monkey-patches `fetch` e `XMLHttpRequest` na página para capturar:
 - **Bearer tokens**: de requests para `senior.com.br` → evento `__sponto_bearer`
-- **GP assertions**: header `assertion` em requests para `gestaoponto.meta.com.br/api/` → evento `__sponto_gestao_ponto`
+- **GP assertions**: header `assertion` em requests para `gestaoponto.insi.com/api/` → evento `__sponto_gestao_ponto`
 - **Punch API calls**: POST/PUT para URLs com `clocking`/`pontomobile`/`ponto` → evento `__sponto_api_spy`
 - **Punch success**: response OK de `clockingEventImportByBrowser` → evento `__sponto_punch_success`
 

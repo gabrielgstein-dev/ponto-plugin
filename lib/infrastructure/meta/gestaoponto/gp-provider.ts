@@ -2,6 +2,7 @@ import type { IPunchProvider, PunchProbe } from '../../../domain/interfaces';
 import { todayDateStr } from '../../../domain/time-utils';
 import { debugLog, debugWarn } from '../../../domain/debug';
 import { getGpAssertion, invalidateGpCache } from './gp-auth';
+import { isGpHostRedirect, markGpUnreachable } from './gp-host-guard';
 import { fetchGpViaTabs } from './gp-tab';
 import { SeniorCookieAuth } from '../../senior/senior-cookie-auth';
 import { SENIOR_TOKEN_MAX_AGE_MS } from '../../senior/constants';
@@ -88,8 +89,14 @@ export class GpPunchProvider implements IPunchProvider {
     try {
       const r = await fetch(url, {
         headers: { 'Accept': 'application/json', 'assertion': auth.assertion, 'zone-offset': String(new Date().getTimezoneOffset()) },
+        redirect: 'manual',
       });
       debugLog('GP fetchDirect status:', r.status);
+      if (isGpHostRedirect(r)) {
+        await markGpUnreachable('fetchDirect', url, r);
+        _lastFailTs = Date.now();
+        return { times: [], ok: false };
+      }
       if (!r.ok) {
         if (r.status === 401 || r.status === 403) {
           invalidateGpCache();

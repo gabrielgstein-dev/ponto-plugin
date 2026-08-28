@@ -6,10 +6,7 @@ import { readFileSync, writeFileSync } from 'fs';
 
 const basePermissions: string[] = ['storage', 'alarms', 'sidePanel'];
 const seniorPermissions: string[] = ['tabs', 'scripting', 'webRequest', 'cookies'];
-// declarativeNetRequestWithHostAccess: injeta o cookie de sessão NextAuth no
-// fetch do background para /api/auth/session (o SW MV3 não envia cookies
-// SameSite=Lax sozinho). Só age em hosts já em host_permissions.
-const metaTimesheetPermissions: string[] = ['tabs', 'scripting', 'webRequest', 'cookies', 'declarativeNetRequestWithHostAccess'];
+const metaTimesheetPermissions: string[] = ['tabs', 'scripting', 'webRequest', 'cookies'];
 const notifPermissions: string[] = ['notifications'];
 
 const permissions = Array.from(new Set([
@@ -20,7 +17,13 @@ const permissions = Array.from(new Set([
 ]));
 
 const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET || ENABLE_META_TIMESHEET
-  ? ['*://platform.senior.com.br/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.insi.com/*', '*://api.insi.com/*']
+  ? [
+      '*://platform.senior.com.br/*',
+      // Hosts atuais (ago/2026) — ver docs/roadmaps/roadmap-migracao-gp-insi.md
+      '*://gestaoponto.insi.com/*', '*://plataforma.insi.com/*', '*://api.insi.com/*',
+      // Legado — manter até a Fase 4 do roadmap
+      '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*', '*://api.meta.com.br/*',
+    ]
   : [];
 
 function injectThemeCSS() {

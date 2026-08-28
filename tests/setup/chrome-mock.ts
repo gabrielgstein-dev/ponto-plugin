@@ -11,6 +11,8 @@ import { vi, beforeEach } from 'vitest'
 export const mockStorageGet = vi.fn().mockResolvedValue({})
 export const mockStorageSet = vi.fn().mockResolvedValue(undefined)
 export const mockStorageRemove = vi.fn().mockResolvedValue(undefined)
+export const mockPermissionsContains = vi.fn().mockResolvedValue(true)
+export const mockPermissionsRequest = vi.fn().mockResolvedValue(true)
 
 /**
  * Helper: enfileira uma leitura "pontoSettings" antes da leitura real do handler.
@@ -156,6 +158,10 @@ const chromeMock = {
     setBadgeText: mockActionSetBadgeText,
     setBadgeBackgroundColor: mockActionSetBadgeBackgroundColor,
   },
+  permissions: {
+    contains: mockPermissionsContains,
+    request: mockPermissionsRequest,
+  },
   notifications: {
     create: mockNotificationsCreate,
     clear: mockNotificationsClear,
@@ -205,6 +211,8 @@ beforeEach(() => {
   mockSidePanelOpen.mockResolvedValue(undefined)
   mockActionSetBadgeText.mockResolvedValue(undefined)
   mockActionSetBadgeBackgroundColor.mockResolvedValue(undefined)
+  mockPermissionsContains.mockResolvedValue(true)
+  mockPermissionsRequest.mockResolvedValue(true)
   mockNotificationsCreate.mockReset()
   mockNotificationsClear.mockReset()
 

@@ -24,8 +24,10 @@ import { PunchHistory } from './components/PunchHistory';
 import { HourBankBanner } from './components/HourBankBanner';
 import { PaytrackBanner } from './components/PaytrackBanner';
 import { InsiXBanner, InsiXDoneHint } from './components/InsiXBanner';
+import { GpHostMigrationBanner } from './components/GpHostMigrationBanner';
 import { useHourBank } from './hooks/useHourBank';
 import { useAuthStatus } from './hooks/useAuthStatus';
+import { useGpUnreachable } from './hooks/useGpUnreachable';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useAutoPunchStatus } from './hooks/useAutoPunchStatus';
 import { AutoPunchBanner } from './components/AutoPunchBanner';
@@ -50,6 +52,7 @@ export function App() {
   const hourBankProvider = useMemo(() => ENABLE_MANUAL_PUNCH ? new ManualHourBankProvider() : null, []);
   const { balance } = useHourBank(hourBankProvider, settings);
   const hasAuth = useAuthStatus();
+  const gpUnreachable = useGpUnreachable();
   const autoPunch = useAutoPunchStatus();
   const autoSlots = settings.autoPunchEnabled ? (settings.autoPunchSlots ?? {}) : {};
   const anyAutoSlot = Object.values(autoSlots).some(Boolean);
@@ -74,10 +77,11 @@ export function App() {
     <div className="popup-container">
       <LiveClock time={time} date={date} />
       <div className="token-status-row">
-        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText="" hasAuth={hasAuth} loginUrl={COMPANY_LOGIN_URL} companyLabel={COMPANY_NAME} />}
+        {ENABLE_SENIOR_INTEGRATION && <TokenStatus hasToken={!detecting} loading={detecting} statusText="" hasAuth={hasAuth} gpUnreachable={gpUnreachable} loginUrl={COMPANY_LOGIN_URL} companyLabel={COMPANY_NAME} />}
         {!ENABLE_SENIOR_INTEGRATION && detecting && <div className="token-status loading">Detectando batimentos...</div>}
         {settings.insiXReminder && <InsiXDoneHint />}
       </div>
+      {ENABLE_SENIOR_INTEGRATION && <GpHostMigrationBanner />}
       {settings.insiXReminder && <InsiXBanner />}
       <div className="cards-grid">
         {PUNCH_SLOTS.map(slot => {
