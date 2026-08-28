@@ -36,6 +36,7 @@ import {
 } from '../lib/application/insi-x-reminder-manager';
 import { refreshInsiXBadge } from '../lib/application/insi-x-badge';
 import { markGpHostMigrationOnUpdate } from '../lib/application/gp-host-migration';
+import { proactiveSeniorCapture } from '../lib/application/proactive-senior-capture';
 import { INSI_X_URL, hasRespondedThisWeek } from '../lib/domain/insi-x-status';
 import { appendNetEntry, getNetEntries, clearNetEntries, type MetaNetEntry } from '../lib/domain/meta-net-log';
 import type { InsiXState } from '../lib/domain/types';
@@ -157,6 +158,23 @@ export default defineBackground(() => {
       { urls: ['https://api.insi.com/*', 'https://api.meta.com.br/*'] },
       ['requestHeaders', 'extraHeaders']
     );
+  }
+
+  // Captura proativa do token quando uma aba Senior termina de carregar: fecha
+  // a janela de "abri o Senior e o plugin ainda diz Desconectado" sem esperar
+  // uma requisição natural da SPA. Read-only (lê sessionStorage da aba).
+  if (ENABLE_SENIOR_INTEGRATION) {
+    chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+      if (changeInfo.status !== 'complete') return;
+      if (!tab.url?.includes('senior.com.br')) return;
+      proactiveSeniorCapture()
+        .then((captured) => {
+          if (!captured) return;
+          resetAllCaches();
+          backgroundDetect('proactive-senior-capture').catch(() => {});
+        })
+        .catch(() => {});
+    });
   }
 
   // Insi X: detecta conclusão do survey TeamCulture via URL da página /finish.
