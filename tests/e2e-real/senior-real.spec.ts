@@ -16,7 +16,7 @@ import { test, expect } from '@playwright/test'
 import {
   launchRealExtension,
   waitForStorageValue,
-  ensureLoggedInOnTab,
+  loginWithEnvCredentials,
   clearStorageKeys,
   type RealExtensionFixture,
 } from './helpers/extension-real'
@@ -42,7 +42,7 @@ test.beforeAll(async () => {
   ])
   // Mesma URL que o plugin abre no "Conecte-se": login com tenant (tela
   // Insi). Ir direto em /senior-x/ cai no login genérico da Senior.
-  await ensureLoggedInOnTab(
+  await loginWithEnvCredentials(
     fixture.context,
     COMPANY_LOGIN_URL,
     'https://platform.senior.com.br',
