@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTimesheetData } from '../hooks/useTimesheetData';
 import { TimesheetRowSingle } from './TimesheetRowSingle';
 import { TimesheetRowMultiple } from './TimesheetRowMultiple';
+import { COMPANY_LOGIN_URL } from '#company/providers';
 
 export function TimesheetPanel() {
   const { summary, loading, available, connecting, periodLabel, isCurrentPeriod, goToPrev, goToNext, goToCurrent, updateEntry, updateEntryWithAllocations, fetchGpHours } = useTimesheetData();
@@ -146,7 +147,7 @@ function ReconnectCard() {
           {reconnecting ? 'Reconectando...' : 'Reconectar'}
         </button>
         <a
-          href="https://platform.senior.com.br"
+          href={COMPANY_LOGIN_URL}
           target="_blank"
           rel="noreferrer"
           className="token-login-link"

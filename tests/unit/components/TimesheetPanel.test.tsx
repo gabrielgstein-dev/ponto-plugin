@@ -66,7 +66,7 @@ describe('TimesheetPanel', () => {
     expect(screen.getByTestId('ts-reconnect-btn')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /abrir Senior manualmente/i })).toHaveAttribute(
       'href',
-      'https://platform.senior.com.br',
+      'https://platform.senior.com.br/login/?redirectTo=https%3A%2F%2Fplatform.senior.com.br%2Fsenior-x%2F&tenant=meta.com.br',
     )
   })
 

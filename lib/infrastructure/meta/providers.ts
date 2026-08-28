@@ -11,7 +11,15 @@ import { metaTimesheetProvider } from './timesheet/meta-ts-provider';
 // pra capturar o Bearer via webRequest. O cookie de sessão NextAuth da
 // plataforma Meta é estabelecido depois, na primeira navegação dela
 // (silent refresh /api/auth/session usa esse cookie sem precisar de aba).
-export const COMPANY_LOGIN_URL = 'https://platform.senior.com.br';
+//
+// Sempre com `tenant=meta.com.br`: é o que carrega a tela de login da Insi
+// (branding Insi, "Usuário → Próximo" → SAML Microsoft). Sem o tenant a
+// Senior mostra o login genérico e o usuário precisa digitar o e-mail pra
+// descobrir o tenant — um passo a mais e uma tela que ninguém reconhece.
+// O tenant Senior continua `meta.com.br` mesmo após o rebrand Insi.
+export const SENIOR_TENANT = 'meta.com.br';
+export const COMPANY_LOGIN_URL =
+  `https://platform.senior.com.br/login/?redirectTo=${encodeURIComponent('https://platform.senior.com.br/senior-x/')}&tenant=${SENIOR_TENANT}`;
 
 export const COMPANY_NAME = 'Meta';
 

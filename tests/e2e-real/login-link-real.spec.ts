@@ -64,7 +64,7 @@ test('REAL-EXT-LL-1: popup desconectado mostra link com URL do tenant Meta', asy
   await expect(link).toHaveText('Conecte-se ao Senior')
   await expect(link).toHaveAttribute(
     'href',
-    'https://plataforma.meta.com.br/login',
+    'https://platform.senior.com.br/login/?redirectTo=https%3A%2F%2Fplatform.senior.com.br%2Fsenior-x%2F&tenant=meta.com.br',
   )
   await expect(link).toHaveAttribute('target', '_blank')
 
@@ -85,7 +85,7 @@ test('REAL-EXT-LL-2: abrir o link captura cookie Senior e gera gpAssertion', asy
   // login manual é necessário UMA VEZ — helper aguarda até 240s.
   await ensureLoggedInOnTab(
     fixture.context,
-    'https://plataforma.meta.com.br/login',
+    'https://platform.senior.com.br/login/?redirectTo=https%3A%2F%2Fplatform.senior.com.br%2Fsenior-x%2F&tenant=meta.com.br',
     'https://plataforma.meta.com.br',
   )
 
