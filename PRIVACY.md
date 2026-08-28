@@ -20,8 +20,8 @@ A extensão Senior Ponto tem como **único propósito** auxiliar colaboradores C
 
 1. `platform.senior.com.br` — sistema Senior X, onde o usuário faz login (SSO) e onde fica a API de batimentos de ponto.
 2. `gestaoponto.insi.com` — sistema GestãoPonto da empresa Meta, utilizado para consulta e ajuste dos batimentos.
-3. `plataforma.meta.com.br` — portal corporativo Meta, de onde é acessado o módulo de banco de horas (timesheet).
-4. `api.meta.com.br` — API consultada diretamente para obter o banco de horas calculado, com a sessão já autenticada do usuário.
+3. `plataforma.insi.com` — portal corporativo Meta, de onde é acessado o módulo de banco de horas (timesheet).
+4. `api.insi.com` — API consultada diretamente para obter o banco de horas calculado, com a sessão já autenticada do usuário.
 
 A extensão **não utiliza `<all_urls>`** nem qualquer permissão ampla. Não há leitura, injeção de script ou monitoramento de navegação em outras páginas além desses 4 domínios.
 

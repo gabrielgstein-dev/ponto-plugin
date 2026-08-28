@@ -17,7 +17,13 @@ const permissions = Array.from(new Set([
 ]));
 
 const hostPermissions = ENABLE_SENIOR_INTEGRATION || ENABLE_WIDGET || ENABLE_META_TIMESHEET
-  ? ['*://platform.senior.com.br/*', '*://gestaoponto.insi.com/*', '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*', '*://api.meta.com.br/*']
+  ? [
+      '*://platform.senior.com.br/*',
+      // Hosts atuais (ago/2026) — ver docs/roadmaps/roadmap-migracao-gp-insi.md
+      '*://gestaoponto.insi.com/*', '*://plataforma.insi.com/*', '*://api.insi.com/*',
+      // Legado — manter até a Fase 4 do roadmap
+      '*://gestaoponto.meta.com.br/*', '*://plataforma.meta.com.br/*', '*://api.meta.com.br/*',
+    ]
   : [];
 
 function injectThemeCSS() {

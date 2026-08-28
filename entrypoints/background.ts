@@ -154,7 +154,7 @@ export default defineBackground(() => {
           debugLog(`metaTsToken capturado via webRequest${exp ? ` (${formatJwtExp(exp)})` : ''}`);
         }
       },
-      { urls: ['https://api.meta.com.br/*'] },
+      { urls: ['https://api.insi.com/*', 'https://api.meta.com.br/*'] },
       ['requestHeaders', 'extraHeaders']
     );
   }
@@ -326,14 +326,14 @@ export default defineBackground(() => {
       return true;
     }
     if (message.type === 'TEST_META_TS_DIRECT_FETCH') {
-      // POC: fetch direto pra api.meta.com.br do service worker.
+      // POC: fetch direto pra api.insi.com do service worker.
       // host_permissions cobre o host → fetch sem CORS. Se 200 → abas eliminadas.
       (async () => {
         const data = await chrome.storage.local.get(['metaTsToken', 'metaTsTokenTs']);
         const token = data.metaTsToken as string | undefined;
         const tokenTs = data.metaTsTokenTs as number | undefined;
         if (!token) {
-          sendResponse({ ok: false, error: 'metaTsToken ausente — abra https://plataforma.meta.com.br/modules/timesheet/create 1x pra capturar' });
+          sendResponse({ ok: false, error: 'metaTsToken ausente — abra https://plataforma.insi.com/modules/timesheet/create 1x pra capturar' });
           return;
         }
         const period = message.period as string | undefined ?? getCurrentTimesheetPeriod(0);

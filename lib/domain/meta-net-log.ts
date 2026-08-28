@@ -1,5 +1,5 @@
 /**
- * Ring buffer para logar TODAS as requests da SPA plataforma.meta.com.br.
+ * Ring buffer para logar TODAS as requests da SPA plataforma.insi.com.
  *
  * Feature temporária de diagnóstico. Captura request/response completos
  * (URL, method, headers, body, status, duração). Bodies são truncados em

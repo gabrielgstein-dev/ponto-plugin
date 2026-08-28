@@ -5,7 +5,7 @@ import {
   resolveGpHostMigration,
   requestGpHostPermission,
   PENDING_GP_HOST_MIGRATION_KEY,
-  GP_HOST_ORIGIN_PATTERN,
+  NEW_HOST_ORIGIN_PATTERNS,
 } from '../../lib/application/gp-host-migration'
 import {
   mockStorageGet, mockStorageSet, mockStorageRemove,
@@ -29,7 +29,7 @@ describe('markGpHostMigrationOnUpdate', () => {
   it('update vindo de < 0.15.0 marca pendente e descarta caches do host antigo', async () => {
     await markGpHostMigrationOnUpdate({ reason: 'update', previousVersion: '0.14.0' })
     expect(mockStorageSet).toHaveBeenCalledWith({ [PENDING_GP_HOST_MIGRATION_KEY]: true })
-    expect(mockStorageRemove).toHaveBeenCalledWith(['gpAssertion', 'gpAssertionTs', 'gpUnreachableTs', 'gpUnreachableUrl'])
+    expect(mockStorageRemove).toHaveBeenCalledWith(['gpAssertion', 'gpAssertionTs', 'gpUnreachableTs', 'gpUnreachableUrl', 'metaTsToken', 'metaTsTokenTs', 'tsAutoConnectTs'])
   })
   it('install limpo e chrome_update não fazem nada', async () => {
     await markGpHostMigrationOnUpdate({ reason: 'install' })
@@ -52,7 +52,7 @@ describe('resolveGpHostMigration (abertura do popup)', () => {
     mockStorageGet.mockResolvedValue({ [PENDING_GP_HOST_MIGRATION_KEY]: true })
     mockPermissionsContains.mockResolvedValue(true)
     expect(await resolveGpHostMigration()).toBe('none')
-    expect(mockPermissionsContains).toHaveBeenCalledWith({ origins: [GP_HOST_ORIGIN_PATTERN] })
+    expect(mockPermissionsContains).toHaveBeenCalledWith({ origins: NEW_HOST_ORIGIN_PATTERNS })
     expect(mockStorageRemove).toHaveBeenCalledWith(expect.arrayContaining([PENDING_GP_HOST_MIGRATION_KEY, 'gpAssertion']))
     expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'FORCE_REDETECT' })
   })
@@ -68,7 +68,7 @@ describe('requestGpHostPermission (clique em Ativar)', () => {
   it('concedida → limpa flag/caches e força sync', async () => {
     mockPermissionsRequest.mockResolvedValue(true)
     expect(await requestGpHostPermission()).toBe(true)
-    expect(mockPermissionsRequest).toHaveBeenCalledWith({ origins: [GP_HOST_ORIGIN_PATTERN] })
+    expect(mockPermissionsRequest).toHaveBeenCalledWith({ origins: NEW_HOST_ORIGIN_PATTERNS })
     expect(mockStorageRemove).toHaveBeenCalledWith(expect.arrayContaining([PENDING_GP_HOST_MIGRATION_KEY]))
     expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'FORCE_REDETECT' })
   })

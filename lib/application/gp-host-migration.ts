@@ -1,6 +1,6 @@
 /**
- * Migração de host do GestãoPonto (0.15.0): `gestaoponto.meta.com.br` →
- * `gestaoponto.insi.com`. Ver docs/roadmaps/roadmap-migracao-gp-insi.md.
+ * Migração de hosts (0.15.0): `gestaoponto.meta.com.br` → `gestaoponto.insi.com`,
+ * `plataforma.meta.com.br` → `plataforma.insi.com`, `api.meta.com.br` → `api.insi.com`. Ver docs/roadmaps/roadmap-migracao-gp-insi.md.
  *
  * Adicionar host em `host_permissions` faz o Chrome desabilitar a extensão no
  * update até o usuário aceitar. Normalmente, ao reabilitar, a permissão já
@@ -12,13 +12,15 @@
  */
 
 export const GP_HOST_ORIGIN_PATTERN = '*://gestaoponto.insi.com/*';
+/** Todos os hosts novos da 0.15.0 (GP + plataforma/API do Timesheet). Um único prompt. */
+export const NEW_HOST_ORIGIN_PATTERNS = [GP_HOST_ORIGIN_PATTERN, '*://plataforma.insi.com/*', '*://api.insi.com/*'];
 export const PENDING_GP_HOST_MIGRATION_KEY = 'pendingGpHostMigration';
 /** Primeira versão que fala com o host novo. Updates vindos de antes disso precisam da migração. */
 export const GP_HOST_MIGRATION_VERSION = '0.15.0';
 
 // Caches emitidos/derivados do host antigo — descartáveis; o próximo auth/g7
 // no host novo recria tudo.
-const STALE_GP_KEYS = ['gpAssertion', 'gpAssertionTs', 'gpUnreachableTs', 'gpUnreachableUrl'];
+const STALE_GP_KEYS = ['gpAssertion', 'gpAssertionTs', 'gpUnreachableTs', 'gpUnreachableUrl', 'metaTsToken', 'metaTsTokenTs', 'tsAutoConnectTs'];
 
 export function isVersionBefore(version: string | undefined, target: string): boolean {
   if (!version) return true; // desconhecida → assume antiga (seguro: só mostra um banner a mais)
@@ -41,7 +43,7 @@ export async function markGpHostMigrationOnUpdate(details: { reason: string; pre
 
 export async function hasGpHostPermission(): Promise<boolean> {
   try {
-    return await chrome.permissions.contains({ origins: [GP_HOST_ORIGIN_PATTERN] });
+    return await chrome.permissions.contains({ origins: NEW_HOST_ORIGIN_PATTERNS });
   } catch {
     // API indisponível (contexto de teste / build antigo): não bloqueia o usuário.
     return true;
@@ -70,7 +72,7 @@ export async function resolveGpHostMigration(): Promise<GpHostMigrationState> {
 export async function requestGpHostPermission(): Promise<boolean> {
   let granted = false;
   try {
-    granted = await chrome.permissions.request({ origins: [GP_HOST_ORIGIN_PATTERN] });
+    granted = await chrome.permissions.request({ origins: NEW_HOST_ORIGIN_PATTERNS });
   } catch {
     granted = false;
   }

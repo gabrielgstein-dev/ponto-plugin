@@ -3,7 +3,7 @@ function isContextValid(): boolean {
 }
 
 export default defineContentScript({
-  matches: ['*://plataforma.meta.com.br/*'],
+  matches: ['*://plataforma.insi.com/*', '*://plataforma.meta.com.br/*'],
   runAt: 'document_idle',
 
   main() {

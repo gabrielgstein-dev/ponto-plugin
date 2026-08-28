@@ -12,8 +12,8 @@ export function GpHostMigrationBanner() {
   return (
     <div className="gp-migration-banner" data-testid="gp-migration-banner" role="status">
       <p className="gp-migration-msg">
-        O GestãoPonto mudou para <strong>gestaoponto.insi.com</strong>. O Chrome precisa da sua
-        permissão para o plugin voltar a sincronizar — sua sessão continua a mesma.
+        O GestãoPonto e a Plataforma mudaram para <strong>insi.com</strong>. O Chrome precisa da sua
+        permissão para o plugin voltar a sincronizar ponto e timesheet — sua sessão continua a mesma.
       </p>
       <button
         className="gp-migration-btn"

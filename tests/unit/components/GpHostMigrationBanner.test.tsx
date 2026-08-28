@@ -25,7 +25,7 @@ describe('GpHostMigrationBanner', () => {
     mockPermissionsRequest.mockResolvedValue(true)
     render(<GpHostMigrationBanner />)
     const btn = await screen.findByTestId('gp-migration-activate')
-    expect(screen.getByText(/gestaoponto\.insi\.com/)).toBeInTheDocument()
+    expect(screen.getByText(/insi\.com/)).toBeInTheDocument()
     fireEvent.click(btn)
     await waitFor(() => expect(mockPermissionsRequest).toHaveBeenCalled())
     await waitFor(() => expect(screen.queryByTestId('gp-migration-banner')).toBeNull())

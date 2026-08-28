@@ -79,17 +79,31 @@ nunca mais pensar em login.
 4. Após ~2 releases estáveis, remover `gestaoponto.meta.com.br` de `host_permissions`/`matches`
    (remoção não gera prompt).
 
+## Fase 3b — Timesheet também migrou ✅ (branch `fix/ts-insi-domain`, aprovado 2026-08-28)
+
+Descoberto ao testar em browser: `plataforma.meta.com.br` → `301 https://plataforma.insi.com/` (perde o
+`callbackUrl`), e a SPA nova chama `https://api.insi.com` (bundle `_next/static/chunks/*.js`).
+`api.meta.com.br` ainda responde 404 sem redirect — não confiar.
+
+- [x] `timesheet/constants.ts`: `META_TS_API_HOST`, `META_TS_PLATFORM_HOST`, config e `bootstrapUrl` no host novo
+- [x] `background-detect.ts` usa `META_TIMESHEET_CONFIG.bootstrapUrl` (sem literal duplicado)
+- [x] `background.ts`: filtro do webRequest inclui `api.insi.com`
+- [x] `meta-interceptor`, `meta-platform`, `widget` content scripts: `matches` com `plataforma.insi.com`
+- [x] `host_permissions`: + `plataforma.insi.com`, `api.insi.com` (legado mantido)
+- [x] `gp-host-migration.ts`: um único `permissions.request()` cobrindo os 3 hosts novos; descarta `metaTsToken`
+- [x] Banner: "O GestãoPonto e a Plataforma mudaram para insi.com"
+- [x] `tests/unit/ts-constants.test.ts`; privacy/docs no host novo
+- [ ] Browser real: `metaTsToken` capturado via `api.insi.com` e `timesheetSummaryCache` populado
+
 ## Fora de escopo
 
 - Lado Senior (login SAML/Microsoft, refresh token): funcionando, não mexer.
-- Timesheet (`plataforma.meta.com.br` / `api.meta.com.br`): responde normal; se migrar, é o mesmo tipo de fix
-  e a Fase 2 acusa no log.
 
 ## Texto para usuários (release notes / comunicado / loja)
 
 > **Por que o Chrome pediu uma permissão nova?**
-> O GestãoPonto mudou de endereço: de `gestaoponto.meta.com.br` para `gestaoponto.insi.com`.
-> Para continuar lendo suas marcações, o plugin precisa de acesso ao endereço novo — e o Chrome
+> O GestãoPonto e a Plataforma mudaram de endereço: de `*.meta.com.br` para `*.insi.com`.
+> Para continuar lendo suas marcações e o timesheet, o plugin precisa de acesso aos endereços novos — e o Chrome
 > exige que você confirme isso uma vez. Depois de clicar em **Ativar** (no aviso do Chrome ou no
 > banner do plugin), tudo volta a sincronizar sozinho. Sua sessão Senior não muda; não precisa
 > logar de novo.

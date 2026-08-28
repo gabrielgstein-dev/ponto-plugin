@@ -189,10 +189,9 @@ const TS_AUTO_CONNECT_TIMEOUT_MS = 20000;
 // URL de login da plataforma com callback direto pra rota do timesheet.
 // Cair em /modules/timesheet/create faz o SPA bootstrapar o módulo do
 // timesheet (necessário para que a captura via webRequest pegue o Bearer
-// das chamadas reais ao api.meta.com.br). O SSO via Senior é encadeado
+// das chamadas reais ao api.insi.com). O SSO via Senior é encadeado
 // pela própria plataforma.
-const META_TS_BOOTSTRAP_URL =
-  'https://plataforma.meta.com.br/login?callbackUrl=/modules/timesheet/create';
+const META_TS_BOOTSTRAP_URL = META_TIMESHEET_CONFIG.bootstrapUrl;
 
 async function tsAutoConnect(): Promise<boolean> {
   try {
