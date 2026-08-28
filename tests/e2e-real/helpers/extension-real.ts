@@ -234,8 +234,9 @@ export async function loginWithEnvCredentials(
         const hit = await findVisible(['#username-input-field', 'input[name="username"]'])
         if (hit) {
           await hit.loc.fill(creds.username)
+          await hit.loc.press('Enter').catch(() => {})
           const btn = hit.frame.locator('#nextBtn, #loginbtn, button:has-text("Próximo"), button:has-text("Entrar"), button:has-text("Autenticar"), button[type="submit"]').first()
-          await btn.click()
+          if (await btn.isVisible({ timeout: 300 }).catch(() => false)) await btn.click().catch(() => {})
           done.add('senior-user'); log('usuário preenchido + Próximo (Senior/Insi)')
         }
       }
@@ -252,17 +253,21 @@ export async function loginWithEnvCredentials(
       }
       // 2. Microsoft: e-mail -> Avançar, senha -> Entrar; MFA fica com o humano.
       if (url.includes('login.microsoftonline.com')) {
-        const email = page.locator('input[name="loginfmt"]')
+        const email = page.locator('input[name="loginfmt"]:visible')
         if (!done.has('ms-email') && await email.isVisible({ timeout: 400 }).catch(() => false)) {
+          await email.click()
           await email.fill(creds.username)
-          await page.locator('#idSIButton9, input[type="submit"]').first().click()
-          done.add('ms-email'); log('e-mail preenchido + Avançar (Microsoft)')
+          await email.press('Enter')                 // Enter submete sem depender do seletor do botão
+          done.add('ms-email'); log('e-mail preenchido + Enter (Microsoft)')
+          await page.waitForTimeout(2500)
         }
-        const pass = page.locator('input[name="passwd"]')
+        const pass = page.locator('input[name="passwd"]:visible')
         if (!done.has('ms-pass') && await pass.isVisible({ timeout: 400 }).catch(() => false)) {
+          await pass.click()
           await pass.fill(creds.password)
-          await page.locator('#idSIButton9, input[type="submit"]').first().click()
-          done.add('ms-pass'); log('senha preenchida + Entrar — agora faça o MFA no celular')
+          await pass.press('Enter')
+          done.add('ms-pass'); log('senha preenchida + Enter — agora faça o MFA no celular')
+          await page.waitForTimeout(2500)
         }
         const mfaNumber = page.locator('#idRichContext_DisplaySign')
         if (!done.has('mfa-shown') && await mfaNumber.isVisible({ timeout: 300 }).catch(() => false)) {
@@ -280,7 +285,7 @@ export async function loginWithEnvCredentials(
     }
     // Screenshot periódico enquanto ainda estamos numa tela de login, pra
     // diagnosticar travas (reCAPTCHA, tela inesperada) sem adivinhar.
-    if (Date.now() - lastShot > 20_000) {
+    if (Date.now() - lastShot > 8_000) {
       lastShot = Date.now()
       const shot = `${OUT}/login-${Math.round((Date.now() - start) / 1000)}s.png`
       await page.screenshot({ path: shot }).catch(() => {})
