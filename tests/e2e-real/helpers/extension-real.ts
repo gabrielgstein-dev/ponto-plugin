@@ -189,6 +189,10 @@ export async function loginWithEnvCredentials(
   timeoutMs = 300_000,
 ): Promise<void> {
   const creds = readEnvCredentials()
+  if (process.env.E2E_MANUAL_LOGIN === '1') {
+    console.log('[login] E2E_MANUAL_LOGIN=1 — faça o login inteiro na janela (inclusive o botão). O teste só espera a sessão ficar pronta.')
+    return ensureLoggedInOnTab(context, loginUrl, targetOrigin, timeoutMs)
+  }
   if (!creds) {
     console.log('[login] sem INSI_USERNAME/INSI_PASS no .env — login manual')
     return ensureLoggedInOnTab(context, loginUrl, targetOrigin, timeoutMs)
