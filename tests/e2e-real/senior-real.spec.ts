@@ -20,6 +20,10 @@ import {
   clearStorageKeys,
   type RealExtensionFixture,
 } from './helpers/extension-real'
+// Literal (não importa providers.ts: puxa módulos que tocam `chrome` no load).
+// Deve bater com COMPANY_LOGIN_URL — coberto por tests/unit/company-login-url.test.ts.
+const COMPANY_LOGIN_URL =
+  'https://platform.senior.com.br/login/?redirectTo=https%3A%2F%2Fplatform.senior.com.br%2Fsenior-x%2F&tenant=meta.com.br'
 
 let fixture: RealExtensionFixture
 
@@ -36,9 +40,11 @@ test.beforeAll(async () => {
     'gpAssertion',
     'gpAssertionTs',
   ])
+  // Mesma URL que o plugin abre no "Conecte-se": login com tenant (tela
+  // Insi). Ir direto em /senior-x/ cai no login genérico da Senior.
   await ensureLoggedInOnTab(
     fixture.context,
-    'https://platform.senior.com.br/senior-x/',
+    COMPANY_LOGIN_URL,
     'https://platform.senior.com.br',
   )
 })
