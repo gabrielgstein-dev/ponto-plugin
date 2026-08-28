@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Settings } from '../../domain/types';
-import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET, ENABLE_NETLOG_CAPTURE } from '../../domain/build-flags';
+import { DEBUG, ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET, ENABLE_NETLOG_CAPTURE, ENABLE_AUTO_PUNCH } from '../../domain/build-flags';
+import type { PunchReminderSlot } from '../../domain/types';
 import { exportLogs } from '../export-logs';
 import { clearLogs } from '../../domain/log-store';
 import { exportMetaNetLog, clearMetaNetLog } from '../export-meta-net-log';
@@ -85,6 +86,7 @@ export function SettingsPanel({ settings, onChange, onClear }: SettingsPanelProp
             onChange={e => onChange({ insiXReminder: e.target.checked })}
           />
         </div>
+        {ENABLE_AUTO_PUNCH && <AutoPunchSettings settings={settings} onChange={onChange} />}
         <SoundSettings settings={settings} onChange={onChange} />
         {!ENABLE_SENIOR_INTEGRATION && <SettingRow label="Dia Fechamento" value={settings.closingDay} onChange={v => onChange({ closingDay: Math.min(28, Math.max(1, Math.round(v))) })} />}
         <button className="clear-btn" onClick={onClear}>Limpar registros de hoje</button>
@@ -390,6 +392,49 @@ function MetaNetLogActions() {
       </button>
       {feedback && <span className="logs-feedback">{feedback}</span>}
     </div>
+  );
+}
+
+interface AutoPunchSettingsProps {
+  settings: Settings;
+  onChange: (partial: Partial<Settings>) => void;
+}
+
+const AUTO_PUNCH_SLOT_LABELS: Array<{ slot: PunchReminderSlot; label: string }> = [
+  { slot: 'entrada', label: 'Entrada' },
+  { slot: 'almoco', label: 'Almoço' },
+  { slot: 'volta', label: 'Volta do almoço' },
+  { slot: 'saida', label: 'Saída' },
+];
+
+function AutoPunchSettings({ settings, onChange }: AutoPunchSettingsProps) {
+  const enabled = settings.autoPunchEnabled;
+  const slots = settings.autoPunchSlots;
+  return (
+    <>
+      <div className="setting-row">
+        <label htmlFor="auto-punch-enabled">Batida automática (Senior)</label>
+        <input
+          id="auto-punch-enabled"
+          type="checkbox"
+          className="setting-checkbox"
+          checked={enabled}
+          onChange={e => onChange({ autoPunchEnabled: e.target.checked })}
+        />
+      </div>
+      {enabled && AUTO_PUNCH_SLOT_LABELS.map(({ slot, label }) => (
+        <div className="setting-row" key={slot} style={{ paddingLeft: 16 }}>
+          <label htmlFor={`auto-punch-${slot}`}>{label}</label>
+          <input
+            id={`auto-punch-${slot}`}
+            type="checkbox"
+            className="setting-checkbox"
+            checked={slots[slot] === true}
+            onChange={e => onChange({ autoPunchSlots: { ...slots, [slot]: e.target.checked } })}
+          />
+        </div>
+      ))}
+    </>
   );
 }
 

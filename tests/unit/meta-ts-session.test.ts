@@ -5,6 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+import { mockCookiesGetAll, mockDnrUpdateSessionRules } from '../setup/chrome-mock'
 import type { TimesheetConfig } from '../../lib/infrastructure/timesheet/timesheet-config'
 import type { TimesheetAuth } from '../../lib/infrastructure/timesheet/timesheet-auth'
 
@@ -102,6 +103,53 @@ describe('getMetaTsTokenSilently', () => {
     expect((init as RequestInit).credentials).toBe('include')
   })
 
+  it('injeta o cookie de sessão da plataforma via DNR quando há sessão (headless)', async () => {
+    const jwt = makeJwt()
+    // Sessão presente no navegador → chrome.cookies devolve os cookies
+    mockCookiesGetAll.mockResolvedValue([
+      { name: '__Secure-next-auth.session-token', value: 'sess-abc' },
+      { name: 'csrf', value: 'xyz' },
+    ])
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
+
+    const { getMetaTsTokenSilently } = await import(
+      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+    )
+    const auth = makeAuth()
+    const result = await getMetaTsTokenSilently(CONFIG, auth)
+    expect(result).toBe(jwt)
+
+    // Registrou a regra de sessão com o header Cookie contendo os cookies
+    const addCall = mockDnrUpdateSessionRules.mock.calls.find(
+      (c) => (c[0] as { addRules?: unknown[] })?.addRules,
+    )
+    expect(addCall).toBeTruthy()
+    const rule = (addCall![0] as { addRules: Array<{ id: number; action: { requestHeaders: Array<{ header: string; value: string }> }; condition: { tabIds: number[] } }> }).addRules[0]
+    expect(rule.action.requestHeaders[0].header.toLowerCase()).toBe('cookie')
+    expect(rule.action.requestHeaders[0].value).toContain('__Secure-next-auth.session-token=sess-abc')
+    expect(rule.action.requestHeaders[0].value).toContain('csrf=xyz')
+    expect(rule.condition.tabIds).toEqual([-1])
+
+    // Removeu a regra ao final (chamada só com removeRuleIds, sem addRules)
+    const removed = mockDnrUpdateSessionRules.mock.calls.some((c) => {
+      const o = c[0] as { removeRuleIds?: number[]; addRules?: unknown }
+      return Array.isArray(o?.removeRuleIds) && !o?.addRules
+    })
+    expect(removed).toBe(true)
+  })
+
+  it('sem sessão (cookies vazios) faz fetch normal, sem tocar DNR', async () => {
+    const jwt = makeJwt()
+    mockCookiesGetAll.mockResolvedValue([])
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
+
+    const { getMetaTsTokenSilently } = await import(
+      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+    )
+    expect(await getMetaTsTokenSilently(CONFIG, makeAuth())).toBe(jwt)
+    expect(mockDnrUpdateSessionRules).not.toHaveBeenCalled()
+  })
+
   it('persiste o accessToken JWT válido', async () => {
     const jwt = makeJwt()
     vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: jwt } })))
@@ -122,6 +170,24 @@ describe('getMetaTsTokenSilently', () => {
     const body = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 100 })).replace(/=/g, '')
     const expiredJwt = `${header}.${body}.sig`
     vi.stubGlobal('fetch', vi.fn(async () => makeResponse({ ok: true, status: 200, body: { accessToken: expiredJwt } })))
+
+    const { getMetaTsTokenSilently } = await import(
+      '../../lib/infrastructure/meta/timesheet/meta-ts-session'
+    )
+    const auth = makeAuth()
+    expect(await getMetaTsTokenSilently(CONFIG, auth)).toBeNull()
+    expect(auth.saveToken).not.toHaveBeenCalled()
+  })
+
+  it('rejeita sessão com error RefreshAccessTokenError (refresh SSO morto)', async () => {
+    // Plataforma responde 200 com JWT vencido + error quando o refresh token
+    // do Keycloak expira — headless não recupera, só login interativo.
+    const header = btoa(JSON.stringify({ alg: 'RS256' })).replace(/=/g, '')
+    const body = btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 100 })).replace(/=/g, '')
+    const expiredJwt = `${header}.${body}.sig`
+    vi.stubGlobal('fetch', vi.fn(async () => makeResponse({
+      ok: true, status: 200, body: { accessToken: expiredJwt, error: 'RefreshAccessTokenError' },
+    })))
 
     const { getMetaTsTokenSilently } = await import(
       '../../lib/infrastructure/meta/timesheet/meta-ts-session'

@@ -40,6 +40,9 @@ export function triggerStorageChange(changes: Record<string, unknown>, area = 'l
 // ── Cookies ───────────────────────────────────────────────────────────────────
 export const mockCookiesGetAll = vi.fn().mockResolvedValue([])
 
+// ── declarativeNetRequest ─────────────────────────────────────────────────────
+export const mockDnrUpdateSessionRules = vi.fn().mockResolvedValue(undefined)
+
 // ── Scripting ─────────────────────────────────────────────────────────────────
 export const mockScriptingExecuteScript = vi.fn().mockResolvedValue([{ result: null }])
 
@@ -109,6 +112,9 @@ const chromeMock = {
   },
   cookies: {
     getAll: mockCookiesGetAll,
+  },
+  declarativeNetRequest: {
+    updateSessionRules: mockDnrUpdateSessionRules,
   },
   scripting: {
     executeScript: mockScriptingExecuteScript,
@@ -185,6 +191,8 @@ beforeEach(() => {
   mockStorageSet.mockResolvedValue(undefined)
   mockStorageRemove.mockResolvedValue(undefined)
   mockCookiesGetAll.mockResolvedValue([])
+  mockDnrUpdateSessionRules.mockReset()
+  mockDnrUpdateSessionRules.mockResolvedValue(undefined)
   mockScriptingExecuteScript.mockResolvedValue([{ result: null }])
   mockTabsQuery.mockResolvedValue([])
   mockTabsCreate.mockResolvedValue({ id: 99 })

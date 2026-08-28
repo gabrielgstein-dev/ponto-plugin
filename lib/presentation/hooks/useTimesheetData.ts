@@ -3,6 +3,7 @@ import type { TimesheetSummary, TimesheetEntry } from '../../domain/types';
 import { ENABLE_META_TIMESHEET } from '../../domain/build-flags';
 import { debugLog, debugWarn } from '../../domain/debug';
 import { getCurrentTimesheetPeriod } from '../../domain/timesheet-period';
+import { isValidJWT } from '../../domain/jwt-utils';
 import { getTimesheetProvider, getWorkedHoursForDate } from '#company/providers';
 
 function formatPeriodLabel(period: string): string {
@@ -90,11 +91,14 @@ export function useTimesheetData() {
   useEffect(() => {
     const handler = (changes: Record<string, chrome.storage.StorageChange>) => {
       if (changes.metaTsToken) {
-        // Só recarrega quando o token aparece (era ausente) ou some (era presente).
-        // Renovações silenciosas (presente → presente diferente) não exigem reload.
-        const hadToken = !!changes.metaTsToken.oldValue;
-        const hasToken = !!changes.metaTsToken.newValue;
-        if (hadToken !== hasToken) loadData();
+        // Recarrega em qualquer transição de USABILIDADE do token: usável→inválido
+        // (mostra Reconectar) ou inválido/ausente→usável (troca pra lista). Antes
+        // olhava só presença — na reconexão o token velho vencido seguia no storage
+        // (presente→presente), o reload era pulado e a tela ficava no Reconectar.
+        // Renovações silenciosas (válido→válido) não recarregam.
+        const oldOk = isValidJWT((changes.metaTsToken.oldValue as string) ?? '', 0);
+        const newOk = isValidJWT((changes.metaTsToken.newValue as string) ?? '', 0);
+        if (oldOk !== newOk) loadData();
       }
       if (changes.metaTsUserId) loadData();
       if (changes.timesheetSummaryCache?.newValue) {
