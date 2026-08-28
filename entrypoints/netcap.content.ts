@@ -10,6 +10,10 @@ export default defineContentScript({
   matches: ENABLE_NETLOG_CAPTURE ? ['<all_urls>'] : ['https://netcap.disabled.invalid/*'],
   world: 'MAIN',
   runAt: 'document_start',
+  // Apps de login costumam fazer o fetch dentro de iframe (SSO, widget embutido).
+  // Sem all_frames a captura só veria o frame de topo e perderia justo a request
+  // que interessa.
+  allFrames: true,
 
   main() {
     if (!ENABLE_NETLOG_CAPTURE) return;

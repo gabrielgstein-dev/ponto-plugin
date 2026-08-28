@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { GP_API_BASE, GP_FRONTEND_URL, GP_HOST, GP_LEGACY_HOST } from '../../lib/infrastructure/meta/gestaoponto/constants';
-import { isUsableGpTabUrl } from '../../lib/infrastructure/meta/gestaoponto/gp-tab-utils';
+import { GP_API_BASE, GP_FRONTEND_URL, GP_HOST, GP_LEGACY_HOST } from '../../lib/infrastructure/insi/gestaoponto/constants';
+import { isUsableGpTabUrl } from '../../lib/infrastructure/insi/gestaoponto/gp-tab-utils';
 
 // Regressão da migração de domínio (ago/2026): o host antigo responde 301 cego
 // pra /gestaoponto-frontend/login, engolindo path da API e o `?portal=g7`.

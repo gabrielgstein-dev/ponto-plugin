@@ -13,7 +13,7 @@ vi.mock('../../../lib/domain/build-flags', () => ({
     return mockBuildFlags.ENABLE_META_TIMESHEET
   },
   DEBUG: false,
-  ACTIVE_COMPANY: 'meta',
+  ACTIVE_COMPANY: 'insi',
   APP_NAME: 'TestApp',
   ENABLE_SENIOR_INTEGRATION: true,
   ENABLE_SENIOR_PUNCH_BUTTON: false,

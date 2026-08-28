@@ -17,12 +17,6 @@ vi.mock('../../lib/application/detect-punches', () => ({
 vi.mock('../../lib/infrastructure/senior/senior-local-inject', () => ({
   injectPunchIntoLocalStorage: vi.fn().mockResolvedValue(true),
 }))
-vi.mock('../../lib/infrastructure/senior/senior-cookie-auth', () => ({
-  SeniorCookieAuth: vi.fn().mockImplementation(() => ({
-    name: 'cookie',
-    getAccessToken: vi.fn().mockResolvedValue('test-token'),
-  })),
-}))
 vi.mock('../../lib/infrastructure/senior/senior-page-auth', () => ({
   SeniorPageAuth: vi.fn().mockImplementation(() => ({
     name: 'page',

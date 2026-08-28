@@ -14,7 +14,7 @@ vi.mock('../../../lib/domain/build-flags', () => ({
   ENABLE_WIDGET: false,
   DEBUG: false,
   APP_NAME: 'TestApp',
-  ACTIVE_COMPANY: 'meta',
+  ACTIVE_COMPANY: 'insi',
   THEME: 'meta',
 }))
 

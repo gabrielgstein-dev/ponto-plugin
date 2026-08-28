@@ -10,9 +10,9 @@ import { formatDuration, formatJwtExp, decodeJwtPayload } from '../domain/jwt-ut
 import { getCurrentTimesheetPeriod } from '../domain/timesheet-period';
 import { PunchDetector } from './detect-punches';
 import { getCompanyPunchProviders, getTimesheetProvider } from '#company/providers';
-import { getMetaTsTokenSilently } from '../infrastructure/meta/timesheet/meta-ts-session';
-import { metaTsAuth } from '../infrastructure/meta/timesheet/meta-ts-auth';
-import { META_TIMESHEET_CONFIG } from '../infrastructure/meta/timesheet/constants';
+import { getMetaTsTokenSilently } from '../infrastructure/insi/timesheet/meta-ts-session';
+import { metaTsAuth } from '../infrastructure/insi/timesheet/meta-ts-auth';
+import { META_TIMESHEET_CONFIG } from '../infrastructure/insi/timesheet/constants';
 import { SeniorStoragePunchProvider } from '../infrastructure/senior/senior-storage-provider';
 import { SeniorApiPunchProvider } from '../infrastructure/senior/senior-api-provider';
 import { SeniorScraperProvider } from '../infrastructure/senior/senior-scraper';

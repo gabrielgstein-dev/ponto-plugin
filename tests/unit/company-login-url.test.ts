@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { COMPANY_LOGIN_URL, SENIOR_TENANT } from '../../lib/infrastructure/meta/providers'
+import { COMPANY_LOGIN_URL, SENIOR_TENANT } from '../../lib/infrastructure/insi/providers'
 
 // A tela certa é o login Senior com tenant (branding Insi), não o login
 // genérico da Senior nem o login local do GestãoPonto.

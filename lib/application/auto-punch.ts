@@ -1,22 +1,27 @@
 import type { PunchResult } from '../domain/types';
 import { auditLog } from '../domain/debug';
 import { timeToMinutes } from '../domain/time-utils';
-import { registerPunch } from './register-punch';
-import { SeniorCookieAuth } from '../infrastructure/senior/senior-cookie-auth';
+import { registerPunch, resolveAccessToken } from './register-punch';
+import { ensureSeniorTab, closeSeniorTab } from './ensure-senior-tab';
 import { SeniorPageAuth } from '../infrastructure/senior/senior-page-auth';
 import { SeniorInterceptorAuth } from '../infrastructure/senior/senior-interceptor-auth';
+import { SeniorTokenStorageAuth } from '../infrastructure/senior/senior-token-storage-auth';
 import { SeniorPunchRegistrar } from '../infrastructure/senior/senior-registrar';
 import {
   SeniorActiveUserPunchProvider,
   resetSeniorActiveUserCache,
 } from '../infrastructure/senior/senior-active-user-provider';
 
-// Mesma cadeia de auth do botão manual (usePunchAction). Rodar no service worker
-// é ok: SeniorCookieAuth usa chrome.cookies; os demais são fallback via aba.
+// Cadeia de auth do botão manual (usePunchAction) + `SeniorTokenStorageAuth`.
+// Rodar no service worker é ok: os providers são fallback via aba/storage.
+//
+// A ordem importa: os dois primeiros são tokens de escopo estreito e origem
+// conhecida. `tokenStorage` fecha a cadeia porque é o único que sobrevive a um
+// restart do Chrome sem aba aberta — era exatamente o buraco de 2026-07-21.
 const authProviders = [
-  new SeniorCookieAuth(),
   new SeniorPageAuth(),
   new SeniorInterceptorAuth(),
+  new SeniorTokenStorageAuth(),
 ];
 
 const registrar = new SeniorPunchRegistrar();
@@ -85,6 +90,32 @@ async function verifyOnServer(punchTime: string): Promise<boolean> {
  * olhando, uma escrita local vira "prova" falsa na próxima detecção.
  */
 export async function runAutoPunch(): Promise<AutoPunchResult> {
+  // A aba precisa existir ANTES da tentativa: o registrar injeta o fetch no
+  // contexto da página (senior-registrar.ts) e dois dos providers de auth leem
+  // a aba. Sem isso, "sem aba" viravam duas falhas distintas e tardias.
+  const tab = await ensureSeniorTab(async () =>
+    (await resolveAccessToken(authProviders)) !== null,
+  );
+  if (!tab) {
+    return {
+      success: false,
+      logs: ['Nenhuma aba Senior utilizável (sessão expirada ou SPA não autenticou)'],
+      punchTime: null,
+      confirmed: false,
+    };
+  }
+
+  try {
+    return await punchAndVerify();
+  } finally {
+    // Fecha só se fomos nós que abrimos. Roda depois da verificação porque o
+    // verifyOnServer é fetch direto do SW (não usa a aba), mas fechar antes
+    // não compraria nada e arriscaria cortar algo em voo.
+    await closeSeniorTab(tab);
+  }
+}
+
+async function punchAndVerify(): Promise<AutoPunchResult> {
   const result = await registerPunch(authProviders, registrar);
   if (!result.success) {
     return { ...result, punchTime: null, confirmed: false };

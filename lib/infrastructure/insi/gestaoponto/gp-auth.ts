@@ -1,0 +1,183 @@
+import type { GpAuthData } from '../../../domain/types';
+import { GP_API_BASE, GP_CACHE_DURATION_MS } from './constants';
+import { SENIOR_TOKEN_MAX_AGE_MS } from '../../senior/constants';
+import { SeniorPageAuth } from '../../senior/senior-page-auth';
+import { refreshSeniorTokenSilently } from '../../senior/senior-token-refresh';
+import { debugLog, debugWarn } from '../../../domain/debug';
+import { logError } from '../../../domain/error-logger';
+import { isGpHostRedirect, markGpUnreachable, clearGpUnreachable } from './gp-host-guard';
+
+export async function getGpAssertion(force = false): Promise<GpAuthData | null> {
+  const stored = await chrome.storage.local.get(['gpAssertion', 'gpAssertionTs', 'gestaoPontoColaboradorId', 'gestaoPontoCodigoCalculo']);
+  if (!force && stored.gpAssertion && stored.gpAssertionTs && Date.now() - stored.gpAssertionTs < GP_CACHE_DURATION_MS && stored.gestaoPontoCodigoCalculo) {
+    debugLog('GP auth: usando cache (colab:', stored.gestaoPontoColaboradorId, 'calc:', stored.gestaoPontoCodigoCalculo, ')');
+    return { assertion: stored.gpAssertion, colaboradorId: stored.gestaoPontoColaboradorId, codigoCalculo: stored.gestaoPontoCodigoCalculo };
+  }
+  if (stored.gpAssertion && !stored.gestaoPontoCodigoCalculo) {
+    debugLog('GP auth: cache sem codigoCalculo, re-autenticando...');
+  }
+
+  const accessToken = await getSeniorAccessToken();
+  if (!accessToken) {
+    debugLog('GP auth: sem access_token do cookie');
+    return null;
+  }
+  debugLog('GP auth: access_token obtido, autenticando com GP...');
+
+  // 1ª tentativa com o token corrente
+  const first = await callGpAuthG7(accessToken);
+  if (first.ok) return first.data;
+
+  // BUG 2: ao receber 401/403, NÃO invalida seniorToken do storage. O storage
+  // é fallback do cookie — se o cookie expirou, deletar storage só piora.
+  // Em vez disso, tenta refresh silencioso (sem threshold de 12h) e re-faz a
+  // chamada uma única vez. Se ainda assim falhar, devolve null em silêncio
+  // — o sidepanel vai detectar e mostrar UI de "Reconectar" pro usuário.
+  if (first.shouldRefresh) {
+    debugLog('GP auth: 401/403 — tentando refresh silencioso forçado...');
+    const refreshed = await refreshSeniorTokenSilently({ force: true });
+    if (refreshed) {
+      const second = await callGpAuthG7(refreshed);
+      if (second.ok) return second.data;
+    }
+  }
+  return null;
+}
+
+interface CallGpAuthResult {
+  ok: boolean;
+  data: GpAuthData | null;
+  shouldRefresh: boolean;
+}
+
+async function callGpAuthG7(accessToken: string): Promise<CallGpAuthResult> {
+  try {
+    const url = `${GP_API_BASE}senior/auth/g7`;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/plain, */*', 'token': accessToken, 'expires': '604800' },
+      body: '{}',
+      redirect: 'manual',
+    });
+    if (isGpHostRedirect(r)) {
+      await markGpUnreachable('callGpAuthG7', url, r);
+      return { ok: false, data: null, shouldRefresh: false };
+    }
+    if (!r.ok) {
+      const shouldRefresh = r.status === 401 || r.status === 403;
+      // Lê body pra distinguir causa do 5xx — sem isso, não dá pra saber se
+      // é flakiness do upstream, rate limit, tenant misconfigurado, etc.
+      // Defensivo: tolerante a mocks de teste que não implementam text/headers.
+      let bodyPreview = '';
+      let bodyLength = 0;
+      let contentType = '';
+      try {
+        if (typeof r.text === 'function') {
+          const body = await r.text();
+          bodyLength = body.length;
+          bodyPreview = body.length > 500 ? body.slice(0, 500) + '…' : body;
+        }
+        contentType = r.headers?.get?.('content-type') ?? '';
+      } catch (_) { /* ignore — mock incompleto ou body já consumido */ }
+      logError(new Error(`GP auth/g7 returned ${r.status}`), {
+        category: 'auth',
+        severity: shouldRefresh ? 'medium' : 'high',
+        operation: 'callGpAuthG7',
+        metadata: {
+          status: r.status,
+          willRefresh: shouldRefresh,
+          contentType,
+          bodyLength,
+          bodyPreview,
+        },
+      });
+      return { ok: false, data: null, shouldRefresh };
+    }
+    const json = await r.json();
+    if (!json.token) {
+      logError(new Error('GP auth/g7 response missing token'), {
+        category: 'auth',
+        severity: 'high',
+        operation: 'callGpAuthG7',
+        metadata: { responseKeys: Object.keys(json ?? {}) },
+      });
+      return { ok: false, data: null, shouldRefresh: false };
+    }
+
+    const colaboradorId = json.colaborador?.id ?? null;
+    const codigoCalculo = extractCodigoCalculo(json);
+    const save: Record<string, unknown> = { gpAssertion: json.token, gpAssertionTs: Date.now() };
+    if (colaboradorId) save.gestaoPontoColaboradorId = colaboradorId;
+    if (codigoCalculo) save.gestaoPontoCodigoCalculo = codigoCalculo;
+    chrome.storage.local.set(save);
+    clearGpUnreachable().catch(() => {});
+    debugLog('GP auth/g7 OK, colaboradorId:', colaboradorId, 'codigoCalculo:', codigoCalculo, 'userRange:', JSON.stringify(json.userRange)?.substring(0, 200));
+    return { ok: true, data: { assertion: json.token, colaboradorId, codigoCalculo }, shouldRefresh: false };
+  } catch (e) {
+    logError(e, {
+      category: 'network',
+      severity: 'high',
+      operation: 'callGpAuthG7',
+    });
+    return { ok: false, data: null, shouldRefresh: false };
+  }
+}
+
+async function getSeniorAccessToken(): Promise<string | null> {
+  // Storage é fonte canônica: refresh atualiza só o storage.
+  try {
+    const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs', 'seniorRefreshToken']);
+    if (stored.seniorToken && stored.seniorTokenTs && Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS) {
+      debugLog('getSeniorAccessToken: usando seniorToken do storage (age:', Math.round((Date.now() - stored.seniorTokenTs) / 3600000), 'h)');
+      return stored.seniorToken;
+    }
+    // Tenta refresh silencioso em duas situações: (a) seniorToken existe mas
+    // está velho, (b) seniorToken sumiu (cleanup antigo, install limpo, etc)
+    // mas ainda temos refresh_token. Sem (b), users que perdem o seniorToken
+    // por qualquer razão ficam deslogados eternamente mesmo com refresh_token
+    // válido — bug histórico: o dailyReset zerava seniorToken e quebrava esse
+    // caminho. Defesa redundante: protege contra qualquer outro caminho futuro
+    // que possa zerar seniorToken.
+    if (stored.seniorToken || stored.seniorRefreshToken) {
+      debugLog('getSeniorAccessToken: seniorToken ausente/expirado, tentando refresh silencioso...');
+      const refreshed = await refreshSeniorTokenSilently();
+      if (refreshed) return refreshed;
+    }
+  } catch (e) {
+    logError(e, {
+      category: 'storage',
+      severity: 'medium',
+      operation: 'getSeniorAccessToken.readStorage',
+    });
+  }
+
+  // Fallback: aba Senior aberta (storage vazio)
+  const fromPage = await new SeniorPageAuth().getAccessToken();
+  if (fromPage) {
+    debugLog('getSeniorAccessToken: token obtido via aba Senior aberta');
+    return fromPage;
+  }
+
+  debugLog('getSeniorAccessToken: nenhuma fonte de token disponível');
+  return null;
+}
+
+export function invalidateGpCache(): void {
+  chrome.storage.local.remove(['gpAssertion', 'gpAssertionTs']);
+}
+
+export async function invalidateSeniorTokenStorage(): Promise<void> {
+  await chrome.storage.local.remove(['seniorToken', 'seniorTokenTs']);
+  debugLog('seniorToken invalidado no storage (401/403 do Senior)');
+}
+
+function extractCodigoCalculo(json: Record<string, unknown>): string | null {
+  const userRange = json.userRange as Array<Record<string, string>> | undefined;
+  if (!Array.isArray(userRange)) return null;
+  for (const entry of userRange) {
+    const condition = entry.condition || entry.Condition || JSON.stringify(entry);
+    const match = condition.match(/CodCal[=:]\s*\d+[-\u2013]?(\d+)/);
+    if (match) return match[1];
+  }
+  return null;
+}

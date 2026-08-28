@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 vi.mock('../../../lib/domain/build-flags', () => ({
   APP_NAME: 'Ponto Test',
   DEBUG: false,
-  ACTIVE_COMPANY: 'meta',
+  ACTIVE_COMPANY: 'insi',
   ENABLE_SENIOR_INTEGRATION: true,
   ENABLE_SENIOR_PUNCH_BUTTON: false,
   ENABLE_MANUAL_PUNCH: false,

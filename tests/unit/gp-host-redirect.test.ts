@@ -13,15 +13,14 @@ vi.mock('../../lib/infrastructure/senior/senior-token-refresh', () => ({
   refreshSeniorTokenSilently: vi.fn().mockResolvedValue(null),
   persistSeniorTokens: vi.fn().mockResolvedValue(undefined),
 }))
-vi.mock('../../lib/infrastructure/senior/senior-cookie-auth', () => ({
-  SeniorCookieAuth: vi.fn().mockImplementation(() => ({ getAccessToken: vi.fn().mockResolvedValue('cookie-token') })),
-}))
+// Cookie saiu da cadeia de auth (feat/auto-punch-ensure-tab); o fallback
+// quando o storage está vazio é a aba Senior aberta.
 vi.mock('../../lib/infrastructure/senior/senior-page-auth', () => ({
-  SeniorPageAuth: vi.fn().mockImplementation(() => ({ getAccessToken: vi.fn().mockResolvedValue(null) })),
+  SeniorPageAuth: vi.fn().mockImplementation(() => ({ getAccessToken: vi.fn().mockResolvedValue('page-token') })),
 }))
 
-import { getGpAssertion } from '../../lib/infrastructure/meta/gestaoponto/gp-auth'
-import { isGpHostRedirect } from '../../lib/infrastructure/meta/gestaoponto/gp-host-guard'
+import { getGpAssertion } from '../../lib/infrastructure/insi/gestaoponto/gp-auth'
+import { isGpHostRedirect } from '../../lib/infrastructure/insi/gestaoponto/gp-host-guard'
 import { mockStorageGet, mockStorageSet, mockStorageRemove } from '../setup/chrome-mock'
 
 beforeEach(() => {

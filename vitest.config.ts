@@ -24,7 +24,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '#company': resolve(__dirname, 'lib/infrastructure/meta'),
+      '#company': resolve(__dirname, 'lib/infrastructure/insi'),
     },
   },
 })

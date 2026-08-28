@@ -40,7 +40,7 @@ try {
 ### 2. Providers — Falhas Não Reportadas
 **Arquivos:**
 - `lib/infrastructure/senior/senior-cookie-auth.ts:43`
-- `lib/infrastructure/meta/gestaoponto/gp-provider.ts`
+- `lib/infrastructure/insi/gestaoponto/gp-provider.ts`
 
 ```typescript
 // ANTES (RUIM)
@@ -274,8 +274,8 @@ catch (e) {
 - [ ] `lib/infrastructure/senior/senior-cookie-auth.ts`
 - [ ] `lib/infrastructure/senior/senior-page-auth.ts`
 - [ ] `lib/infrastructure/senior/senior-interceptor-auth.ts`
-- [ ] `lib/infrastructure/meta/gestaoponto/gp-provider.ts`
-- [ ] `lib/infrastructure/meta/gestaoponto/gp-auth.ts`
+- [ ] `lib/infrastructure/insi/gestaoponto/gp-provider.ts`
+- [ ] `lib/infrastructure/insi/gestaoponto/gp-auth.ts`
 
 ---
 

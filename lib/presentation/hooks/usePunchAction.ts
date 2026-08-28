@@ -2,14 +2,12 @@ import { useState, useCallback } from 'react';
 import { debugLog } from '../../domain/debug';
 import { registerPunch } from '../../application/register-punch';
 import { addPendingPunch } from '../../application/detect-punches';
-import { SeniorCookieAuth } from '../../infrastructure/senior/senior-cookie-auth';
 import { SeniorPageAuth } from '../../infrastructure/senior/senior-page-auth';
 import { SeniorInterceptorAuth } from '../../infrastructure/senior/senior-interceptor-auth';
 import { SeniorPunchRegistrar } from '../../infrastructure/senior/senior-registrar';
 import { injectPunchIntoLocalStorage } from '../../infrastructure/senior/senior-local-inject';
 
 const authProviders = [
-  new SeniorCookieAuth(),
   new SeniorPageAuth(),
   new SeniorInterceptorAuth(),
 ];

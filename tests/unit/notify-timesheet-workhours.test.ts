@@ -11,7 +11,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('../../lib/domain/build-flags', () => ({
   DEBUG: false,
-  ACTIVE_COMPANY: 'meta',
+  ACTIVE_COMPANY: 'insi',
   APP_NAME: 'Test',
   ENABLE_SENIOR_INTEGRATION: false,
   ENABLE_SENIOR_PUNCH_BUTTON: false,
@@ -49,7 +49,7 @@ vi.mock('../../lib/application/schedule-ts-notifications', () => ({
   scheduleTsNotifications: vi.fn(),
   resetTsScheduled: vi.fn(),
 }))
-vi.mock('../../lib/infrastructure/meta/timesheet/meta-ts-session', () => ({
+vi.mock('../../lib/infrastructure/insi/timesheet/meta-ts-session', () => ({
   getMetaTsTokenSilently: vi.fn().mockResolvedValue(null),
 }))
 

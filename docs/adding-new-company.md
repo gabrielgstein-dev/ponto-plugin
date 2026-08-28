@@ -20,13 +20,17 @@ lib/infrastructure/
     timesheet-config.ts      ← TimesheetConfig interface
     timesheet-auth.ts        ← createTimesheetAuth(config)
     timesheet-provider.ts    ← createTimesheetProvider(config, auth)
-  meta/                      ← Empresa Meta (todas as configs específicas)
-    gestaoponto/             ← GP module com URLs da Meta
+  insi/                      ← Empresa Insi (todas as configs específicas)
+    gestaoponto/             ← GP module com URLs da Insi
       constants.ts           ← GP_API_BASE, GP_FRONTEND_URL, etc.
       gp-*.ts                ← Todos os providers GP
-    timesheet/               ← Meta Timesheet config
+    timesheet/               ← Insi Timesheet config
       constants.ts           ← META_TIMESHEET_CONFIG (URLs, storage prefix)
-      meta-ts-auth.ts        ← 1 linha: createTimesheetAuth(config)
+      meta-ts-auth.ts        ← 1 linha: createTimesheetAuth(config) — nome
+                                do arquivo é legado (era "Meta" antes do
+                                rebranding pra "Insi"), storage prefix segue
+                                `metaTs*` por compatibilidade com storage já
+                                instalado em produção
       meta-ts-provider.ts    ← 1 linha: createTimesheetProvider(config, auth)
     providers.ts             ← Entry point padronizado (exports via #company)
   manual/                    ← Modo manual (sem empresa)
@@ -35,10 +39,10 @@ lib/infrastructure/
 
 ## Passo a Passo — Adicionar Empresa X
 
-### 1. Copiar estrutura da Meta
+### 1. Copiar estrutura da Insi
 
 ```bash
-cp -r lib/infrastructure/meta lib/infrastructure/empresa-x
+cp -r lib/infrastructure/insi lib/infrastructure/empresa-x
 ```
 
 ### 2. Configurar URLs da Empresa X
@@ -148,7 +152,7 @@ O build deve compilar com zero erros. O Vite resolverá `#company/*` para `lib/i
 ## Storage Keys Isoladas
 
 Cada empresa usa prefixos únicos:
-- Meta: `metaTs*`, `gpAssertion`, `gestaoPontoCodigoCalculo`
+- Insi (prefixo legado `metaTs*` — empresa se chamava Meta antes do rebranding): `metaTs*`, `gpAssertion`, `gestaoPontoCodigoCalculo`
 - Empresa X: `empXTs*`, `gpAssertion`, `gestaoPontoCodigoCalculo` (mesmas chaves GP, mas URLs diferentes garante isolamento)
 
 ## Content Scripts (se necessário)
@@ -160,7 +164,7 @@ Se a Empresa X tiver domínios diferentes, adicionar entry points em `entrypoint
 
 ## Resumo
 
-1. Copiar `meta/` → `empresa-x/`
+1. Copiar `insi/` → `empresa-x/`
 2. Mudar URLs em `constants.ts`
 3. Mudar storage prefix em timesheet config
 4. Mudar `ACTIVE_COMPANY` no build-flags
