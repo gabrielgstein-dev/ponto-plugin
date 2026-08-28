@@ -208,14 +208,26 @@ export async function loginWithEnvCredentials(
       return
     }
     try {
-      // 1. Tela Senior-Insi: "Usuário" → Próximo
+      // 1. Tela Senior-Insi: o form visível (Keycloak) vive num IFRAME de
+      //    sso.senior.com.br — `#username-input-field` + `#nextBtn` "Próximo".
       if (url.includes('platform.senior.com.br/login') && !done.has('senior-user')) {
-        const user = page.locator('input[placeholder*="Usu"], input[name="username"], input[type="text"]').first()
+        const frame = page.frames().find(f => f.url().includes('sso.senior.com.br')) ?? page.mainFrame()
+        const user = frame.locator('#username-input-field')
         if (await user.isVisible({ timeout: 500 }).catch(() => false)) {
           await user.fill(creds.username)
-          const next = page.locator('button:has-text("Próximo"), button:has-text("Autenticar"), button[type="submit"]').first()
-          await next.click()
-          done.add('senior-user'); log('usuário preenchido (Senior)')
+          await frame.locator('#nextBtn').click()
+          done.add('senior-user'); log('usuário preenchido (Senior/Keycloak iframe)')
+        }
+      }
+      // 1b. Se o tenant pedir senha local em vez de SAML (não é o caso da Insi,
+      //     mas evita ficar parado): preenche e autentica.
+      if (url.includes('platform.senior.com.br/login') && done.has('senior-user') && !done.has('senior-pass')) {
+        const frame = page.frames().find(f => f.url().includes('sso.senior.com.br')) ?? page.mainFrame()
+        const pass = frame.locator('#password-input-field')
+        const loginBtn = frame.locator('#loginbtn')
+        if (await pass.isVisible({ timeout: 300 }).catch(() => false) && await loginBtn.isVisible({ timeout: 300 }).catch(() => false)) {
+          await pass.fill(creds.password); await loginBtn.click()
+          done.add('senior-pass'); log('senha local preenchida (Senior)')
         }
       }
       // 2. Microsoft: e-mail (pode vir pré-preenchido), senha, "Continuar conectado?"
