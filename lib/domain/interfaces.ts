@@ -5,10 +5,32 @@ export interface IAuthProvider {
   getAccessToken(): Promise<string | null>;
 }
 
+/**
+ * 'ok'          → a fonte respondeu; `times` é verdade (podendo ser zero batidas)
+ * 'unavailable' → a fonte NÃO pôde ser consultada (sem token, HTTP erro, cooldown
+ *                 sem cache). `times` não significa "não bateu".
+ */
+export type ProbeOutcome = 'ok' | 'unavailable';
+
+export interface PunchProbe {
+  times: string[];
+  outcome: ProbeOutcome;
+}
+
 export interface IPunchProvider {
   readonly name: string;
   readonly priority: number;
   fetchPunches(date: Date, aggressive?: boolean): Promise<string[]>;
+  /**
+   * Opcional. Implementado pelas fontes AUTORITATIVAS (servidor) para permitir
+   * distinguir "zero batidas" de "não consegui consultar" — `fetchPunches`
+   * devolve `[]` nos dois casos, e essa ambiguidade fez o plugin afirmar
+   * "você não bateu" quando na verdade estava cego (incidente 2026-07-21).
+   *
+   * Caches locais (localStorage/scraper) NÃO implementam: eles não são verdade
+   * sobre o servidor, então um "zero" vindo deles não desfaz a cegueira.
+   */
+  probe?(date: Date, aggressive?: boolean): Promise<PunchProbe>;
 }
 
 export interface IPunchRegistrar {

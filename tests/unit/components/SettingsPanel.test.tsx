@@ -5,6 +5,7 @@ vi.mock('../../../lib/domain/build-flags', () => ({
   ENABLE_SENIOR_INTEGRATION: false,
   ENABLE_META_TIMESHEET: false,
   ENABLE_NETLOG_CAPTURE: false,
+  ENABLE_AUTO_PUNCH: false,
   DEBUG: false,
 }))
 
@@ -212,6 +213,7 @@ describe('SettingsPanel', () => {
       ENABLE_SENIOR_INTEGRATION: true,
       ENABLE_META_TIMESHEET: false,
       ENABLE_NETLOG_CAPTURE: false,
+      ENABLE_AUTO_PUNCH: false,
       DEBUG: false,
     }))
     const { SettingsPanel: PanelWithSenior } = await import(
@@ -322,6 +324,7 @@ describe('SettingsPanel', () => {
         ENABLE_SENIOR_INTEGRATION: false,
         ENABLE_META_TIMESHEET: false,
         ENABLE_NETLOG_CAPTURE: false,
+        ENABLE_AUTO_PUNCH: false,
         DEBUG: true,
       }))
       const { SettingsPanel: PanelDebug } = await import(
@@ -347,6 +350,7 @@ describe('SettingsPanel', () => {
         ENABLE_SENIOR_INTEGRATION: false,
         ENABLE_META_TIMESHEET: false,
         ENABLE_NETLOG_CAPTURE: false,
+        ENABLE_AUTO_PUNCH: false,
         DEBUG: true,
       }))
       const sendMessageSpy = vi.fn()

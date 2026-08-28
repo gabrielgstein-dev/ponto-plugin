@@ -1,5 +1,6 @@
 import { timeToMinutes, minutesToTime, getNowMinutes, isWeekend } from '../domain/time-utils';
 import { settings, notifScheduled } from './state';
+import { autoPunchSlotsEnabled } from './schedule-auto-punch';
 import type { PunchReminderSlot } from '../domain/types';
 
 interface NotifEntry {
@@ -69,25 +70,31 @@ export function scheduleNotifications(
   const atraso = settings.lembreteAtraso;
   const entries: NotifEntry[] = [];
 
-  if (!entMin) {
+  // Slots com batida automática ligada não recebem lembrete/popup — quem avisa
+  // é o próprio auto-punch (sucesso via notificação, falha via fallback que
+  // recria o lembrete). Evita popup duplicado.
+  const autoSlots = autoPunchSlotsEnabled();
+  const isAuto = (slot: PunchReminderSlot) => autoSlots.includes(slot);
+
+  if (!entMin && !isAuto('entrada')) {
     const entradaHorarioMin = timeToMinutes(settings.entradaHorario) ?? 480;
     const entradaTime = minutesToTime(entradaHorarioMin) || settings.entradaHorario;
     pushSlotEntries(entries, 'entrada', entradaHorarioMin, entradaTime, antecip, atraso);
   }
 
-  if (entMin && !almocoMin) {
+  if (entMin && !almocoMin && !isAuto('almoco')) {
     const almocoHorarioMin = timeToMinutes(settings.almocoHorario) || 720;
     const almocoTime = minutesToTime(almocoHorarioMin) || settings.almocoHorario;
     pushSlotEntries(entries, 'almoco', almocoHorarioMin, almocoTime, antecip, atraso);
   }
 
-  if (almocoMin && !voltaMin) {
+  if (almocoMin && !voltaMin && !isAuto('volta')) {
     const voltaSug = almocoMin + settings.almocoDur;
     const voltaTime = minutesToTime(voltaSug) || '';
     pushSlotEntries(entries, 'volta', voltaSug, voltaTime, antecip, atraso);
   }
 
-  if (saidaEstMin) {
+  if (saidaEstMin && !isAuto('saida')) {
     const saidaTime = minutesToTime(saidaEstMin) || '';
     pushSlotEntries(entries, 'saida', saidaEstMin, saidaTime, antecip, atraso);
   }

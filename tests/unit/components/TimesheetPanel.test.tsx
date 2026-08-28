@@ -62,23 +62,26 @@ describe('TimesheetPanel', () => {
   it('renders ReconnectCard when unavailable (BUG 2)', () => {
     mockHookReturn = baseHook({ available: false })
     render(<TimesheetPanel />)
-    expect(screen.getByText(/sessão Senior expirou/i)).toBeInTheDocument()
+    expect(screen.getByText(/sessão do Timesheet expirou/i)).toBeInTheDocument()
     expect(screen.getByTestId('ts-reconnect-btn')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /abrir Senior manualmente/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /abrir manualmente/i })).toHaveAttribute(
       'href',
-      'https://platform.senior.com.br',
+      'https://plataforma.insi.com/login?callbackUrl=/timesheet/create',
     )
   })
 
-  it('ReconnectCard dispara REQUEST_TS_SYNC ao clicar (BUG 2)', async () => {
-    const sendMessage = vi.fn().mockResolvedValue({ ok: true })
-    ;(globalThis as { chrome: { runtime: { sendMessage: typeof sendMessage } } })
-      .chrome.runtime.sendMessage = sendMessage
+  it('ReconnectCard abre o Timesheet numa aba visível ao clicar (BUG 2)', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 99 })
+    ;(globalThis as { chrome: { tabs: { create: typeof create } } })
+      .chrome.tabs.create = create
 
     mockHookReturn = baseHook({ available: false })
     render(<TimesheetPanel />)
     fireEvent.click(screen.getByTestId('ts-reconnect-btn'))
-    expect(sendMessage).toHaveBeenCalledWith({ type: 'REQUEST_TS_SYNC' })
+    expect(create).toHaveBeenCalledWith({
+      url: 'https://plataforma.insi.com/login?callbackUrl=/timesheet/create',
+      active: true,
+    })
   })
 
   it('renders empty entries state for current period', () => {

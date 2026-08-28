@@ -71,8 +71,23 @@ export class SeniorPunchRegistrar implements IPunchRegistrar {
             const b = await r.text();
             log(`${label} → ${r.status}`);
             if (r.ok || r.status === 201 || r.status === 202) {
-              return { success: true, logs, responseBody: b.substring(0, 500) };
+              // HTTP 2xx NÃO basta: o Senior responde 200 com corpo de erro de
+              // negócio (duplicata, validação) e antes disso era tratado como
+              // sucesso — origem das "batidas fantasma" (plugin dizia que bateu,
+              // histórico do Senior vazio). Só é sucesso se o corpo trouxer o
+              // evento importado de volta.
+              let imported: unknown = null;
+              try {
+                imported = JSON.parse(b)?.clockingResult?.clockingEventImported ?? null;
+              } catch (_) { /* corpo não-JSON → sem confirmação */ }
+              if (imported) {
+                return { success: true, logs, responseBody: b.substring(0, 500) };
+              }
+              // Corpo vai pro log: é a única pista de POR QUE o Senior recusou.
+              log(`${label} → 2xx SEM clockingEventImported (recusa de negócio). Corpo: ${b.substring(0, 300)}`);
+              return null;
             }
+            log(`${label} → corpo: ${b.substring(0, 300)}`);
           } catch (e: unknown) { log(`Erro: ${(e as Error).message}`); }
           return null;
         }
