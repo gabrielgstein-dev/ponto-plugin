@@ -24,23 +24,19 @@ vi.mock('../../lib/infrastructure/senior/senior-token-refresh', () => ({
   persistSeniorTokens: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('../../lib/infrastructure/senior/senior-cookie-auth', () => ({
-  SeniorCookieAuth: vi.fn().mockImplementation(() => ({
-    getAccessToken: vi.fn().mockResolvedValue('cookie-token'),
-  })),
-}))
-
 vi.mock('../../lib/infrastructure/senior/senior-page-auth', () => ({
   SeniorPageAuth: vi.fn().mockImplementation(() => ({
     getAccessToken: vi.fn().mockResolvedValue(null),
   })),
 }))
 
-import { getGpAssertion } from '../../lib/infrastructure/meta/gestaoponto/gp-auth'
+import { getGpAssertion } from '../../lib/infrastructure/insi/gestaoponto/gp-auth'
 import { mockStorageGet, mockStorageRemove, mockStorageSet } from '../setup/chrome-mock'
 
 beforeEach(() => {
-  mockStorageGet.mockResolvedValue({}) // sem cache de gpAssertion
+  // Sem cache de gpAssertion, mas com seniorToken válido no storage — fonte
+  // canônica de access_token pro fluxo de 1ª tentativa destes testes.
+  mockStorageGet.mockResolvedValue({ seniorToken: 'senior-token-storage', seniorTokenTs: Date.now() })
   mockSeniorRefresh.mockReset().mockResolvedValue(null)
 })
 

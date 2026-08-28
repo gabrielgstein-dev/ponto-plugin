@@ -258,7 +258,7 @@ describe('notifyPendingTimesheet() — gating weekdaysOnly', () => {
     vi.resetModules();
     // Stub providers/build-flags pra notifyPendingTimesheet importar limpo
     vi.doMock('../../lib/domain/build-flags', () => ({
-      DEBUG: false, ACTIVE_COMPANY: 'meta', APP_NAME: 'Test',
+      DEBUG: false, ACTIVE_COMPANY: 'insi', APP_NAME: 'Test',
       ENABLE_SENIOR_INTEGRATION: false, ENABLE_SENIOR_PUNCH_BUTTON: false,
       ENABLE_MANUAL_PUNCH: false, ENABLE_WIDGET: false, ENABLE_YESTERDAY: false,
       ENABLE_NOTIFICATIONS: false, ENABLE_META_TIMESHEET: true, THEME: 'default',

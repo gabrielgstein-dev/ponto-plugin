@@ -8,15 +8,23 @@ const PUNCH_URL = `${BASE}/hcm/pontomobile_clocking_event/actions/clockingEventI
 const CONFIG_URL = `${BASE}/hcm/pontomobile_bff/queries/getEmployeeClockingConfigQuery`;
 
 export class SeniorPunchRegistrar implements IPunchRegistrar {
-  async registerPunch(accessToken: string): Promise<PunchResult> {
+  /**
+   * @param opts.dryRun quando true, executa TODO o fluxo (config, assinatura,
+   *   montagem do payload) mas NÃO faz o POST de import — não registra ponto.
+   *   Serve pra validar o caminho de escrita sem sujar o cartão. Usa o mesmo
+   *   código de produção de propósito: o que roda no dry-run é o que roda pra
+   *   valer, menos a última linha.
+   */
+  async registerPunch(accessToken: string, opts?: { dryRun?: boolean }): Promise<PunchResult> {
     const tab = await findSeniorTab();
     if (!tab?.id) return { success: false, logs: ['Nenhuma aba Senior encontrada'] };
 
+    const dryRun = opts?.dryRun === true;
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       world: 'MAIN',
-      args: [accessToken, CONFIG_URL, PUNCH_URL],
-      func: async (token: string, configUrl: string, punchUrl: string) => {
+      args: [accessToken, CONFIG_URL, PUNCH_URL, dryRun],
+      func: async (token: string, configUrl: string, punchUrl: string, dryRun: boolean) => {
         const H: Record<string, string> = { 'Authorization': `bearer ${token}`, 'Content-Type': 'application/json' };
         const logs: string[] = [];
         const log = (msg: string) => logs.push(msg);
@@ -63,6 +71,23 @@ export class SeniorPunchRegistrar implements IPunchRegistrar {
           signature: { signatureVersion: 1, signature: signatureB64 },
           use: useCode,
         };
+
+        if (dryRun) {
+          // Chegou aqui = config 200, empresa/colaborador presentes, assinatura
+          // gerada e payload montado. Só falta o POST — que NÃO fazemos.
+          // Log sem PII crua: confirma presença dos campos, não os valores.
+          const ok = {
+            'company.id': !!comp.id,
+            'employee.id': !!emp.id,
+            'employee.pis': !!emp.pis,
+            'signature.len': signatureB64.length,
+            use: useCode,
+            clientDateTime,
+          };
+          log(`DRY-RUN: fluxo completo até o import. Payload pronto: ${JSON.stringify(ok)}`);
+          log('DRY-RUN: POST de import NÃO enviado (nenhum ponto registrado).');
+          return { success: true, logs, responseBody: 'dry-run' };
+        }
 
         async function tryPunch(label: string, info: Record<string, unknown>) {
           log(label);

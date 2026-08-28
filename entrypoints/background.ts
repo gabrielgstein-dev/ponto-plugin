@@ -2,7 +2,9 @@ import { ENABLE_SENIOR_INTEGRATION, ENABLE_META_TIMESHEET } from '../lib/domain/
 import { isTimesheetEnabled } from '../lib/domain/timesheet-gate';
 import { debugLog } from '../lib/domain/debug';
 import { installErrorHandlers } from '../lib/domain/install-error-handlers';
-import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm } from '../lib/application/handle-alarm';
+import { handleDailyReset, handleReminderAlarm, handleNotifAlarm, handlePunchPopupAlarm, handleAutoPunchAlarm } from '../lib/application/handle-alarm';
+import { probePunchAuth, probePunchDryRun } from '../lib/application/probe-punch-auth';
+import { openPunchPage } from '../lib/application/open-punch-page';
 import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched, snoozeReminder, DISMISSED_SLOTS_KEY } from '../lib/application/punch-reminder-manager';
 import type { PunchReminderSlot } from '../lib/domain/types';
 import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
@@ -12,14 +14,13 @@ import { resetGpPunchCache, getTimesheetProvider } from '#company/providers';
 import { resetSeniorApiCache } from '../lib/infrastructure/senior/senior-api-provider';
 import { resetSeniorStorageCache } from '../lib/infrastructure/senior/senior-storage-provider';
 import { resetSeniorActiveUserCache } from '../lib/infrastructure/senior/senior-active-user-provider';
-import { getGpAssertion } from '../lib/infrastructure/meta/gestaoponto/gp-auth';
+import { getGpAssertion } from '../lib/infrastructure/insi/gestaoponto/gp-auth';
+import { directFetchMetaTs } from '../lib/infrastructure/insi/timesheet/meta-ts-direct-fetch';
 import { COMPANY_PUNCH_URL } from '#company/providers';
-import { directFetchMetaTs } from '../lib/infrastructure/meta/timesheet/meta-ts-direct-fetch';
 import { directFetchSenior } from '../lib/infrastructure/senior/senior-direct-fetch';
-import { directFetchGp } from '../lib/infrastructure/meta/gestaoponto/gp-direct-fetch';
-import { SeniorCookieAuth } from '../lib/infrastructure/senior/senior-cookie-auth';
+import { directFetchGp } from '../lib/infrastructure/insi/gestaoponto/gp-direct-fetch';
 import { SENIOR_TOKEN_MAX_AGE_MS } from '../lib/infrastructure/senior/constants';
-import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/meta/timesheet/constants';
+import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/insi/timesheet/constants';
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
 import { isValidJWT, decodeJwtPayload, formatJwtExp } from '../lib/domain/jwt-utils';
 import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
@@ -44,6 +45,14 @@ import type { InsiXState } from '../lib/domain/types';
 export default defineBackground(() => {
   installErrorHandlers();
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+
+  // Diagnóstico read-only exposto no console do service worker: rode
+  // `await __probePunchAuth()` pra ver qual token o Senior aceita no serviço de
+  // ponto (não registra batida). Ver lib/application/probe-punch-auth.ts.
+  (globalThis as unknown as { __probePunchAuth: typeof probePunchAuth }).__probePunchAuth = probePunchAuth;
+  // `await __probePunchDryRun()` roda a batida INTEIRA sem enviar o import
+  // (não registra ponto). Ver lib/application/probe-punch-auth.ts.
+  (globalThis as unknown as { __probePunchDryRun: typeof probePunchDryRun }).__probePunchDryRun = probePunchDryRun;
 
 
   // onInstalled dispara em install, update e chrome_update. A lógica de
@@ -386,23 +395,17 @@ export default defineBackground(() => {
     }
     if (message.type === 'SPIKE_SENIOR_DIRECT_FETCH') {
       // Spike: testa fetch direto contra pontomobile_bff sem aba aberta.
-      // Resolve token: cookie OAuth → storage (seniorToken).
+      // Resolve token: storage (seniorToken).
       (async () => {
         try {
           let token: string | null = null;
           let tokenAgeMs: number | null = null;
-          const cookieToken = await new SeniorCookieAuth().getAccessToken().catch(() => null);
-          if (cookieToken) {
-            token = cookieToken;
-            tokenAgeMs = 0;
-          } else {
-            const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
-            if (stored.seniorToken && stored.seniorTokenTs) {
-              const age = Date.now() - stored.seniorTokenTs;
-              if (age < SENIOR_TOKEN_MAX_AGE_MS) {
-                token = stored.seniorToken;
-                tokenAgeMs = age;
-              }
+          const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
+          if (stored.seniorToken && stored.seniorTokenTs) {
+            const age = Date.now() - stored.seniorTokenTs;
+            if (age < SENIOR_TOKEN_MAX_AGE_MS) {
+              token = stored.seniorToken;
+              tokenAgeMs = age;
             }
           }
           if (!token) {
@@ -437,6 +440,23 @@ export default defineBackground(() => {
       chrome.windows.create({ url, type: 'popup', width: 420, height: 300, focused: true })
         .then(() => sendResponse({ ok: true }))
         .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'TEST_AUTO_PUNCH') {
+      // Dev: dispara a batida automática de um slot imediatamente, bypassando o
+      // agendamento. Guards internos (slot já batido / dia bloqueado) ainda valem.
+      const slot = message.slot || 'entrada';
+      handleAutoPunchAlarm(`autopunch_${slot}`, Date.now())
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'PROBE_PUNCH_AUTH') {
+      // Dev/diagnóstico READ-ONLY: descobre qual fonte de token o Senior aceita
+      // no serviço de ponto, sem registrar batida. Ver probe-punch-auth.ts.
+      probePunchAuth()
+        .then(results => sendResponse({ ok: true, results }))
+        .catch(e => sendResponse({ ok: false, error: (e as Error).message }));
       return true;
     }
     if (message.type === 'INSI_X_SNOOZE') {

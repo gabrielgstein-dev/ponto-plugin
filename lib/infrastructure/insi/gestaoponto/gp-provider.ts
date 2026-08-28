@@ -1,0 +1,148 @@
+import type { IPunchProvider, PunchProbe } from '../../../domain/interfaces';
+import { todayDateStr } from '../../../domain/time-utils';
+import { debugLog, debugWarn } from '../../../domain/debug';
+import { getGpAssertion, invalidateGpCache } from './gp-auth';
+import { isGpHostRedirect, markGpUnreachable } from './gp-host-guard';
+import { fetchGpViaTabs } from './gp-tab';
+import { SENIOR_TOKEN_MAX_AGE_MS } from '../../senior/constants';
+import { GP_API_BASE } from './constants';
+let _lastFailTs = 0;
+let _cachedResult: string[] | null = null;
+let _cachedTs = 0;
+
+export function resetGpPunchCache(): void {
+  _cachedResult = null;
+  _cachedTs = 0;
+  _lastFailTs = 0;
+}
+
+export class GpPunchProvider implements IPunchProvider {
+  readonly name = 'gestaoPonto';
+  readonly priority = 1;
+
+  async fetchPunches(date: Date, aggressive = false): Promise<string[]> {
+    return (await this.probe(date, aggressive)).times;
+  }
+
+  /** Ver IPunchProvider.probe — distingue "zero batidas" de "não consultei". */
+  async probe(_date: Date, aggressive = false): Promise<PunchProbe> {
+    if (Date.now() - _lastFailTs < 60000) {
+      if (aggressive) debugLog('GP: em cooldown de falha, faltam', Math.round((60000 - (Date.now() - _lastFailTs)) / 1000), 's');
+      return { times: _cachedResult ?? [], outcome: _cachedResult ? 'ok' : 'unavailable' };
+    }
+    if (_cachedResult !== null && Date.now() - _cachedTs < 30000) {
+      return { times: _cachedResult, outcome: 'ok' };
+    }
+
+    // fetchDirect.ok=true significa que o GP respondeu — inclusive com zero
+    // marcações, que aí é verdade e não cegueira.
+    const direct = await this.fetchDirect();
+    if (direct.ok) {
+      _cachedResult = direct.times;
+      _cachedTs = Date.now();
+      _lastFailTs = 0;
+      return { times: direct.times, outcome: 'ok' };
+    }
+
+    // Only open a tab if there's an active Senior session.
+    // Without a token, attemptGpAuth inside the tab also fails — the tab is useless.
+    if (aggressive && !(await hasSeniorSession())) {
+      debugLog('GP: sem sessão Senior — tab flow ignorado');
+      return { times: _cachedResult ?? [], outcome: _cachedResult ? 'ok' : 'unavailable' };
+    }
+
+    const tabResult = await fetchGpViaTabs(aggressive);
+    debugLog('GP via tabs:', tabResult.length, 'resultados');
+    if (tabResult.length > 0) {
+      _cachedResult = tabResult;
+      _cachedTs = Date.now();
+      _lastFailTs = 0;
+      return { times: tabResult, outcome: 'ok' };
+    }
+    // Zero via tabs já era tratado como falha aqui (seta cooldown) — mantido.
+    _lastFailTs = Date.now();
+    return { times: [], outcome: 'unavailable' };
+  }
+
+  private async fetchDirect(): Promise<{ times: string[]; ok: boolean }> {
+    const auth = await getGpAssertion();
+    if (!auth || !auth.assertion) {
+      debugLog('GP fetchDirect: sem assertion');
+      return { times: [], ok: false };
+    }
+
+    const stored = await chrome.storage.local.get(['gestaoPontoCodigoCalculo']);
+    const colaboradorId = auth.colaboradorId;
+    if (!colaboradorId) {
+      debugLog('GP fetchDirect: sem colaboradorId');
+      return { times: [], ok: false };
+    }
+
+    const codigoCalculo = auth.codigoCalculo || stored.gestaoPontoCodigoCalculo;
+    const dataStr = todayDateStr();
+    let url = `${GP_API_BASE}acertoPontoColaboradorPeriodo/colaborador/${colaboradorId}?dataInicial=${dataStr}&dataFinal=${dataStr}&orderby=-dataApuracao`;
+    if (codigoCalculo) url += `&codigoCalculo=${codigoCalculo}`;
+
+    debugLog('GP fetchDirect:', url);
+
+    try {
+      const r = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'assertion': auth.assertion, 'zone-offset': String(new Date().getTimezoneOffset()) },
+        redirect: 'manual',
+      });
+      debugLog('GP fetchDirect status:', r.status);
+      if (isGpHostRedirect(r)) {
+        await markGpUnreachable('fetchDirect', url, r);
+        _lastFailTs = Date.now();
+        return { times: [], ok: false };
+      }
+      if (!r.ok) {
+        if (r.status === 401 || r.status === 403) {
+          invalidateGpCache();
+          _lastFailTs = Date.now();
+        }
+        return { times: [], ok: false };
+      }
+      const json = await r.json();
+      const times = parseGpResponse(json, dataStr);
+      debugLog('GP fetchDirect marcações:', times);
+      return { times, ok: true };
+    } catch (e) {
+      debugWarn('GP fetch direto erro:', (e as Error).message);
+      _lastFailTs = Date.now();
+      return { times: [], ok: false };
+    }
+  }
+}
+
+async function hasSeniorSession(): Promise<boolean> {
+  try {
+    const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
+    return !!stored.seniorToken && !!stored.seniorTokenTs &&
+      Date.now() - stored.seniorTokenTs < SENIOR_TOKEN_MAX_AGE_MS;
+  } catch {
+    return false;
+  }
+}
+
+export function parseGpResponse(json: Record<string, unknown>, filterDate?: string): string[] {
+  const times: string[] = [];
+  const apuracao = json.apuracao as Array<Record<string, unknown>> | undefined;
+  if (!Array.isArray(apuracao)) return times;
+
+  for (const dia of apuracao) {
+    if (filterDate && dia.dataApuracao && dia.dataApuracao !== filterDate) continue;
+    const marcacoes = dia.marcacoes as Array<Record<string, string>> | undefined;
+    if (!Array.isArray(marcacoes)) continue;
+    if (marcacoes.length > 0) {
+      debugLog('GP marcacao[0] keys:', Object.keys(marcacoes[0]).join(', '));
+      debugLog('GP marcacoes:', JSON.stringify(marcacoes).substring(0, 600));
+      if (dia.marcacoesPrevistas) debugLog('GP previstas:', JSON.stringify(dia.marcacoesPrevistas));
+    }
+    for (const m of marcacoes) {
+      const match = m.horaAcesso?.match(/(\d{2}):(\d{2})/);
+      if (match) times.push(`${match[1]}:${match[2]}`);
+    }
+  }
+  return [...new Set(times)].sort();
+}

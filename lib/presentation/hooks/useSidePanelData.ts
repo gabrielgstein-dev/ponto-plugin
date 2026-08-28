@@ -9,7 +9,7 @@ import {
 } from '../../infrastructure/manual/manual-punch-provider';
 import { ENABLE_SENIOR_INTEGRATION } from '../../domain/build-flags';
 import { fetchGpHistoryForPeriod } from '#company/providers';
-import { addGpPunchAjuste, type JustificativaCodigo } from '../../infrastructure/meta/gestaoponto/gp-ajuste';
+import { addGpPunchAjuste, type JustificativaCodigo } from '../../infrastructure/insi/gestaoponto/gp-ajuste';
 
 export type SidePanelSource = 'gp' | 'manual';
 

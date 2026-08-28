@@ -5,8 +5,7 @@
  * Sem token, nenhuma aba é aberta.
  *
  * Cobre:
- *   CV-2.1  Sem cookie e sem storage → tab NÃO é aberta
- *   CV-2.2  Com cookie válido e fetchDirect falhou → tab É aberta
+ *   CV-2.1  Sem storage → tab NÃO é aberta
  *   CV-2.3  Com seniorToken no storage e fetchDirect falhou → tab É aberta
  *   CV-2.4  fetchDirect com sucesso → tab NÃO é aberta
  *   CV-2.5  Cooldown de falha (60s) bloqueia nova tentativa mesmo com token
@@ -21,16 +20,16 @@ const { mockFetchGpViaTabs, mockGetGpAssertion } = vi.hoisted(() => ({
   mockGetGpAssertion: vi.fn().mockResolvedValue(null),
 }))
 
-vi.mock('../../lib/infrastructure/meta/gestaoponto/gp-tab', () => ({
+vi.mock('../../lib/infrastructure/insi/gestaoponto/gp-tab', () => ({
   fetchGpViaTabs: mockFetchGpViaTabs,
 }))
 
-vi.mock('../../lib/infrastructure/meta/gestaoponto/gp-auth', () => ({
+vi.mock('../../lib/infrastructure/insi/gestaoponto/gp-auth', () => ({
   getGpAssertion: mockGetGpAssertion,
   invalidateGpCache: vi.fn(),
 }))
 
-import { GpPunchProvider, resetGpPunchCache } from '../../lib/infrastructure/meta/gestaoponto/gp-provider'
+import { GpPunchProvider, resetGpPunchCache } from '../../lib/infrastructure/insi/gestaoponto/gp-provider'
 
 const COOKIE_WITH_TOKEN = [{ value: encodeURIComponent(JSON.stringify({ access_token: 'senior-tok' })) }]
 const SENIOR_TOKEN_MAX_AGE_MS = 6.5 * 24 * 60 * 60 * 1000
@@ -65,16 +64,6 @@ describe('F2 — GpPunchProvider: guarda hasSeniorSession', () => {
     await provider.fetchPunches(new Date(), true)
 
     expect(mockFetchGpViaTabs).not.toHaveBeenCalled()
-  })
-
-  it('CV-2.2: com cookie válido e fetchDirect falhou → fetchGpViaTabs É chamado', async () => {
-    mockCookiesGetAll.mockResolvedValue(COOKIE_WITH_TOKEN)
-    mockStorageGet.mockResolvedValue({})
-
-    const provider = new GpPunchProvider()
-    await provider.fetchPunches(new Date(), true)
-
-    expect(mockFetchGpViaTabs).toHaveBeenCalledWith(true)
   })
 
   it('CV-2.3: com seniorToken no storage e fetchDirect falhou → fetchGpViaTabs É chamado', async () => {

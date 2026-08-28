@@ -9,6 +9,7 @@ import { installNetLogForward } from '../lib/presentation/netlog-capture';
 export default defineContentScript({
   matches: ENABLE_NETLOG_CAPTURE ? ['<all_urls>'] : ['https://netcap.disabled.invalid/*'],
   runAt: 'document_start',
+  allFrames: true,
 
   main() {
     if (!ENABLE_NETLOG_CAPTURE) return;

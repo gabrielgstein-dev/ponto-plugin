@@ -17,7 +17,7 @@ vi.mock('../../../lib/domain/build-flags', () => ({
     return mockBuildFlags.ENABLE_SENIOR_INTEGRATION
   },
   DEBUG: false,
-  ACTIVE_COMPANY: 'meta',
+  ACTIVE_COMPANY: 'insi',
   APP_NAME: 'TestApp',
   ENABLE_SENIOR_PUNCH_BUTTON: false,
   ENABLE_MANUAL_PUNCH: false,
@@ -48,7 +48,7 @@ vi.mock('../../../lib/infrastructure/manual/manual-punch-provider', () => ({
 vi.mock('#company/providers', () => ({
   fetchGpHistoryForPeriod: (...a: any[]) => fetchGpHistorySpy(...a),
 }))
-vi.mock('../../../lib/infrastructure/meta/gestaoponto/gp-ajuste', () => ({
+vi.mock('../../../lib/infrastructure/insi/gestaoponto/gp-ajuste', () => ({
   addGpPunchAjuste: (...a: any[]) => addAjusteSpy(...a),
 }))
 

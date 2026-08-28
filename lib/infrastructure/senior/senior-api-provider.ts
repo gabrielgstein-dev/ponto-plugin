@@ -1,7 +1,6 @@
 import type { IPunchProvider } from '../../domain/interfaces';
 import { findSeniorTab } from './tab-utils';
 import { extractTimesFromApiResponse } from './api-response-parser';
-import { SeniorCookieAuth } from './senior-cookie-auth';
 import { SeniorPageAuth } from './senior-page-auth';
 import { SeniorInterceptorAuth } from './senior-interceptor-auth';
 import { SENIOR_TOKEN_MAX_AGE_MS } from './constants';
@@ -16,7 +15,6 @@ let _cachedTimes: string[] | null = null;
 let _cachedTimesTs = 0;
 const CACHE_TTL_MS = 30000;
 
-const cookieAuth = new SeniorCookieAuth();
 const pageAuth = new SeniorPageAuth();
 const interceptorAuth = new SeniorInterceptorAuth();
 
@@ -37,7 +35,7 @@ export class SeniorApiPunchProvider implements IPunchProvider {
     const tab = await findSeniorTab();
     if (!tab?.id) return [];
 
-    // Tenta as mesmas 3 fontes de token que o backup usava em getAccessToken()
+    // Tenta as mesmas fontes de token que o backup usava em getAccessToken()
     const token = await this.resolveToken();
     if (!token) return [];
 
@@ -45,22 +43,18 @@ export class SeniorApiPunchProvider implements IPunchProvider {
   }
 
   private async resolveToken(): Promise<string | null> {
-    // 1. Cookie OAuth (com.senior.token)
-    const cookieToken = await cookieAuth.getAccessToken();
-    if (cookieToken) return cookieToken;
-
-    // 2. Intercepted Bearer salvo no background (seniorToken)
+    // 1. Intercepted Bearer salvo no background (seniorToken)
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
     if (stored.seniorToken) {
       const age = Date.now() - (stored.seniorTokenTs || 0);
       if (age < SENIOR_TOKEN_MAX_AGE_MS) return stored.seniorToken;
     }
 
-    // 3. Page scan: varre sessionStorage/localStorage da aba Senior
+    // 2. Page scan: varre sessionStorage/localStorage da aba Senior
     const pageToken = await pageAuth.getAccessToken();
     if (pageToken) return pageToken;
 
-    // 4. Bearer capturado pelo interceptor do content script
+    // 3. Bearer capturado pelo interceptor do content script
     const interceptorToken = await interceptorAuth.getAccessToken();
     if (interceptorToken) return interceptorToken;
 

@@ -1,5 +1,4 @@
 import type { IPunchProvider, PunchProbe } from '../../domain/interfaces';
-import { SeniorCookieAuth } from './senior-cookie-auth';
 import { SENIOR_TOKEN_MAX_AGE_MS } from './constants';
 import { debugLog, debugWarn } from '../../domain/debug';
 import { logError } from '../../domain/error-logger';
@@ -34,8 +33,6 @@ const FAIL_COOLDOWN_MS = 2 * 60 * 1000;
 let _cachedTimes: string[] | null = null;
 let _cachedTs = 0;
 let _lastFailTs = 0;
-
-const cookieAuth = new SeniorCookieAuth();
 
 export function resetSeniorActiveUserCache(): void {
   _cachedTimes = null;
@@ -113,11 +110,7 @@ export class SeniorActiveUserPunchProvider implements IPunchProvider {
   }
 
   private async resolveToken(): Promise<string | null> {
-    // 1. Cookie OAuth (com.senior.token) — preferido, sempre fresco
-    const cookieToken = await cookieAuth.getAccessToken().catch(() => null);
-    if (cookieToken) return cookieToken;
-
-    // 2. Bearer capturado pelo webRequest interceptor — fallback
+    // Bearer capturado pelo webRequest interceptor
     const stored = await chrome.storage.local.get(['seniorToken', 'seniorTokenTs']);
     if (stored.seniorToken && stored.seniorTokenTs) {
       const age = Date.now() - (stored.seniorTokenTs as number);

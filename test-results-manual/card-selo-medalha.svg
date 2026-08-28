@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="340" viewBox="0 0 600 340">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14101e"/>
+      <stop offset="1" stop-color="#cf9a1e" stop-opacity="0.25"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="340" rx="24" fill="url(#bg)"/>
+  <rect x="8" y="8" width="584" height="324" rx="18" fill="none" stroke="#cf9a1e" stroke-opacity="0.5" stroke-width="2"/>
+
+  <clipPath id="av"><circle cx="66" cy="54" r="25"/></clipPath>
+  <circle cx="66" cy="54" r="26" fill="none" stroke="#cf9a1e" stroke-width="2"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjN2U1Y2U2Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNDIxNTg5Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iNDgiIHk9IjYyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjQyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIj5HUzwvdGV4dD48L3N2Zz4=" x="41" y="29" width="50" height="50" clip-path="url(#av)" preserveAspectRatio="xMidYMid slice"/>
+  <text x="104" y="50" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-weight="700" font-size="22" fill="#ece8f5">Gabriel Stein</text>
+  <text x="104" y="72" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="12" fill="#b3a9c9" letter-spacing="1.5">CONQUISTA</text>
+  <defs>
+    <radialGradient id="shade" cx="50%" cy="42%" r="62%">
+      <stop offset="0.45" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.45"/>
+    </radialGradient>
+    <linearGradient id="glint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0.30" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.47" stop-color="#ffffff" stop-opacity="0.6"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="0.66" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="mc"><circle cx="300" cy="162" r="58"/></clipPath>
+  </defs>
+  <circle cx="300" cy="162" r="58" fill="#cf9a1e"/>
+  <circle cx="300" cy="162" r="58" fill="url(#shade)"/>
+  <ellipse cx="300" cy="136.48" rx="34.8" ry="15.08" fill="#ffffff" opacity="0.35"/>
+  <rect x="242" y="104" width="116" height="116" fill="url(#glint)" clip-path="url(#mc)"/>
+  <circle cx="300" cy="162" r="58" fill="none" stroke="#000000" stroke-opacity="0.35" stroke-width="2"/>
+<g transform="translate(300,162) scale(2.6) translate(-12,-12)" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/></g>
+  <text x="300" y="272" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-weight="600" font-size="28" fill="#ece8f5">Duas semanas</text>
+  <text x="300" y="300" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="18" fill="#b3a9c9">Conquista desbloqueada</text>
+  <text x="560" y="314" text-anchor="end" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-weight="700" font-size="20" fill="#b3a9c9">Ponto Insi</text>
+</svg>

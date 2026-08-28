@@ -24,7 +24,35 @@ import { startReminder } from '../../lib/application/punch-reminder-manager'
 import { isSlotPunchedToday } from '../../lib/application/punch-state'
 import { isReminderBlockedToday } from '../../lib/domain/weekday-gate'
 import { getLogs, _resetForTests } from '../../lib/domain/log-store'
-import { mockNotificationsCreate } from '../setup/chrome-mock'
+import {
+  mockNotificationsCreate,
+  mockAlarmsCreate,
+  mockStorageGet,
+  mockStorageSet,
+} from '../setup/chrome-mock'
+
+/** Tentativas já gastas que levam a próxima falha a ser a última. */
+const LAST_ATTEMPT = 2
+
+/**
+ * Finge N tentativas já registradas HOJE para o slot. Sem isso todo teste de
+ * falha entraria no caminho de retry e nunca exercitaria o fallback visível.
+ */
+function withAttempts(count: number): void {
+  mockStorageGet.mockImplementation(async (key: unknown) => {
+    if (typeof key === 'string' && key.startsWith('autopunch_attempt_')) {
+      return { [key]: { date: new Date().toDateString(), count } }
+    }
+    return {}
+  })
+}
+
+/** Alarmes `autopunch_*` criados — o retry é a única coisa que os cria aqui. */
+function autoPunchAlarmsCreated(): Array<{ name: string; info: unknown }> {
+  return mockAlarmsCreate.mock.calls
+    .filter(c => String(c[0]).startsWith('autopunch_'))
+    .map(c => ({ name: String(c[0]), info: c[1] }))
+}
 
 const mockRun = vi.mocked(runAutoPunch)
 const mockOpenPage = vi.mocked(openPunchPage)
@@ -99,9 +127,14 @@ describe('handleAutoPunchAlarm() — batida fantasma (import aceito, servidor n�
   })
 })
 
-describe('handleAutoPunchAlarm() — falha nunca é silenciosa', () => {
+// A falha agora tem DUAS fases: as primeiras tentativas reagendam em silêncio
+// (causas transitórias — token frio, SPA bootando — se resolvem sozinhas), e a
+// ÚLTIMA aciona o fallback visível. O contrato "nunca silenciosa" não caiu:
+// mudou de "na primeira falha" para "quando as tentativas acabam".
+describe('handleAutoPunchAlarm() — falha nunca é silenciosa (última tentativa)', () => {
   beforeEach(() => {
     mockRun.mockResolvedValue({ success: false, logs: ['Nenhuma aba Senior encontrada'], punchTime: null, confirmed: false })
+    withAttempts(LAST_ATTEMPT)
   })
 
   it('loga o motivo real da falha', async () => {
@@ -135,6 +168,71 @@ describe('handleAutoPunchAlarm() — falha nunca é silenciosa', () => {
     mockRun.mockRejectedValue(new Error('token explodiu'))
     await expect(handleAutoPunchAlarm('autopunch_entrada', Date.now())).resolves.toBeUndefined()
     expect(await logText()).toContain('token explodiu')
+  })
+
+  it('esgotadas as tentativas, NÃO reagenda de novo', async () => {
+    await handleAutoPunchAlarm('autopunch_entrada', Date.now())
+    expect(autoPunchAlarmsCreated()).toHaveLength(0)
+  })
+})
+
+// Regressão de 2026-07-21: falha às 09:43 por token frio e o slot morreu no
+// dia — o alarme era de disparo único e o scheduleAutoPunch seguinte só
+// logava "horário já passou".
+describe('handleAutoPunchAlarm() — retry antes de desistir', () => {
+  beforeEach(() => {
+    mockRun.mockResolvedValue({ success: false, logs: ['Nenhum token encontrado'], punchTime: null, confirmed: false })
+  })
+
+  it('primeira falha reagenda o mesmo slot em vez de desistir', async () => {
+    withAttempts(0)
+    await handleAutoPunchAlarm('autopunch_volta', Date.now())
+
+    const created = autoPunchAlarmsCreated()
+    expect(created).toHaveLength(1)
+    expect(created[0].name).toBe('autopunch_volta')
+    // ~3min à frente (tolerância pra latência do teste)
+    const deltaMin = ((created[0].info as { when: number }).when - Date.now()) / 60000
+    expect(deltaMin).toBeGreaterThan(2.5)
+    expect(deltaMin).toBeLessThan(3.5)
+  })
+
+  it('reagendar NÃO incomoda o usuário: sem notificação, sem abrir o Senior', async () => {
+    withAttempts(0)
+    await handleAutoPunchAlarm('autopunch_volta', Date.now())
+
+    expect(notifiedText()).not.toContain('Não consegui bater')
+    expect(mockOpenPage).not.toHaveBeenCalled()
+    expect(mockStartReminder).not.toHaveBeenCalled()
+  })
+
+  it('mas o retry é rastreável no log — silencioso pro usuário, não pro diagnóstico', async () => {
+    withAttempts(0)
+    await handleAutoPunchAlarm('autopunch_volta', Date.now())
+
+    const text = await logText()
+    expect(text).toContain('FALHA em volta')
+    expect(text).toContain('Nenhum token encontrado')
+    expect(text).toMatch(/reagendado para \d{2}:\d{2} \(tentativa 2\/3\)/)
+  })
+
+  it('preserva o horário nominal para o lembrete de fallback da próxima tentativa', async () => {
+    withAttempts(0)
+    mockStorageGet.mockImplementationOnce(async () => ({ 'alarm_time_autopunch_volta': '13:30' }))
+    await handleAutoPunchAlarm('autopunch_volta', Date.now())
+
+    const rewrite = mockStorageSet.mock.calls.find(
+      c => (c[0] as Record<string, unknown>)['alarm_time_autopunch_volta'] !== undefined,
+    )
+    expect(rewrite?.[0]).toEqual({ 'alarm_time_autopunch_volta': '13:30' })
+  })
+
+  it('storage quebrado não vira loop de retry — cai direto no fallback visível', async () => {
+    mockStorageGet.mockRejectedValue(new Error('storage morreu'))
+    await handleAutoPunchAlarm('autopunch_volta', Date.now())
+
+    expect(autoPunchAlarmsCreated()).toHaveLength(0)
+    expect(notifiedText()).toContain('Não consegui bater')
   })
 })
 

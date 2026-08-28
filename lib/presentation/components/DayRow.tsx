@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { DayRecord } from '../../domain/types';
 import { formatDateLabel, formatWorked, formatDiff } from '../../domain/time-utils';
-import { JUSTIFICATIVAS, type JustificativaCodigo } from '../../infrastructure/meta/gestaoponto/gp-ajuste';
+import { JUSTIFICATIVAS, type JustificativaCodigo } from '../../infrastructure/insi/gestaoponto/gp-ajuste';
 
 interface DayRowProps {
   record: DayRecord;

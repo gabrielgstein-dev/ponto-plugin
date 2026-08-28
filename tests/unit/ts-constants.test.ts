@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { META_TIMESHEET_CONFIG, META_TS_API_HOST, META_TS_PLATFORM_HOST, META_TS_LEGACY_HOSTS } from '../../lib/infrastructure/meta/timesheet/constants'
+import { META_TIMESHEET_CONFIG, META_TS_API_HOST, META_TS_PLATFORM_HOST, META_TS_LEGACY_HOSTS } from '../../lib/infrastructure/insi/timesheet/constants'
 
 // Migração de domínio (ago/2026): plataforma.meta.com.br → 301 cego pra
 // plataforma.insi.com (perde o callbackUrl); a SPA nova chama api.insi.com.

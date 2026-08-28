@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="340" viewBox="0 0 600 340">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14101e"/>
+      <stop offset="1" stop-color="#d64d8a" stop-opacity="0.25"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="340" rx="24" fill="url(#bg)"/>
+  <rect x="8" y="8" width="584" height="324" rx="18" fill="none" stroke="#d64d8a" stroke-opacity="0.5" stroke-width="2"/>
+
+  <clipPath id="av"><circle cx="66" cy="54" r="25"/></clipPath>
+  <circle cx="66" cy="54" r="26" fill="none" stroke="#d64d8a" stroke-width="2"/>
+  <image href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjN2U1Y2U2Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNDIxNTg5Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiBmaWxsPSJ1cmwoI2cpIi8+PHRleHQgeD0iNDgiIHk9IjYyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic3lzdGVtLXVpIiBmb250LXNpemU9IjQyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIj5HUzwvdGV4dD48L3N2Zz4=" x="41" y="29" width="50" height="50" clip-path="url(#av)" preserveAspectRatio="xMidYMid slice"/>
+  <text x="104" y="50" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-weight="700" font-size="22" fill="#ece8f5">Gabriel Stein</text>
+  <text x="104" y="72" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="12" fill="#b3a9c9" letter-spacing="1.5">CONQUISTA</text>
+  <defs>
+    <radialGradient id="med" cx="38%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#d64d8a" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#d64d8a" stop-opacity="0.12"/>
+    </radialGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0.28" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.46" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="0.54" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="0.64" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="mclip"><circle cx="300" cy="162" r="58"/></clipPath>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7"/></filter>
+  </defs>
+  <circle cx="300" cy="162" r="63" fill="#d64d8a" opacity="0.55" filter="url(#glow)"/>
+  <circle cx="237.3" cy="125.7" r="2.4" fill="#d64d8a" opacity="0.9"/>
+  <circle cx="352.8" cy="105.9" r="3" fill="#ffffff" opacity="0.9"/>
+  <circle cx="369.3" cy="168.6" r="2" fill="#d64d8a" opacity="0.9"/>
+  <circle cx="250.5" cy="208.2" r="2.6" fill="#ffffff" opacity="0.9"/>
+  <circle cx="323.1" cy="228.0" r="1.8" fill="#d64d8a" opacity="0.9"/>
+  <circle cx="227.4" cy="171.9" r="1.8" fill="#ffffff" opacity="0.9"/>
+  <circle cx="362.7" cy="211.5" r="2.2" fill="#d64d8a" opacity="0.9"/>
+  <circle cx="300" cy="162" r="58" fill="url(#med)" stroke="#d64d8a" stroke-opacity="0.9" stroke-width="2.5"/>
+
+  <ellipse cx="300" cy="135.9" rx="31.900000000000002" ry="15.08" fill="#ffffff" opacity="0.3"/>
+<g transform="translate(300,162) scale(2.6) translate(-12,-12)" fill="none" stroke="#d64d8a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/></g>
+  <text x="300" y="272" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-weight="600" font-size="28" fill="#ece8f5">Um ano de fogo</text>
+  <text x="300" y="300" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-size="18" fill="#b3a9c9">Conquista desbloqueada</text>
+  <text x="560" y="314" text-anchor="end" font-family="system-ui, -apple-system, Segoe UI, Roboto, sans-serif" font-weight="700" font-size="20" fill="#b3a9c9">Ponto Insi</text>
+</svg>

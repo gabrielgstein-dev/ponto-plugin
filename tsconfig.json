@@ -6,7 +6,7 @@
     "esModuleInterop": true,
     "moduleResolution": "bundler",
     "paths": {
-      "#company/*": ["./lib/infrastructure/meta/*"]
+      "#company/*": ["./lib/infrastructure/insi/*"]
     }
   }
 }
