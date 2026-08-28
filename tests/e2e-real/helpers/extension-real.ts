@@ -143,23 +143,35 @@ export async function ensureLoggedInOnTab(
   targetOrigin: string,
   timeoutMs = 240_000,
 ): Promise<void> {
-  const page = await context.newPage()
-  await page.goto(url, { waitUntil: 'domcontentloaded' })
+  // Reusa uma aba já em senior.com.br se existir; senão abre uma e traz pra
+  // frente (com a extensão, o contexto tem outras janelas — sem bringToFront
+  // o usuário pode logar na janela errada).
+  const pages = context.pages()
+  const page = pages.find(p => p.url().includes('senior.com.br')) ?? await context.newPage()
+  if (!page.url().includes('senior.com.br')) await page.goto(url, { waitUntil: 'domcontentloaded' })
+  await page.bringToFront().catch(() => {})
+
+  const isReady = (u: string) => u.startsWith(targetOrigin) && !/\/login|sign[-_]?in|auth\//i.test(u)
   const start = Date.now()
+  let lastUrls = ''
   while (Date.now() - start < timeoutMs) {
-    const current = page.url()
-    if (
-      current.startsWith(targetOrigin) &&
-      !/\/login|sign[-_]?in|auth\//i.test(current)
-    ) {
-      // Dá um momento pra SPA bootstrap e disparar requests autenticados
-      await page.waitForTimeout(3000)
-      return
+    // Varre TODAS as abas do contexto: o login pode terminar em qualquer uma
+    // (SAML abre/redireciona janelas; o usuário pode ter usado outra).
+    for (const p of context.pages()) {
+      if (isReady(p.url())) {
+        await p.waitForTimeout(3000) // deixa a SPA bootar e disparar requests autenticados
+        return
+      }
+    }
+    const urls = context.pages().map(p => p.url().slice(0, 70)).join(' | ')
+    if (urls !== lastUrls) {
+      lastUrls = urls
+      console.log(`[login +${Math.round((Date.now() - start) / 1000)}s] abas: ${urls}`)
     }
     await page.waitForTimeout(1000)
   }
   throw new Error(
-    `Login não completou em ${timeoutMs}ms. URL atual: ${page.url()}\n` +
+    `Login não completou em ${timeoutMs}ms. Abas: ${context.pages().map(p => p.url()).join(' | ')}\n` +
       `Faça login na janela aberta e re-rode.`,
   )
 }
