@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.15.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.14.0...senior-ponto-v0.15.0) (2026-08-28)
+
+
+### Novidades
+
+* **auth:** aviso único de migração do host GP com permissions.request() ([880abf4](https://github.com/gabrielgstein-dev/ponto-plugin/commit/880abf4314e261cf028fb2c4022fd79ee33f8557))
+* **auth:** captura proativa do token ao carregar aba Senior ([c3dd5ea](https://github.com/gabrielgstein-dev/ponto-plugin/commit/c3dd5eae31b211da1a030dab8d328a9b6760630d))
+* **auth:** detecta redirect do host GP e avisa 'atualize o plugin' em vez de 'reconecte' ([cfdc63e](https://github.com/gabrielgstein-dev/ponto-plugin/commit/cfdc63e8e49346f4a0dc4497c4f6f6abff18913d))
+* **auth:** migração GP/plataforma para insi.com + captura proativa do token Senior ([d2281d9](https://github.com/gabrielgstein-dev/ponto-plugin/commit/d2281d97c3b3bb860db2f67e12940de02691832c))
+* **ponto:** batida automática no Senior + distinção 'sem dado' vs 'sem batida' ([e942602](https://github.com/gabrielgstein-dev/ponto-plugin/commit/e9426026b60e504dc43cc8cc154c0a523f02bd9e))
+* **ponto:** batida automática no Senior com jitter dentro da tolerância ([aeaf7d5](https://github.com/gabrielgstein-dev/ponto-plugin/commit/aeaf7d53b2640a4e4a34d61cc21cac8b3402eb9f))
+* **ponto:** garante aba/token Senior na batida automática + renomeia infra meta→insi ([2512fa9](https://github.com/gabrielgstein-dev/ponto-plugin/commit/2512fa961163921fc1c47f6ddd749dca0393f2a0))
+* **ponto:** indicador visual da batida automática no popup ([99fd375](https://github.com/gabrielgstein-dev/ponto-plugin/commit/99fd375169ac4e336421e30cdb95cd79a8f1b643))
+* **ponto:** silencia o lembrete enquanto a batida automática está armada ([acbd02d](https://github.com/gabrielgstein-dev/ponto-plugin/commit/acbd02d30bfcfc119b53be7a7e2be6f206c67ab7))
+
+
+### Correções
+
+* **auth:** link 'Conecte-se' abre o login Senior com tenant (tela Insi) ([d7767a2](https://github.com/gabrielgstein-dev/ponto-plugin/commit/d7767a27b5b55ccf4e170ba6065060e99ef79b16))
+* **auth:** migra GestãoPonto para gestaoponto.insi.com ([14275db](https://github.com/gabrielgstein-dev/ponto-plugin/commit/14275dbc44b9347f514e0331cf67bd3798ef2603))
+* **detect:** distinguir "zero batidas" de "não consegui consultar" ([40c0fe7](https://github.com/gabrielgstein-dev/ponto-plugin/commit/40c0fe71e34435c976d020d3bbe908402565776c))
+* **logs:** canal protegido para os logs da batida automática ([1dc786b](https://github.com/gabrielgstein-dev/ponto-plugin/commit/1dc786ba702029b38e9714ae9488656a8eee84fc))
+* **ponto:** 2xx sem clockingEventImported não é batida registrada ([715d704](https://github.com/gabrielgstein-dev/ponto-plugin/commit/715d704f165c262a417d8d16103e70fa00c90fba))
+* **ponto:** ausência de dado não pode parecer ausência de batida ([7b23a24](https://github.com/gabrielgstein-dev/ponto-plugin/commit/7b23a24bf7393859c8fe32f702f7f6c866eb0b36))
+* **ponto:** aviso de falha some quando o slot é batido por outro caminho ([2300ae3](https://github.com/gabrielgstein-dev/ponto-plugin/commit/2300ae35a6b126c76986808e928dc7b6424231eb))
+* **ponto:** garantir aba Senior e token antes da batida automática ([60dbdf8](https://github.com/gabrielgstein-dev/ponto-plugin/commit/60dbdf8b177d5d42f701c47c0036a20fcf8754ab))
+* **ponto:** invalida token rejeitado pelo Senior antes da retentativa ([4226627](https://github.com/gabrielgstein-dev/ponto-plugin/commit/4226627c3b87118daf7e6f3b50552a28768c020a))
+* **timesheet:** distingue sessão SSO expirada (RefreshAccessTokenError) ([567a0bd](https://github.com/gabrielgstein-dev/ponto-plugin/commit/567a0bdead52a3285ccd80302190c521ec338a37))
+* **timesheet:** migra plataforma de meta.com.br para insi.com ([3f6e6e2](https://github.com/gabrielgstein-dev/ponto-plugin/commit/3f6e6e2b276a0306d490e327df1fbc99964048d9))
+* **timesheet:** migra plataforma/API Meta para plataforma.insi.com e api.insi.com ([1dd0f3b](https://github.com/gabrielgstein-dev/ponto-plugin/commit/1dd0f3b171b681b93f64c4d2a2a220afa7f6cbe6))
+* **timesheet:** reconecta abrindo o Timesheet em aba visível ([ae6733d](https://github.com/gabrielgstein-dev/ponto-plugin/commit/ae6733d9b86b1c8796c7ca6303f2e8d795fbf29a))
+* **timesheet:** reconexão não trocava pra lista (Bearer + guard de reload) ([58fb7ed](https://github.com/gabrielgstein-dev/ponto-plugin/commit/58fb7ede1300d36d535703fe4cf7b6060c7c2fd3))
+* **timesheet:** refresh silencioso reinjeta cookie de sessão via DNR ([e798cd8](https://github.com/gabrielgstein-dev/ponto-plugin/commit/e798cd8444a840426f4afa1f881d1fd98686c530))
+
+
+### Mudanças Visuais
+
+* **popup:** fixa a largura no elemento raiz, não só no body ([2cc715c](https://github.com/gabrielgstein-dev/ponto-plugin/commit/2cc715cf5c2809b924c118af7c8e14ee6088e78c))
+
 ## [0.14.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.13.0...senior-ponto-v0.14.0) (2026-07-06)
 
 
