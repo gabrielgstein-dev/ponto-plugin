@@ -198,12 +198,29 @@ export async function loginWithEnvCredentials(
     return ensureLoggedInOnTab(context, loginUrl, targetOrigin, timeoutMs)
   }
 
+  const OUT = path.resolve(__dirname, '../../../') + '/test-results-manual'
+  try { fs.mkdirSync(OUT, { recursive: true }) } catch { /* ok */ }
+
   const page = await context.newPage()
   await page.goto(loginUrl, { waitUntil: 'domcontentloaded' })
   const start = Date.now()
   const done = new Set<string>()
   const log = (m: string) => console.log(`[login +${Math.round((Date.now() - start) / 1000)}s] ${m}`)
 
+  // Procura um campo/botão em QUALQUER frame (main + iframes). No perfil zerado
+  // o form Keycloak da Insi carrega num iframe que pode demorar; olhar só o
+  // iframe sso trava. Aqui varremos todos os frames a cada tentativa.
+  async function findVisible(selectors: string[]) {
+    for (const f of page.frames()) {
+      for (const sel of selectors) {
+        const loc = f.locator(sel).first()
+        if (await loc.isVisible({ timeout: 150 }).catch(() => false)) return { frame: f, loc }
+      }
+    }
+    return null
+  }
+
+  let lastShot = 0
   while (Date.now() - start < timeoutMs) {
     const url = page.url()
     if (url.startsWith(targetOrigin) && !/\/login|sign[-_]?in|auth\//i.test(url)) {
@@ -212,45 +229,44 @@ export async function loginWithEnvCredentials(
       return
     }
     try {
-      // 1. Tela Senior-Insi: o form visível (Keycloak) vive num IFRAME de
-      //    sso.senior.com.br — `#username-input-field` + `#nextBtn` "Próximo".
+      // 1. Tela Senior/Insi (Keycloak, em iframe): Usuário -> Próximo/Entrar.
       if (url.includes('platform.senior.com.br/login') && !done.has('senior-user')) {
-        const frame = page.frames().find(f => f.url().includes('sso.senior.com.br')) ?? page.mainFrame()
-        const user = frame.locator('#username-input-field')
-        if (await user.isVisible({ timeout: 500 }).catch(() => false)) {
-          await user.fill(creds.username)
-          await frame.locator('#nextBtn').click()
-          done.add('senior-user'); log('usuário preenchido (Senior/Keycloak iframe)')
+        const hit = await findVisible(['#username-input-field', 'input[name="username"]'])
+        if (hit) {
+          await hit.loc.fill(creds.username)
+          const btn = hit.frame.locator('#nextBtn, #loginbtn, button:has-text("Próximo"), button:has-text("Entrar"), button:has-text("Autenticar"), button[type="submit"]').first()
+          await btn.click()
+          done.add('senior-user'); log('usuário preenchido + Próximo (Senior/Insi)')
         }
       }
-      // 1b. Se o tenant pedir senha local em vez de SAML (não é o caso da Insi,
-      //     mas evita ficar parado): preenche e autentica.
+      // 1b. Senha local no próprio Keycloak (tenant sem SAML). Não é o caso da
+      //     Insi (vai pra Microsoft), mas cobre sem travar.
       if (url.includes('platform.senior.com.br/login') && done.has('senior-user') && !done.has('senior-pass')) {
-        const frame = page.frames().find(f => f.url().includes('sso.senior.com.br')) ?? page.mainFrame()
-        const pass = frame.locator('#password-input-field')
-        const loginBtn = frame.locator('#loginbtn')
-        if (await pass.isVisible({ timeout: 300 }).catch(() => false) && await loginBtn.isVisible({ timeout: 300 }).catch(() => false)) {
-          await pass.fill(creds.password); await loginBtn.click()
-          done.add('senior-pass'); log('senha local preenchida (Senior)')
+        const hit = await findVisible(['#password-input-field', 'input[name="password"][type="password"]'])
+        if (hit) {
+          await hit.loc.fill(creds.password)
+          const btn = hit.frame.locator('#loginbtn, button:has-text("Autenticar"), button:has-text("Entrar"), button[type="submit"]').first()
+          await btn.click()
+          done.add('senior-pass'); log('senha preenchida + Entrar (Senior local)')
         }
       }
-      // 2. Microsoft: e-mail (pode vir pré-preenchido), senha, "Continuar conectado?"
+      // 2. Microsoft: e-mail -> Avançar, senha -> Entrar; MFA fica com o humano.
       if (url.includes('login.microsoftonline.com')) {
         const email = page.locator('input[name="loginfmt"]')
-        if (!done.has('ms-email') && await email.isVisible({ timeout: 500 }).catch(() => false)) {
+        if (!done.has('ms-email') && await email.isVisible({ timeout: 400 }).catch(() => false)) {
           await email.fill(creds.username)
           await page.locator('#idSIButton9, input[type="submit"]').first().click()
-          done.add('ms-email'); log('e-mail preenchido (Microsoft)')
+          done.add('ms-email'); log('e-mail preenchido + Avançar (Microsoft)')
         }
         const pass = page.locator('input[name="passwd"]')
-        if (!done.has('ms-pass') && await pass.isVisible({ timeout: 500 }).catch(() => false)) {
+        if (!done.has('ms-pass') && await pass.isVisible({ timeout: 400 }).catch(() => false)) {
           await pass.fill(creds.password)
           await page.locator('#idSIButton9, input[type="submit"]').first().click()
-          done.add('ms-pass'); log('senha preenchida — aguardando MFA no celular')
+          done.add('ms-pass'); log('senha preenchida + Entrar — agora faça o MFA no celular')
         }
         const mfaNumber = page.locator('#idRichContext_DisplaySign')
         if (!done.has('mfa-shown') && await mfaNumber.isVisible({ timeout: 300 }).catch(() => false)) {
-          log('MFA: número exibido = ' + (await mfaNumber.innerText()).trim())
+          log('MFA: número exibido na tela = ' + (await mfaNumber.innerText()).trim())
           done.add('mfa-shown')
         }
         const kmsi = page.locator('#idSIButton9')
@@ -262,7 +278,16 @@ export async function loginWithEnvCredentials(
     } catch (e) {
       log('passo falhou (segue tentando): ' + (e as Error).message.split('\n')[0])
     }
+    // Screenshot periódico enquanto ainda estamos numa tela de login, pra
+    // diagnosticar travas (reCAPTCHA, tela inesperada) sem adivinhar.
+    if (Date.now() - lastShot > 20_000) {
+      lastShot = Date.now()
+      const shot = `${OUT}/login-${Math.round((Date.now() - start) / 1000)}s.png`
+      await page.screenshot({ path: shot }).catch(() => {})
+      log(`estado: ${url.slice(0, 70)} | frames=${page.frames().length} | shot=${shot.split('/').pop()}`)
+    }
     await page.waitForTimeout(1000)
   }
+  await page.screenshot({ path: `${OUT}/login-timeout.png` }).catch(() => {})
   throw new Error(`Login não completou em ${timeoutMs}ms. URL atual: ${page.url()}`)
 }
