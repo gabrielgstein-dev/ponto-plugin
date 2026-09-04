@@ -25,6 +25,7 @@ vi.mock('../../../lib/application/calc-schedule', () => ({
 
 import { usePunchState } from '../../../lib/presentation/hooks/usePunchState'
 import { state, settings } from '../../../lib/application/state'
+import { mockRuntimeSendMessage } from '../../setup/chrome-mock'
 
 describe('usePunchState', () => {
   beforeEach(() => {
@@ -76,6 +77,64 @@ describe('usePunchState', () => {
     expect(repoSaveStateSpy).toHaveBeenCalledWith(state)
   })
 
+
+  /**
+   * A hora extra do dia só vale se o background rearmar os alarmes: sem o
+   * RESCHEDULE_DAY o `autopunch_saida` continua no horário antigo e a batida
+   * sai na hora errada, com a UI mostrando a nova.
+   */
+  describe('setHoraExtra', () => {
+    it('persiste o valor e avisa o background para rearmar os alarmes', async () => {
+      repoLoadSpy.mockResolvedValue({ state: { entrada: '08:00' }, settings: {} })
+      repoSaveStateSpy.mockResolvedValue(undefined)
+      const { result } = renderHook(() => usePunchState())
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await act(async () => { await result.current.setHoraExtra(60) })
+
+      expect(state.horaExtra).toBe(60)
+      expect(repoSaveStateSpy).toHaveBeenCalledWith(state)
+      expect(mockRuntimeSendMessage).toHaveBeenCalledWith({ type: 'RESCHEDULE_DAY' })
+      expect(result.current.punchState.horaExtra).toBe(60)
+    })
+
+    it('salva ANTES de avisar — o background relê do storage', async () => {
+      repoLoadSpy.mockResolvedValue({ state: {}, settings: {} })
+      const order: string[] = []
+      repoSaveStateSpy.mockImplementation(async () => { order.push('save') })
+      mockRuntimeSendMessage.mockImplementation(async () => { order.push('notify') })
+      const { result } = renderHook(() => usePunchState())
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await act(async () => { await result.current.setHoraExtra(30) })
+
+      expect(order).toEqual(['save', 'notify'])
+    })
+
+    it('prende o valor na faixa permitida', async () => {
+      repoLoadSpy.mockResolvedValue({ state: {}, settings: {} })
+      repoSaveStateSpy.mockResolvedValue(undefined)
+      const { result } = renderHook(() => usePunchState())
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await act(async () => { await result.current.setHoraExtra(9999) })
+
+      expect(state.horaExtra).toBe(120)
+    })
+
+    it('background dormindo não perde o valor já persistido', async () => {
+      repoLoadSpy.mockResolvedValue({ state: {}, settings: {} })
+      repoSaveStateSpy.mockResolvedValue(undefined)
+      mockRuntimeSendMessage.mockRejectedValue(new Error('Receiving end does not exist'))
+      const { result } = renderHook(() => usePunchState())
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      await act(async () => { await result.current.setHoraExtra(45) })
+
+      expect(state.horaExtra).toBe(45)
+      expect(repoSaveStateSpy).toHaveBeenCalled()
+    })
+  })
 
   it('clearState resets state and persists', async () => {
     repoLoadSpy.mockResolvedValue({

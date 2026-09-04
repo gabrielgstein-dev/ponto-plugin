@@ -8,6 +8,7 @@ entrada  : string | null   — HH:mm do primeiro batimento
 almoco   : string | null   — HH:mm do batimento de saída p/ almoço
 volta    : string | null   — HH:mm do batimento de volta do almoço
 saida    : string | null   — HH:mm do batimento de saída final
+horaExtra: number | null   — minutos de hora extra escolhidos para HOJE (pode ser negativo)
 ```
 Campos calculados (prefixo `_`, nunca persistidos como batimento real):
 ```
@@ -103,6 +104,9 @@ Dado `past[]` = batimentos passados ordenados:
 
 ## 4. Cálculo de Horários Estimados (calc-schedule)
 
+> Em todas as fórmulas abaixo, `jornada` significa a **jornada-alvo do dia** =
+> `settings.jornada + horaExtra` (ver 4.5), nunca a jornada contratual pura.
+
 ### 4.1 Apenas entrada registrada
 ```
 _almocoSugerido = settings.almocoHorario
@@ -126,7 +130,43 @@ _saidaEstimada   = volta + horasRestantes + lunchDeficit
 ```
 **Regra do déficit de almoço**: se o almoço foi mais curto que o configurado, o déficit é adicionado à saída (o colaborador deve cumprir o tempo mínimo de almoço).
 
-### 4.4 Cálculo de horas trabalhadas (widget e popup)
+### 4.4 Hora extra do dia (`horaExtra`)
+
+Ajuste **do dia**, em minutos, para quem precisa esticar (ou encurtar) a jornada
+pontualmente — compensar um débito, sair mais cedo, etc.
+
+**É um delta, não um total.** `+60` significa "uma hora a mais que o meu
+contrato", valha ele 6h, 7h ou 8h. Pedir o total obrigaria o usuário a saber a
+própria jornada de cor e mudaria de significado a cada contrato.
+
+```
+jornadaAlvo = max(0, settings.jornada + horaExtra)
+```
+
+| Regra | Valor |
+|-------|-------|
+| Faixa | −120 a +120 min (teto = limite legal de 2h extras/dia, CLT art. 59) |
+| Passo | 15 min |
+| Validade | Só hoje — mora em `pontoState`, que é date-guarded por `pontoDate` e vira `null` no reset da meia-noite |
+| Limpeza | "Limpar registros de hoje" também zera |
+
+**O que a hora extra NÃO toca:** o banco de horas. O previsto na apuração
+continua sendo `settings.jornada`, e é exatamente por isso que um dia de +1h
+fecha com **+1h de saldo**. Se o override mexesse na jornada contratual, o dia
+fecharia com saldo zero — matando a extra que o usuário foi fazer.
+
+**Propagação:** `calcHorarios()` é o único ponto que conhece o override; dele
+descem a saída estimada da UI, o lembrete/popup de saída, o alarme
+`autopunch_saida` e a notificação de timesheet. Mudar o valor dispara
+`RESCHEDULE_DAY` para o background, que limpa e rearma os alarmes da saída na
+hora — sem isso o alarme continuaria no horário antigo até o próximo
+`backgroundDetect` (10 min, e ainda barrado pelo guard `_lastHash`).
+
+**Interação com o jitter da batida automática:** o jitter desloca o total
+trabalhado em `[−9, 0]` minutos de propósito (ver `domain/auto-punch-jitter.ts`).
+Num dia de +1h isso entrega ~8h51–9h00 de trabalho, não 9h cravado.
+
+### 4.5 Cálculo de horas trabalhadas (widget e popup)
 ```
 worked = (saida ?? now) - entrada
 Se almoco E volta: worked -= (volta - almoco)

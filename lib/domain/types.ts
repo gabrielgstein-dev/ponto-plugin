@@ -3,6 +3,13 @@ export interface PunchState {
   almoco: string | null;
   volta: string | null;
   saida: string | null;
+  /**
+   * Hora extra escolhida para HOJE, em minutos (pode ser negativa). Mora aqui,
+   * e não em `Settings`, porque é decisão de um dia só: `pontoState` já é
+   * date-guarded por `pontoDate` e vira null no reset da meia-noite, então o
+   * override expira sozinho. Ver domain/hora-extra.ts.
+   */
+  horaExtra?: number | null;
   _almocoSugerido?: string | null;
   _voltaSugerida?: string | null;
   _saidaEstimada?: string | null;
@@ -97,6 +104,7 @@ export const DEFAULT_STATE: PunchState = {
   almoco: null,
   volta: null,
   saida: null,
+  horaExtra: 0,
 };
 
 export const DEFAULT_SETTINGS: Settings = {

@@ -9,6 +9,7 @@ import { recheckReminder, resolveReminder, dismissSlotForToday, markSlotPunched,
 import type { PunchReminderSlot } from '../lib/domain/types';
 import { backgroundDetect, resetBackgroundHash, notifyPendingTimesheet, backgroundTimesheetSync, resetTsNotifDebounce } from '../lib/application/background-detect';
 import { handleTsAlarm } from '../lib/application/schedule-ts-notifications';
+import { rescheduleDay } from '../lib/application/reschedule-day';
 import { addPendingPunch, loadPendingPunches } from '../lib/application/detect-punches';
 import { resetGpPunchCache, getTimesheetProvider } from '#company/providers';
 import { resetSeniorApiCache } from '../lib/infrastructure/senior/senior-api-provider';
@@ -339,6 +340,16 @@ export default defineBackground(() => {
       const slot = message.slot as PunchReminderSlot;
       if (!slot) { sendResponse({ ok: false, error: 'slot obrigatório' }); return true; }
       dismissSlotForToday(slot).then(() => sendResponse({ ok: true })).catch(() => sendResponse({ ok: false }));
+      return true;
+    }
+    if (message.type === 'RESCHEDULE_DAY') {
+      // A UI mudou a hora extra do dia. Recalcula a saída e rearma os alarmes
+      // AGORA — o `autopunch_saida` já está armado pro horário antigo e o
+      // backgroundDetect só passaria daqui a 10min (e nem reagendaria, porque
+      // o guard `_lastHash` corta quando os batimentos não mudaram).
+      rescheduleDay()
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
       return true;
     }
     if (message.type === 'FORCE_REDETECT') {

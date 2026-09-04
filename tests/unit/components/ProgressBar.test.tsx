@@ -30,4 +30,15 @@ describe('ProgressBar', () => {
     render(<ProgressBar workedMinutes={1000} totalMinutes={480} />)
     expect(screen.getByText('100%')).toBeInTheDocument()
   })
+
+  // A meta deixou de ser fixa: vale jornada do contrato + hora extra do dia.
+  it('mostra os minutos quebrados da meta (8h15, não 8h)', () => {
+    render(<ProgressBar workedMinutes={120} totalMinutes={495} />)
+    expect(screen.getByText('2h00 / 8h15')).toBeInTheDocument()
+  })
+
+  it('meta zerada não pinta NaN%', () => {
+    render(<ProgressBar workedMinutes={0} totalMinutes={0} />)
+    expect(screen.getByText('0%')).toBeInTheDocument()
+  })
 })
