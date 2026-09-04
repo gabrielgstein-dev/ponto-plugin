@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { timeToMinutes, getNowMinutes } from '../domain/time-utils';
+import { jornadaAlvo } from '../domain/hora-extra';
 import { PUNCH_SLOTS } from '../domain/types';
 import type { PunchState } from '../domain/types';
 import { useClock } from './hooks/useClock';
@@ -31,6 +32,7 @@ import { useGpUnreachable } from './hooks/useGpUnreachable';
 import { useFeatureFlags } from './hooks/useFeatureFlags';
 import { useAutoPunchStatus } from './hooks/useAutoPunchStatus';
 import { AutoPunchBanner } from './components/AutoPunchBanner';
+import { HoraExtraRow } from './components/HoraExtraRow';
 import { DetectionBlindBanner } from './components/DetectionBlindBanner';
 import { OnboardingOverlay } from './components/OnboardingOverlay';
 import { ManualHourBankProvider } from '../infrastructure/manual/manual-hour-bank-provider';
@@ -41,7 +43,7 @@ const ICONS: Record<string, string> = { entrada: '🌅', almoco: '🍽️', volt
 
 export function App() {
   const { time, date } = useClock();
-  const { punchState, settings, loading, refresh, stateRepo } = usePunchState();
+  const { punchState, settings, loading, refresh, stateRepo, setHoraExtra } = usePunchState();
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => setToast(msg), []);
@@ -70,6 +72,10 @@ export function App() {
   const status = loading ? '' : getStatusText(punchState, detecting);
   const entMin = timeToMinutes(punchState.entrada);
   const shouldShowOvertime = !punchState.saida && entMin != null && nowMin >= entMin;
+  // A barra mede o alvo de HOJE (contrato + extra), então 100% coincide com a
+  // hora de ir embora. O saldo do banco de horas continua apurado contra o
+  // contrato — é lá que a extra aparece como crédito.
+  const metaDoDia = jornadaAlvo(settings.jornada, punchState.horaExtra);
 
   if (loading) return <div className="loading-screen">Carregando...</div>;
 
@@ -98,7 +104,12 @@ export function App() {
       </div>
       <DetectionBlindBanner blind={blind} loginUrl={COMPANY_LOGIN_URL} companyLabel={COMPANY_NAME} />
       <AutoPunchBanner view={autoPunch} enabled={anyAutoSlot} />
-      <ProgressBar workedMinutes={workedMin} totalMinutes={settings.jornada} showOvertime={shouldShowOvertime} />
+      <ProgressBar workedMinutes={workedMin} totalMinutes={metaDoDia} showOvertime={shouldShowOvertime} />
+      <HoraExtraRow
+        minutes={punchState.horaExtra}
+        onChange={setHoraExtra}
+        estimatedExit={punchState._saidaEstimada ?? null}
+      />
       {ENABLE_YESTERDAY && yesterdayTimes.length > 0 && (
         <div className="yesterday-banner">
           <span className="yesterday-label">Ontem</span>
