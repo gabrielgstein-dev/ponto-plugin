@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.15.1...senior-ponto-v0.16.0) (2026-09-04)
+
+
+### Novidades
+
+* **ponto:** hora extra do dia ajusta a saída e a batida automática ([dd574b4](https://github.com/gabrielgstein-dev/ponto-plugin/commit/dd574b4325e1880530ca662864d49f84cda5a93a))
+* **ponto:** hora extra do dia ajusta a saída e a batida automática ([0137cce](https://github.com/gabrielgstein-dev/ponto-plugin/commit/0137cce811cd06e2a1be8ad3b9e94993ac558682))
+
 ## [0.15.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.15.0...senior-ponto-v0.15.1) (2026-09-04)
 
 
