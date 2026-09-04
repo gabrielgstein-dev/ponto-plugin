@@ -26,9 +26,17 @@ export async function launchExtension(profileDir = ''): Promise<ExtensionFixture
     )
   }
 
+  // Headless é OPT-IN via `HEADLESS=1 pnpm test:e2e`. O modo headless novo do
+  // Chromium carrega extensões MV3 normalmente, mas renderiza com diferenças
+  // sutis de antialiasing — os snapshots visuais desta suíte foram gravados em
+  // modo headed, então o default continua headed para não invalidá-los.
   const context = await chromium.launchPersistentContext(profileDir, {
     headless: false,
     args: [
+      // `--headless=new` em vez de `headless: true`: o modo headless legado do
+      // Chromium não sobe service workers de extensão (o SW nunca registra e o
+      // launchExtension estoura em 15s).
+      ...(process.env.HEADLESS === '1' ? ['--headless=new'] : []),
       `--disable-extensions-except=${EXTENSION_PATH}`,
       `--load-extension=${EXTENSION_PATH}`,
       '--no-sandbox',
