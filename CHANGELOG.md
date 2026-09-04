@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.1](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.15.0...senior-ponto-v0.15.1) (2026-09-04)
+
+
+### Correções
+
+* **ponto:** religa a batida automática perdida no merge do PR [#53](https://github.com/gabrielgstein-dev/ponto-plugin/issues/53) ([998091f](https://github.com/gabrielgstein-dev/ponto-plugin/commit/998091f430f0b33d227e6ee63b1aa221a1d8b9a2))
+* **ponto:** religa a batida automática perdida no merge do PR [#53](https://github.com/gabrielgstein-dev/ponto-plugin/issues/53) ([f39fb0e](https://github.com/gabrielgstein-dev/ponto-plugin/commit/f39fb0e2e5ea28b8057e40c7e01ff0fcaa55885d))
+
 ## [0.15.0](https://github.com/gabrielgstein-dev/ponto-plugin/compare/senior-ponto-v0.14.0...senior-ponto-v0.15.0) (2026-08-28)
 
 
