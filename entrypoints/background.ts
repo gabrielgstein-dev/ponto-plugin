@@ -530,6 +530,10 @@ export default defineBackground(() => {
       return;
     }
     if (alarm.name === 'punch_recheck') { recheckReminder().catch(() => {}); return; }
+    if (alarm.name.startsWith('autopunch_')) {
+      handleAutoPunchAlarm(alarm.name, alarm.scheduledTime).catch(() => {});
+      return;
+    }
     if (alarm.name.startsWith('punch_popup_')) {
       maybeInterceptSaidaForInsiX(alarm.name, alarm.scheduledTime).catch(() => {});
       return;
