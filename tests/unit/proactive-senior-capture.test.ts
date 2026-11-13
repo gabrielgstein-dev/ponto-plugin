@@ -54,6 +54,18 @@ describe('proactiveSeniorCapture', () => {
     expect(mockStorageSet).not.toHaveBeenCalled()
   })
 
+  it('não reintroduz token que a plataforma já rejeitou (aba ainda com sessão morta)', async () => {
+    mockStorageGet.mockImplementation(async (keys: string[]) =>
+      keys.includes('seniorRejectedTokens')
+        ? { seniorRejectedTokens: [{ token: 'dead-token-from-tab', ts: Date.now() }] }
+        : {},
+    )
+    mockGetAccessToken.mockResolvedValue('dead-token-from-tab')
+
+    expect(await proactiveSeniorCapture()).toBe(false)
+    expect(mockStorageSet).not.toHaveBeenCalled()
+  })
+
   it('throttle: segunda chamada imediata é ignorada', async () => {
     mockGetAccessToken.mockResolvedValue('t')
     await proactiveSeniorCapture()
