@@ -2,6 +2,7 @@ import type { IAuthProvider } from '../../domain/interfaces';
 import { findSeniorTab } from './tab-utils';
 import { logError } from '../../domain/error-logger';
 import { executeScriptWithTimeout } from '../../domain/script-utils';
+import { isSeniorTokenRejected } from './senior-token-denylist';
 
 export class SeniorPageAuth implements IAuthProvider {
   readonly name = 'pageContext';
@@ -37,7 +38,13 @@ export class SeniorPageAuth implements IAuthProvider {
         },
       });
 
-      return this.extractToken(results?.[0]?.result);
+      // A aba pode guardar um token que a plataforma já recusou (sessão
+      // revogada, SPA ainda não relogou): pula para o próximo candidato.
+      // Ver senior-token-denylist.ts.
+      for (const token of this.extractTokens(results?.[0]?.result)) {
+        if (!(await isSeniorTokenRejected(token))) return token;
+      }
+      return null;
     } catch (e) {
       logError(e, {
         category: 'auth',
@@ -52,8 +59,11 @@ export class SeniorPageAuth implements IAuthProvider {
     return null;
   }
 
-  private extractToken(data: Record<string, string> | undefined): string | null {
-    if (!data) return null;
+  /** Candidatos em ordem de preferência (HCM primeiro), sem duplicatas. */
+  private extractTokens(data: Record<string, string> | undefined): string[] {
+    if (!data) return [];
+    const found: string[] = [];
+    const add = (t: string) => { if (!found.includes(t)) found.push(t); };
     const todayIso = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Senior X arquiva tokens por aplicação no sessionStorage com chaves
@@ -80,15 +90,16 @@ export class SeniorPageAuth implements IAuthProvider {
           if (typeof expires === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(expires) && expires < todayIso) {
             continue;
           }
-          return tokenFromPayload;
+          add(tokenFromPayload);
+          continue;
         }
         // Formato OAuth padrão (mantido por compatibilidade)
-        if (obj?.access_token) return obj.access_token;
+        if (obj?.access_token) { add(obj.access_token); continue; }
       } catch (_) {}
       // Fallback: JWT cru no valor (não é o caso do Senior X opaque, mas
       // alguns SPAs salvam JWT direto como string)
-      if (/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(val)) return val;
+      if (/^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(val)) add(val);
     }
-    return null;
+    return found;
   }
 }

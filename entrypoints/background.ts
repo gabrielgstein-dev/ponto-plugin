@@ -25,6 +25,7 @@ import { META_TIMESHEET_CONFIG } from '../lib/infrastructure/insi/timesheet/cons
 import { getCurrentTimesheetPeriod } from '../lib/domain/timesheet-period';
 import { isValidJWT, decodeJwtPayload, formatJwtExp } from '../lib/domain/jwt-utils';
 import { dumpSeniorTabStorage } from '../lib/infrastructure/senior/senior-storage-dump';
+import { shouldCaptureSeniorBearer } from '../lib/infrastructure/senior/senior-token-denylist';
 import { initializeStorageIfNeeded, migrateInsiXStorageKeys } from '../lib/application/install-init';
 import {
   openInsiXPopup,
@@ -75,26 +76,31 @@ export default defineBackground(() => {
         if (authHeader?.value && /^[Bb]earer\s/.test(authHeader.value)) {
           const token = authHeader.value.split(/\s+/)[1];
           if (token && token.length > 20) {
-            chrome.storage.local.set({ seniorToken: token, seniorTokenTs: Date.now() });
-            // DIAG: registra de onde veio cada token capturado. Hipótese investigativa:
-            // o webRequest pode estar pegando Bearer de OUTROS apps dentro do
-            // Senior X (Favoritos, frames de outros módulos), e cada app tem
-            // escopo de token diferente — explicaria por que tokens "frescos"
-            // levam 401 no GP/pontomobile.
-            // Extrai scope do path da bridge: `.../bridge/1.0/rest/<dom>/<svc>/...`
-            // Senior X usa tokens com escopo diferente por app — saber qual
-            // escopo foi capturado ajuda a entender por que `auth/g7` aceita
-            // ou rejeita um token específico.
-            const scopeMatch = details.url.match(/\/bridge\/[^/]+\/rest\/([^/]+(?:\/[^/?]+)?)/);
-            const scope = scopeMatch?.[1] ?? '(non-bridge)';
-            debugLog('[diag] Senior Bearer captured', JSON.stringify({
-              scope,
-              url: details.url,
-              tokenPrefix: token.substring(0, 8),
-              tokenLength: token.length,
-              method: details.method,
-              tabId: details.tabId,
-            }));
+            // Ignora requisições da própria extensão e tokens já rejeitados
+            // pela plataforma — ver senior-token-denylist.ts.
+            shouldCaptureSeniorBearer(token, details.initiator).then(accept => {
+              if (!accept) return;
+              chrome.storage.local.set({ seniorToken: token, seniorTokenTs: Date.now() });
+              // DIAG: registra de onde veio cada token capturado. Hipótese investigativa:
+              // o webRequest pode estar pegando Bearer de OUTROS apps dentro do
+              // Senior X (Favoritos, frames de outros módulos), e cada app tem
+              // escopo de token diferente — explicaria por que tokens "frescos"
+              // levam 401 no GP/pontomobile.
+              // Extrai scope do path da bridge: `.../bridge/1.0/rest/<dom>/<svc>/...`
+              // Senior X usa tokens com escopo diferente por app — saber qual
+              // escopo foi capturado ajuda a entender por que `auth/g7` aceita
+              // ou rejeita um token específico.
+              const scopeMatch = details.url.match(/\/bridge\/[^/]+\/rest\/([^/]+(?:\/[^/?]+)?)/);
+              const scope = scopeMatch?.[1] ?? '(non-bridge)';
+              debugLog('[diag] Senior Bearer captured', JSON.stringify({
+                scope,
+                url: details.url,
+                tokenPrefix: token.substring(0, 8),
+                tokenLength: token.length,
+                method: details.method,
+                tabId: details.tabId,
+              }));
+            }).catch(() => {});
           }
         }
       },

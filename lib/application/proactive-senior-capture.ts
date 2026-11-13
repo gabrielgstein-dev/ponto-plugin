@@ -1,6 +1,7 @@
 import { SeniorPageAuth } from '../infrastructure/senior/senior-page-auth';
 import { SENIOR_TOKEN_MAX_AGE_MS } from '../infrastructure/senior/constants';
 import { debugLog } from '../domain/debug';
+import { isSeniorTokenRejected } from '../infrastructure/senior/senior-token-denylist';
 
 /**
  * Captura PROATIVA do token Senior.
@@ -40,6 +41,12 @@ export async function proactiveSeniorCapture(): Promise<boolean> {
   const token = await new SeniorPageAuth().getAccessToken();
   if (!token) {
     debugLog('proactiveSeniorCapture: aba Senior sem token disponível ainda');
+    return false;
+  }
+  // A aba pode estar com um token que a plataforma já recusou (sessão
+  // revogada e SPA ainda não relogou) — não reintroduzir. Ver senior-token-denylist.ts.
+  if (await isSeniorTokenRejected(token)) {
+    debugLog('proactiveSeniorCapture: token da aba já foi rejeitado pela plataforma — ignorado');
     return false;
   }
 
