@@ -1,4 +1,5 @@
 import { debugLog } from '../lib/domain/debug';
+import { isSeniorTokenRejected } from '../lib/infrastructure/senior/senior-token-denylist';
 
 function isContextValid(): boolean {
   try { return !!chrome.runtime && !!chrome.runtime.id; } catch (_) { return false; }
@@ -76,7 +77,11 @@ function capturePageTokens() {
     try {
       const token = typeof e.detail === 'string' ? e.detail : e.detail?.token;
       if (token && token.length > 20) {
-        chrome.storage.local.set({ seniorBearerToken: token, seniorBearerTs: Date.now() });
+        // Não regrava token que a plataforma já recusou — ver senior-token-denylist.ts.
+        isSeniorTokenRejected(token).then(rejected => {
+          if (rejected || !isContextValid()) return;
+          chrome.storage.local.set({ seniorBearerToken: token, seniorBearerTs: Date.now() });
+        }).catch(() => {});
       }
     } catch (_) {}
   }) as EventListener);

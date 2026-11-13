@@ -2,6 +2,7 @@ import type { IPunchProvider, PunchProbe } from '../../domain/interfaces';
 import { SENIOR_TOKEN_MAX_AGE_MS } from './constants';
 import { debugLog, debugWarn } from '../../domain/debug';
 import { logError } from '../../domain/error-logger';
+import { markSeniorTokenRejected } from './senior-token-denylist';
 
 /**
  * Detecta batimentos via `clockingEventByActiveUserQuery` do service
@@ -87,6 +88,10 @@ export class SeniorActiveUserPunchProvider implements IPunchProvider {
         if (r.status === 401 || r.status === 403) {
           // Token expirou/sem scope — cooldown pra não martelar
           _lastFailTs = Date.now();
+        }
+        if (r.status === 401) {
+          // 401 do bridge = token morto (403 seria escopo). Ver senior-token-denylist.ts.
+          await markSeniorTokenRejected(token, 'clockingEventByActiveUserQuery 401');
         }
         return { times: _cachedTimes ?? [], outcome: 'unavailable' };
       }

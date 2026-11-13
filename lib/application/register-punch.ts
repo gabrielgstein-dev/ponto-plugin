@@ -1,6 +1,7 @@
 import type { IAuthProvider, IPunchRegistrar } from '../domain/interfaces';
 import type { PunchResult } from '../domain/types';
 import { debugLog, debugWarn } from '../domain/debug';
+import { isSeniorTokenRejected, markSeniorTokenRejected } from '../infrastructure/senior/senior-token-denylist';
 
 /**
  * Percorre a cadeia de auth e devolve o primeiro token disponível.
@@ -16,6 +17,12 @@ export async function resolveAccessToken(
     try {
       const token = await provider.getAccessToken();
       if (token) {
+        // Token que a plataforma já rejeitou (ver senior-token-denylist.ts):
+        // pula para o próximo provider em vez de bater com ele de novo.
+        if (await isSeniorTokenRejected(token)) {
+          debugLog(`Token via ${provider.name} ignorado — já rejeitado pela plataforma`);
+          continue;
+        }
         debugLog(`Token via ${provider.name}`);
         return token;
       }
@@ -36,5 +43,11 @@ export async function registerPunch(
     return { success: false, logs: ['Nenhum token encontrado'] };
   }
 
-  return registrar.registerPunch(accessToken);
+  const result = await registrar.registerPunch(accessToken);
+  // "Config falhou: 401" = o bridge recusou o token (o registrar loga assim
+  // em senior-registrar.ts). 403 não entra: é escopo, não token morto.
+  if (!result.success && result.logs.some(l => /Config falhou: 401\b/.test(l))) {
+    await markSeniorTokenRejected(accessToken, 'getEmployeeClockingConfigQuery 401');
+  }
+  return result;
 }
